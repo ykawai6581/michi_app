@@ -1,0 +1,12 @@
+datasets:
+  - id: michi-v0.1-sample
+    name: Michi Map v0.1 hand-drawn demonstration data
+    provider: Michi Map project
+    version: 0.1.0
+    retrieval_date: 2026-08-26
+    source_page: null
+    license: CC0-1.0
+    required_attribution: None
+    derived_files:
+      - src/data/sample.ts
+    warning: Demonstration geometry only; not historical evidence.

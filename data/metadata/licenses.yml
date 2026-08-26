@@ -1,0 +1,8 @@
+licenses:
+  - id: CC0-1.0
+    name: Creative Commons CC0 1.0 Universal
+    url: https://creativecommons.org/publicdomain/zero/1.0/
+    attribution: Not required
+future_sources:
+  - name: CODH Edo datasets
+    rule: Record the exact dataset version, retrieval date, source URL, CC BY 4.0 attribution, and derived files before bundling.
