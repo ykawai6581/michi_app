@@ -184,6 +184,8 @@ function linesForStroke(stroke: number[], result: CoinsResult): Position[][] {
 
 export function buildLogicalRoadEntities(features: EntityFeature[], names: string[], supplied: Partial<CoinsOptions> = {}): EntityFeature[] {
   const result = generateCoinsStrokes(features, supplied)
+  const targetNames = new Set(names.map(normalize))
+  const networkCoverage = result.segments.some((segment) => !targetNames.has(normalize(segment.name))) ? 'corridor' : 'seed_only'
   return names.flatMap((name) => {
     const exactSeeds = new Set(result.segments.filter((segment) => normalize(segment.name) === normalize(name)).map((segment) => segment.index))
     if (!exactSeeds.size) return []
@@ -194,6 +196,9 @@ export function buildLogicalRoadEntities(features: EntityFeature[], names: strin
     const sourceFeatures = features.filter((feature) => seedSourceIds.includes(feature.properties.id) && feature.geometry.type === 'LineString')
     const segmentProvenance: RoadSegmentProvenance[] = included.map((index) => ({ segmentId: result.segments[index].id, sourceId: result.segments[index].sourceId, osmId: result.segments[index].osmId, method: exactSeeds.has(index) ? 'direct_source' : 'stroke_continuation', confidence: 1, inferred: !exactSeeds.has(index) }))
     const geometry: MultiLineString = { type: 'MultiLineString', coordinates: selectedStrokes.flatMap(({ stroke }) => linesForStroke(stroke, result)) }
-    return [{ type: 'Feature', properties: { id: `logical-road-${normalize(name)}`, name, aliases: [], type: 'road', method: 'stroke_continuation', confidence: 1, directlySourced: included.every((segment) => exactSeeds.has(segment)), sourceSegmentIds: sourceIds, osmIds: [...new Set(included.map((index) => result.segments[index].osmId).filter((id): id is number => id !== undefined))], segmentProvenance, strokeCount: selectedStrokes.length, coinsDebug: result.debug.filter(({ strokeId }) => selectedStrokes.some((selected) => selected.strokeId === strokeId)), sourceGeometry: { type: 'MultiLineString', coordinates: sourceFeatures.map((feature) => feature.geometry.type === 'LineString' ? feature.geometry.coordinates : []) }, illustrationWidthScale: 1.4 }, geometry } as EntityFeature]
+    const coinsDebug = result.debug.filter(({ strokeId }) => selectedStrokes.some((selected) => selected.strokeId === strokeId))
+    const rejected = coinsDebug.flatMap((debug) => [debug.endpoint1.rejectedReason, debug.endpoint2.rejectedReason])
+    const coinsDiagnostics = { networkCoverage, topologyBreaks: rejected.filter((reason) => reason === 'topology_break').length, notMutualBest: rejected.filter((reason) => reason === 'not_mutual_best').length, belowAngleThreshold: rejected.filter((reason) => reason === 'below_angle_threshold').length, ambiguous: rejected.filter((reason) => reason === 'ambiguous').length }
+    return [{ type: 'Feature', properties: { id: `logical-road-${normalize(name)}`, name, aliases: [], type: 'road', method: 'stroke_continuation', confidence: 1, directlySourced: included.every((segment) => exactSeeds.has(segment)), sourceSegmentIds: sourceIds, osmIds: [...new Set(included.map((index) => result.segments[index].osmId).filter((id): id is number => id !== undefined))], segmentProvenance, strokeCount: selectedStrokes.length, coinsDebug, coinsDiagnostics, sourceGeometry: { type: 'MultiLineString', coordinates: sourceFeatures.map((feature) => feature.geometry.type === 'LineString' ? feature.geometry.coordinates : []) }, illustrationWidthScale: 1.4 }, geometry } as EntityFeature]
   })
 }

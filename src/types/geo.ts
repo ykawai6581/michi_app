@@ -14,6 +14,14 @@ export interface RoadSegmentProvenance {
   inferred: boolean
 }
 
+export interface CoinsDiagnostics {
+  networkCoverage: 'seed_only' | 'corridor'
+  topologyBreaks: number
+  notMutualBest: number
+  belowAngleThreshold: number
+  ambiguous: number
+}
+
 export interface EntityProperties {
   id: string
   name: string
@@ -36,6 +44,7 @@ export interface EntityProperties {
   segmentProvenance?: RoadSegmentProvenance[]
   strokeCount?: number
   coinsDebug?: unknown[]
+  coinsDiagnostics?: CoinsDiagnostics
   osm_id?: number
   ref?: string
   highway?: string

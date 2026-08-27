@@ -54,6 +54,7 @@ describe('COINS every-best-fit strokes', () => {
     const logical = buildLogicalRoadEntities(features, ['甲州街道'])[0]
     expect(logical.properties.sourceSegmentIds).toEqual(['1', '2', '3', '4'])
     expect(logical.properties.segmentProvenance?.filter(({ inferred }) => inferred)).toHaveLength(2)
+    expect(logical.properties.coinsDiagnostics?.networkCoverage).toBe('corridor')
   })
 
   it('uses thematic attributes only to break an exact geometric tie', () => {
@@ -75,6 +76,7 @@ describe('current Shinjuku road network', () => {
     expect(logical.every(({ properties }) => properties.aliases?.length === 0)).toBe(true)
     expect(logical.every(({ properties }) => (properties.sourceSegmentIds?.length ?? 0) > 0)).toBe(true)
     expect(logical.every(({ properties }) => (properties.coinsDebug?.length ?? 0) > 0)).toBe(true)
+    expect(logical.every(({ properties }) => properties.coinsDiagnostics !== undefined)).toBe(true)
     logical.forEach((feature) => {
       const exactSourceCount = roads.filter(({ properties }) => properties.name === feature.properties.name).length
       expect(feature.properties.sourceSegmentIds?.length).toBeGreaterThan(exactSourceCount)
