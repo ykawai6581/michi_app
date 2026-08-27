@@ -4,15 +4,25 @@ YouTube で道・地名・都市の歴史を説明するための、**検索可�
 
 ## v0.1 でできること
 
-- 東京・新宿を中心にした MapLibre GL JS の白地図をズーム／移動
+- 東京・新宿を中心にした MapLibre GL JS のベクター地図をズーム／移動
+- OpenFreeMap / OpenStreetMap の軽量な Presentation vector styleをdefault表示
+- 国土地理院の標準地図タイルを、出典表示付きのオンライン現代ベースマップとして表示
+- Presentation / Dark / 地理院地図 / 白背景 / 透明背景を即時切替
 - 現代道路、歴史街道、宿場・地名、町丁目の小さなデモデータを個別に表示
 - 名称・alias（全角／半角、空白、一丁目／1丁目を正規化）で検索し、線・点・面を適切に強調
 - 強調色、線幅、透明度を即時調整
+- road・polygonを左から徐々に描くhighlight animationと、ON/OFF可能なglow
+- 面（最下層）→ road → location（最上層）の順で複数地物を同時選択し、checkboxで個別解除
+- 選択したregion・road・locationの名称を、highlightと同色で地図上へ直接annotation
+- default colorはroad RGB(239,98,98)、location RGB(100,194,242)、region RGB(50,100,170)で個別変更可能
+- roadの端点はround、annotationは14px / 28pxを切替（default 28px）
 - カメラ位置をブラウザの `localStorage` に保存し復元
 - 現在の WebGL canvas を通常解像度 PNG としてダウンロード
 - 静的ファイルだけで動作し、有料 API やバックエンドは不要
 
 > **注意:** 同梱の形状は UI 動作確認のために手描きしたデモです。史実の判断・動画の根拠には使用しないでください。出典、確認日、confidence、注意書きを feature 単位で保持しています。
+
+defaultのPresentation mapはOpenFreeMapのオンラインvector styleとOpenStreetMap由来データを利用します。詳細確認用の標準地図は国土地理院のオンラインtileです。どちらも初回表示にはインターネット接続が必要です。歴史街道、宿場、町丁目のoverlayは引き続き手描きsampleであり、実データと明確に区別しています。
 
 ## ローカルセットアップ
 
@@ -30,6 +40,20 @@ npm run lint
 npm test
 npm run build
 ```
+
+### Real modern overlay data
+
+The Presentation basemap already uses real OpenStreetMap-derived vector tiles. To generate a small, reproducible Shinjuku-area overlay and search-index input for current Kōshū Kaidō roads and stations, run:
+
+```bash
+npm run data:osm:shinjuku
+```
+
+This writes `public/data/modern/shinjuku-osm.geojson` and `public/search/modern-shinjuku.json`. Every generated feature retains its OSM object URL, retrieval date, ODbL license, and an explicit warning that current OSM geometry is not evidence for a historical alignment. The official CODH road/post-town files must be verified and ingested separately rather than inferred from these modern roads.
+
+To build the files without a local GIS environment, open **Actions → Rebuild Shinjuku OSM data → Run workflow**. The manual workflow validates the result, uploads a 14-day review artifact, and commits changed generated files to the repository's default branch. That commit triggers the normal Pages deployment. The data workflow only needs to be rerun when refreshing or changing source data—not for CSS, layout, colors, or other cosmetic application changes. The repository must allow GitHub Actions **Read and write permissions** under **Settings → Actions → General → Workflow permissions**.
+
+The downloader uses an identified HTTP GET request and tries three public Overpass instances sequentially. Transient 5xx/rate-limit failures are retried for up to three rounds with increasing delays. To force one instance, set `OVERPASS_URL`; to supply an ordered comma-separated list, set `OVERPASS_URLS`. For example: `OVERPASS_URL=https://overpass.kumi.systems/api/interpreter npm run data:osm:shinjuku`. Failed responses include the attempt number and a short response excerpt in the Actions log.
 
 `dist/` は相対パスで生成されるため、GitHub Pages の repository site に配置できます。
 
@@ -73,7 +97,7 @@ Repository の **Settings → Pages → Source** を **GitHub Actions** に設�
 ## 現在の制約と次の段階
 
 - 地図形状は少数の手描き sample で、CODH／OSM／e-Stat の実データではありません。
-- 白地図は意図的に背景と sample 地物だけです。オンライン basemap に依存しない一方、建物や一般道路は未収録です。
+- 現代vector basemapはOpenFreeMap、詳細referenceは国土地理院のonline serviceです。offline時は白背景・透明背景と同梱sampleだけが利用できます。
 - PNG は現在の画面サイズ／device pixel ratio です。1920×1080、4K、透明背景の固定 preset は未実装です。
 - 保存画角は端末内だけに保存され、project JSON の UI import/export は未実装です。
 - 地物編集、terrain、江戸水域、PMTiles protocol、scene animation は v0.2 以降です。

@@ -1,0 +1,1633 @@
+[
+  {
+    "id": "osm-node-1926277346",
+    "name": "新宿",
+    "aliases": [
+      "M08"
+    ],
+    "type": "station",
+    "center": [
+      139.7006009,
+      35.6922273
+    ]
+  },
+  {
+    "id": "osm-node-2389061844",
+    "name": "新宿",
+    "aliases": [
+      "SJK"
+    ],
+    "type": "station",
+    "center": [
+      139.7005142,
+      35.6902618
+    ]
+  },
+  {
+    "id": "osm-node-2389061846",
+    "name": "新宿",
+    "aliases": [
+      "OH01"
+    ],
+    "type": "station",
+    "center": [
+      139.6996243,
+      35.6902156
+    ]
+  },
+  {
+    "id": "osm-node-2389826024",
+    "name": "新宿",
+    "aliases": [],
+    "type": "station",
+    "center": [
+      139.6990749,
+      35.6883635
+    ]
+  },
+  {
+    "id": "osm-node-2822191201",
+    "name": "四ツ谷",
+    "aliases": [
+      "M12"
+    ],
+    "type": "station",
+    "center": [
+      139.7299237,
+      35.6849915
+    ]
+  },
+  {
+    "id": "osm-node-4406983223",
+    "name": "四ツ谷",
+    "aliases": [],
+    "type": "station",
+    "center": [
+      139.7306162,
+      35.6860348
+    ]
+  },
+  {
+    "id": "osm-node-5392079473",
+    "name": "四ツ谷",
+    "aliases": [],
+    "type": "station",
+    "center": [
+      139.7295015,
+      35.6855979
+    ]
+  },
+  {
+    "id": "osm-node-6283384525",
+    "name": "新宿",
+    "aliases": [
+      "KO01"
+    ],
+    "type": "station",
+    "center": [
+      139.6991102,
+      35.6905828
+    ]
+  },
+  {
+    "id": "osm-node-7892696573",
+    "name": "高井戸",
+    "aliases": [
+      "IN12"
+    ],
+    "type": "station",
+    "center": [
+      139.6149498,
+      35.683248
+    ]
+  },
+  {
+    "id": "osm-way-19020758",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-23044319",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-24040095",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-24053389",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-25603812",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-26957827",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-26958231",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-26960357",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-26960595",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28210949",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28210951",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28210952",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28210954",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28210955",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28211327",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28212983",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28212985",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28212987",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28916832",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28916834",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-28916835",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-39436502",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-39436612",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-45365730",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-45365731",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-45365732",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-45365733",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-59339114",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-59339165",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-136508008",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-155235356",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-155235380",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-169380931",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-169674679",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-169674680",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-169674681",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-169674682",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-182487179",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-183703753",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-183938586",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-183938603",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-183938604",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-199152188",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-199152204",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-199152205",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-199152206",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-199152207",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-199152243",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-215668343",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-229361291",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-229361293",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-229361294",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-245926142",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308514",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308515",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308516",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308519",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308524",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308527",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-251308529",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-258834787",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-258834803",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-275655287",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-275655290",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-277209484",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-277209505",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-277209515",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-277209544",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-285189314",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-285189324",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-304727896",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-304727897",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-307856078",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-390536922",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-407608718",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-407608719",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-415221584",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-645599601",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-645599602",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-647994516",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-650639330",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-657121035",
+    "name": "甲州街道",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-692356901",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-692488020",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-692488022",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-692488024",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-692500949",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-787569318",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-787569321",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-794279396",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-815861585",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-815861586",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-815861587",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-815861588",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-856432637",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-856440219",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-856440220",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-858780335",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-859701909",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-859701910",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-885931594",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-885931596",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-885931597",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-885931600",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-886386616",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-886671961",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-887779303",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-887779304",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-887779306",
+    "name": "甲州街道",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-887779311",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893332467",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893332468",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893332469",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893332471",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338021",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338022",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338023",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338024",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338026",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338027",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338028",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338029",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338030",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893338031",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893348980",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893348982",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893348984",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893348985",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893372312",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893372313",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893372314",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-893372315",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-916526029",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-916526030",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-916526031",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-916526032",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-924378577",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-924378579",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-924844760",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-926526957",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-926526958",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-926526959",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-926526960",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-942571959",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-944625359",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-965405375",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-991401526",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1018771104",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1018771105",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1062968293",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1105847974",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1143901790",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1157968453",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1279684817",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1279684818",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1279684819",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1279684820",
+    "name": "新宿通り",
+    "aliases": [],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1282096836",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1282096837",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1282096838",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1282096839",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1282096840",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1319817772",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1319974947",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1347764362",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1347764363",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1347764364",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1347764365",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1367650186",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1367650190",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1368012340",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1368012341",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1381312861",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1381387150",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1382188765",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1382188766",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1382297066",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1382297067",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1387804010",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1387804011",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1391465728",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1410853753",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1410853754",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1410853755",
+    "name": "甲州街道",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1417467400",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1417467401",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1417467402",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1428432920",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1428432921",
+    "name": "新宿通り",
+    "aliases": [
+      "20",
+      "麹町大通り"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1466490365",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1466490366",
+    "name": "新宿通り",
+    "aliases": [
+      "20"
+    ],
+    "type": "road"
+  },
+  {
+    "id": "osm-way-1509646820",
+    "name": "新宿通り",
+    "aliases": [
+      "430"
+    ],
+    "type": "road"
+  }
+]

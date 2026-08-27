@@ -1,4 +1,36 @@
 datasets:
+  - id: osm-shinjuku-modern-extract
+    name: Shinjuku modern roads and stations extract
+    provider: OpenStreetMap contributors
+    version: generated at retrieval time
+    retrieval_date: Run scripts/download/download-shinjuku-osm.mjs
+    source_page: https://www.openstreetmap.org/
+    license: OSM-ODBL
+    required_attribution: © OpenStreetMap contributors
+    derived_files:
+      - public/data/modern/shinjuku-osm.geojson
+      - public/search/modern-shinjuku.json
+    delivery: Reproducible Overpass download; generated files are not fabricated historical data.
+  - id: openfreemap-positron
+    name: OpenFreeMap Positron vector basemap
+    provider: OpenFreeMap
+    version: live tile service
+    retrieval_date: 2026-08-27
+    source_page: https://openfreemap.org/
+    license: OSM-ODBL
+    required_attribution: OpenFreeMap and OpenStreetMap contributors
+    derived_files: []
+    delivery: Online vector tiles and style; not bundled in this repository.
+  - id: gsi-standard-tiles
+    name: GSI Tiles - Standard Map
+    provider: Geospatial Information Authority of Japan
+    version: live tile service
+    retrieval_date: 2026-08-27
+    source_page: https://maps.gsi.go.jp/development/ichiran.html
+    license: GSI-TERMS
+    required_attribution: 国土地理院
+    derived_files: []
+    delivery: Online raster tiles; not bundled in this repository.
   - id: michi-v0.1-sample
     name: Michi Map v0.1 hand-drawn demonstration data
     provider: Michi Map project
