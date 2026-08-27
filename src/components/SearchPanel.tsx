@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react'
 import { entities } from '../data/sample'
 import { searchEntities } from '../search/search'
-import type { EntityFeature } from '../types/geo'
+import type { EntityFeature, MapEntityType, SceneItem } from '../types/geo'
 
-const typeNames: Record<string,string> = { road:'現代道路','historical-road':'歴史街道',place:'現代地名','historical-place':'宿場・歴史地名',chome:'町丁目' }
-export function SearchPanel({ onSelect }: { onSelect: (feature: EntityFeature) => void }) {
-  const [query,setQuery] = useState(''); const results = useMemo(() => searchEntities(entities,query),[query])
-  return <section className="panel-section search-section"><div className="section-heading"><span className="eyebrow">FIND</span><h2>地物を探す</h2></div><label htmlFor="search" className="sr-only">道路・地名・町丁目を検索</label><div className="search-box"><span aria-hidden="true">⌕</span><input id="search" value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="甲州街道、新宿一丁目…" autoComplete="off" /></div>
-  {query && <div className="search-results" aria-live="polite">{results.length ? results.map((f)=><button className="result" key={f.properties.id} onClick={()=>onSelect(f)}><span><strong>{f.properties.name}</strong><small>{typeNames[f.properties.type] ?? f.properties.type}</small></span><span className="arrow">→</span>{f.properties.aliases?.length ? <em>{f.properties.aliases.join('・')}</em>:null}</button>):<p className="empty">一致する地物がありません</p>}</div>}
-  {!query && <div className="suggestions"><span>試す</span>{['甲州街道','新宿','新宿一丁目'].map(q=><button key={q} onClick={()=>setQuery(q)}>{q}</button>)}</div>}</section>
+const typeNames: Record<string, string> = { road: '現代道路', 'historical-road': '歴史街道', place: '現代地名', 'historical-place': '宿場・歴史地名', chome: '町丁目' }
+const depth: Record<MapEntityType, number> = { chome: 0, water: 0, 'terrain-feature': 0, road: 1, 'historical-road': 1, railway: 1, river: 1, place: 2, 'historical-place': 2, station: 2, custom: 2 }
+
+interface Props { items: SceneItem[]; onToggle: (feature: EntityFeature) => void; onDelete: (id: string) => void; onClear: () => void }
+
+export function SearchPanel({ items, onToggle, onDelete, onClear }: Props) {
+  const [query, setQuery] = useState('')
+  const results = useMemo(() => searchEntities(entities, query), [query])
+  const orderedItems = [...items].sort((left, right) => depth[left.feature.properties.type] - depth[right.feature.properties.type])
+  return <section className="panel-section search-section"><div className="section-heading"><span className="eyebrow">FIND</span><h2>地物を探す</h2></div><label htmlFor="search" className="sr-only">道路・地名・町丁目を検索</label><div className="search-box"><span aria-hidden="true">⌕</span><input id="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="甲州街道、新宿一丁目…" autoComplete="off" /></div>{query && <div className="search-results" aria-live="polite">{results.length ? results.map((feature) => { const item = items.find((candidate) => candidate.feature.properties.id === feature.properties.id); const active = item?.visible ?? false; return <button className={`result ${active ? 'active' : ''} ${item ? 'retained' : ''}`} key={feature.properties.id} onClick={() => onToggle(feature)} aria-pressed={active}><i className="result-check" aria-hidden="true">{active ? '✓' : ''}</i><span><strong>{feature.properties.name}</strong><small>{typeNames[feature.properties.type] ?? feature.properties.type}</small></span>{feature.properties.aliases?.length ? <em>{feature.properties.aliases.join('・')}</em> : null}</button> }) : <p className="empty">一致する地物がありません</p>}</div>}{!query && <div className="suggestions"><span>試す</span>{['甲州街道', '新宿', '新宿一丁目'].map((suggestion) => <button key={suggestion} onClick={() => setQuery(suggestion)}>{suggestion}</button>)}</div>}{orderedItems.length > 0 && <div className="selected-layers"><div className="selected-heading"><span className="eyebrow">SCENE LAYERS · 面 → 線 → 点</span><button type="button" onClick={onClear}>Clear scene</button></div>{orderedItems.map(({ feature, visible }) => <div className={`scene-layer-row ${visible ? '' : 'muted'}`} key={feature.properties.id}><label><input type="checkbox" checked={visible} onChange={() => onToggle(feature)}/><i aria-hidden="true">{visible ? '✓' : ''}</i><span><strong>{feature.properties.name}</strong><small>{typeNames[feature.properties.type]}</small></span></label><button className="delete-layer" type="button" aria-label={`${feature.properties.name}をsceneから削除`} onClick={() => onDelete(feature.properties.id)}>×</button></div>)}</div>}</section>
 }
