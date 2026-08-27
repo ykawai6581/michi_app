@@ -1,6 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const endpoint = process.env.OVERPASS_URL ?? 'https://overpass-api.de/api/interpreter'
+const defaultEndpoints = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+]
+const endpoints = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : defaultEndpoints
 const bounds = '35.6500,139.6000,35.7200,139.7800'
 const query = `[out:json][timeout:120];
 (
@@ -9,12 +13,30 @@ const query = `[out:json][timeout:120];
 );
 out tags geom;`
 
-const response = await fetch(endpoint, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-  body: new URLSearchParams({ data: query }),
-})
-if (!response.ok) throw new Error(`Overpass request failed: ${response.status} ${response.statusText}`)
+async function requestOverpass() {
+  const failures = []
+  for (const endpoint of endpoints) {
+    const url = new URL(endpoint)
+    url.searchParams.set('data', query)
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'michi-map-data-pipeline/0.1 (+https://github.com/ykawai6581/michi_app)',
+        },
+      })
+      if (response.ok) return response
+      const detail = (await response.text()).replace(/\s+/g, ' ').slice(0, 240)
+      failures.push(`${endpoint}: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`)
+    } catch (error) {
+      failures.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  throw new Error(`Every Overpass endpoint failed:\n${failures.map((failure) => `- ${failure}`).join('\n')}`)
+}
+
+const response = await requestOverpass()
 const payload = await response.json()
 const checked = new Date().toISOString().slice(0, 10)
 
