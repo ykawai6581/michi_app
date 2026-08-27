@@ -12,11 +12,11 @@ describe('Shinjuku road entities', () => {
   it('combines named segments and both directions into one searchable road', () => {
     const result = mergeRoadEntities([
       road('eastbound', ['20'], [[139.7, 35.6], [139.8, 35.6]]),
-      road('westbound', ['20'], [[139.8, 35.61], [139.7, 35.61]], '新宿通り'),
+      road('westbound', ['20', '430', '麹町大通り'], [[139.8, 35.61], [139.7, 35.61]], '新宿通り'),
     ])
 
     expect(result).toHaveLength(1)
-    expect(result[0].properties.aliases).toEqual(['20'])
+    expect(result[0].properties.aliases).toEqual([])
     expect(result[0].properties.source_url).toHaveLength(2)
     expect(result[0].properties.illustrationWidthScale).toBe(1.8)
     expect(result[0].geometry.type).toBe('LineString')

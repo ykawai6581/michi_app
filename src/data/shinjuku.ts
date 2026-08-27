@@ -6,9 +6,7 @@ interface SearchEntry { id: string }
 
 const CENTERLINE_SAMPLE_METERS = 15
 const CENTERLINE_BIN_METERS = 30
-const EXCLUDED_ROAD_ALIASES: Record<string, Set<string>> = {
-  [normalizeJapanese('甲州街道')]: new Set([normalizeJapanese('新宿通り')]),
-}
+const ROADS_WITHOUT_EXPOSED_ALIASES = new Set([normalizeJapanese('甲州街道')])
 
 function median(values: number[]): number {
   const sorted = [...values].sort((left, right) => left - right)
@@ -82,8 +80,8 @@ export function mergeRoadEntities(entities: EntityFeature[]): EntityFeature[] {
       properties: {
         ...first.properties,
         id: `merged-road-${key}`,
-        aliases: unique(segments.flatMap(({ properties }) => [properties.name, ...(properties.aliases ?? [])]))
-          .filter((alias) => normalizeJapanese(alias) !== key && !EXCLUDED_ROAD_ALIASES[key]?.has(normalizeJapanese(alias))),
+        aliases: ROADS_WITHOUT_EXPOSED_ALIASES.has(key) ? [] : unique(segments.flatMap(({ properties }) => [properties.name, ...(properties.aliases ?? [])]))
+          .filter((alias) => normalizeJapanese(alias) !== key),
         source: unique(segments.flatMap(({ properties }) => properties.source ?? [])),
         source_url: unique(segments.flatMap(({ properties }) => properties.source_url ?? [])),
         illustrationWidthScale: 1.8,
