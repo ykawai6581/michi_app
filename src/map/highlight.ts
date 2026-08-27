@@ -29,6 +29,22 @@ function linePrefix(coordinates: Position[], progress: number): Position[] {
   return result
 }
 
+function multiLinePrefix(lines: Position[][], progress: number): Position[][] {
+  const lengths = lines.map((line) => line.slice(1).reduce((sum, point, index) => sum + Math.hypot(point[0] - line[index][0], point[1] - line[index][1]), 0))
+  const target = lengths.reduce((sum, length) => sum + length, 0) * progress
+  const result: Position[][] = []
+  let travelled = 0
+  for (let index = 0; index < lines.length; index += 1) {
+    if (travelled + lengths[index] >= target) {
+      result.push(linePrefix(lines[index], lengths[index] === 0 ? 1 : (target - travelled) / lengths[index]))
+      break
+    }
+    result.push(lines[index])
+    travelled += lengths[index]
+  }
+  return result
+}
+
 function clipRingAtLongitude(ring: Position[], limit: number): Position[] {
   const output: Position[] = []
   for (let index = 0; index < ring.length; index += 1) {
@@ -49,6 +65,9 @@ function clipRingAtLongitude(ring: Position[], limit: number): Position[] {
 function partialFeature(feature: EntityFeature, progress: number): EntityFeature {
   if (feature.geometry.type === 'LineString') {
     return { ...feature, geometry: { ...feature.geometry, coordinates: linePrefix(feature.geometry.coordinates, progress) } }
+  }
+  if (feature.geometry.type === 'MultiLineString') {
+    return { ...feature, geometry: { ...feature.geometry, coordinates: multiLinePrefix(feature.geometry.coordinates, progress) } }
   }
   if (feature.geometry.type === 'Polygon') {
     const bounds = bbox(feature)
@@ -83,7 +102,7 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
 export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  if (focusFeature && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, features, focusFeature)
+  if (focusFeature && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'MultiLineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, features, focusFeature)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(features))
   if (!focusFeature) return
   if (focusFeature.geometry.type === 'Point') map.flyTo({ center: focusFeature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })

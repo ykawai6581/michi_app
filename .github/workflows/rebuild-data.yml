@@ -38,10 +38,12 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises'
           const geojson = JSON.parse(await readFile('public/data/modern/shinjuku-osm.geojson', 'utf8'))
+          const logical = JSON.parse(await readFile('public/data/modern/shinjuku-logical-roads.geojson', 'utf8'))
           const search = JSON.parse(await readFile('public/search/modern-shinjuku.json', 'utf8'))
           if (geojson.type !== 'FeatureCollection' || !Array.isArray(geojson.features) || geojson.features.length === 0) throw new Error('Generated GeoJSON has no features')
-          if (!Array.isArray(search) || search.length !== geojson.features.length) throw new Error('Search index does not match generated GeoJSON')
-          console.log(`Validated ${geojson.features.length} OSM features.`)
+          if (logical.type !== 'FeatureCollection' || logical.features.length !== 1 || logical.features[0].properties.name !== '甲州街道') throw new Error('Logical road output is invalid')
+          if (!Array.isArray(search) || !search.some(({ id }) => id === logical.features[0].properties.id)) throw new Error('Search index does not reference the logical road')
+          console.log(`Validated ${geojson.features.length} OSM features and ${logical.features.length} logical road.`)
           NODE
 
       - name: Upload a review copy
@@ -50,6 +52,7 @@ jobs:
           name: shinjuku-osm-data-${{ github.run_number }}
           path: |
             public/data/modern/shinjuku-osm.geojson
+            public/data/modern/shinjuku-logical-roads.geojson
             public/search/modern-shinjuku.json
           if-no-files-found: error
           retention-days: 14
@@ -60,7 +63,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/modern/shinjuku-osm.geojson public/search/modern-shinjuku.json
+          git add public/data/modern/shinjuku-osm.geojson public/data/modern/shinjuku-logical-roads.geojson public/search/modern-shinjuku.json
           if git diff --cached --quiet; then
             echo "The generated data is unchanged."
             exit 0
