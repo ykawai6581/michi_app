@@ -6,6 +6,7 @@ interface SearchEntry { id: string }
 
 const CENTERLINE_SAMPLE_METERS = 15
 const CENTERLINE_BIN_METERS = 30
+const CENTERLINE_MEDIAN_RADIUS = 4
 const ROADS_WITHOUT_EXPOSED_ALIASES = new Set([normalizeJapanese('甲州街道')])
 
 function median(values: number[]): number {
@@ -42,20 +43,27 @@ function deriveCenterline(segments: EntityFeature[]): Position[] {
   const covarianceXY = samples.reduce((sum, point) => sum + (point[0] - meanX) * (point[1] - meanY), 0)
   const angle = Math.atan2(2 * covarianceXY, covarianceXX - covarianceYY) / 2
   const axis = [Math.cos(angle), Math.sin(angle)]
-  const projected = samples.map((point) => ({ point, distance: (point[0] - meanX) * axis[0] + (point[1] - meanY) * axis[1] }))
+  const normal = [-axis[1], axis[0]]
+  const projected = samples.map((point) => ({
+    distance: (point[0] - meanX) * axis[0] + (point[1] - meanY) * axis[1],
+    offset: (point[0] - meanX) * normal[0] + (point[1] - meanY) * normal[1],
+  }))
   const minimum = Math.min(...projected.map(({ distance }) => distance))
-  const bins = new Map<number, Position[]>()
-  projected.forEach(({ point, distance }) => {
+  const bins = new Map<number, { distance: number; offset: number }[]>()
+  projected.forEach(({ distance, offset }) => {
     const bin = Math.floor((distance - minimum) / CENTERLINE_BIN_METERS)
-    bins.set(bin, [...(bins.get(bin) ?? []), point])
+    bins.set(bin, [...(bins.get(bin) ?? []), { distance, offset }])
   })
-  const centerline = [...bins.entries()].sort(([left], [right]) => left - right)
-    .map(([, points]) => [median(points.map((point) => point[0])), median(points.map((point) => point[1]))])
-  const smoothed = centerline.map((_, index) => {
-    const neighborhood = centerline.slice(Math.max(0, index - 1), index + 2)
-    return [neighborhood.reduce((sum, item) => sum + item[0], 0) / neighborhood.length, neighborhood.reduce((sum, item) => sum + item[1], 0) / neighborhood.length]
+  const populatedBins = [...bins.keys()].sort((left, right) => left - right)
+  const centerline = populatedBins.map((bin) => {
+    const neighborhood = populatedBins
+      .filter((candidate) => Math.abs(candidate - bin) <= CENTERLINE_MEDIAN_RADIUS)
+      .flatMap((candidate) => bins.get(candidate) ?? [])
+    const distance = median(bins.get(bin)?.map((sample) => sample.distance) ?? [])
+    const offset = median(neighborhood.map((sample) => sample.offset))
+    return [meanX + axis[0] * distance + normal[0] * offset, meanY + axis[1] * distance + normal[1] * offset]
   })
-  return smoothed.map((point) => [point[0] / longitudeScale + referenceLongitude, point[1] / 110_540 + referenceLatitude])
+  return centerline.map((point) => [point[0] / longitudeScale + referenceLongitude, point[1] / 110_540 + referenceLatitude])
 }
 
 export function mergeRoadEntities(entities: EntityFeature[]): EntityFeature[] {
