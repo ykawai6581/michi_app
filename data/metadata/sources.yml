@@ -1,4 +1,14 @@
 datasets:
+  - id: openfreemap-positron
+    name: OpenFreeMap Positron vector basemap
+    provider: OpenFreeMap
+    version: live tile service
+    retrieval_date: 2026-08-27
+    source_page: https://openfreemap.org/
+    license: OSM-ODBL
+    required_attribution: OpenFreeMap and OpenStreetMap contributors
+    derived_files: []
+    delivery: Online vector tiles and style; not bundled in this repository.
   - id: gsi-standard-tiles
     name: GSI Tiles - Standard Map
     provider: Geospatial Information Authority of Japan

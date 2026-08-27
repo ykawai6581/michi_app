@@ -1,5 +1,11 @@
 const datasets = [
   {
+    name: 'OpenFreeMap Positron',
+    provider: 'OpenFreeMap / OpenStreetMap contributors',
+    kind: '実データ・オンラインベクター',
+    url: 'https://openfreemap.org/',
+  },
+  {
     name: '地理院タイル（標準地図）',
     provider: '国土地理院',
     kind: '実データ・オンライン',
