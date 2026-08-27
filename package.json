@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "data:osm:shinjuku": "node scripts/download/download-shinjuku-osm.mjs"
   },
   "dependencies": {
     "@turf/bbox": "^7.2.0",

@@ -20,6 +20,7 @@ export interface EntityProperties {
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>
+export interface SceneItem { feature: EntityFeature; visible: boolean }
 export interface HighlightStyle { roadColor: string; locationColor: string; regionColor: string; width: number; opacity: number; glow: boolean; animate: boolean; annotationSize: 'normal' | 'large' }
 export interface LayerVisibility { basemap: BasemapMode; roads: boolean; historicalRoads: boolean; places: boolean; chome: boolean }
 export interface CameraState { center: [number, number]; zoom: number; bearing: number; pitch: number }

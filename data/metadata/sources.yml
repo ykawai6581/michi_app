@@ -1,4 +1,16 @@
 datasets:
+  - id: osm-shinjuku-modern-extract
+    name: Shinjuku modern roads and stations extract
+    provider: OpenStreetMap contributors
+    version: generated at retrieval time
+    retrieval_date: Run scripts/download/download-shinjuku-osm.mjs
+    source_page: https://www.openstreetmap.org/
+    license: OSM-ODBL
+    required_attribution: © OpenStreetMap contributors
+    derived_files:
+      - public/data/modern/shinjuku-osm.geojson
+      - public/search/modern-shinjuku.json
+    delivery: Reproducible Overpass download; generated files are not fabricated historical data.
   - id: openfreemap-positron
     name: OpenFreeMap Positron vector basemap
     provider: OpenFreeMap

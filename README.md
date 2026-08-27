@@ -41,6 +41,16 @@ npm test
 npm run build
 ```
 
+### Real modern overlay data
+
+The Presentation basemap already uses real OpenStreetMap-derived vector tiles. To generate a small, reproducible Shinjuku-area overlay and search-index input for current Kōshū Kaidō roads and stations, run:
+
+```bash
+npm run data:osm:shinjuku
+```
+
+This writes `public/data/modern/shinjuku-osm.geojson` and `public/search/modern-shinjuku.json`. Every generated feature retains its OSM object URL, retrieval date, ODbL license, and an explicit warning that current OSM geometry is not evidence for a historical alignment. The official CODH road/post-town files must be verified and ingested separately rather than inferred from these modern roads.
+
 `dist/` は相対パスで生成されるため、GitHub Pages の repository site に配置できます。
 
 ## 画面構成
