@@ -4,6 +4,15 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export function addDataLayers(map: maplibregl.Map, data: FeatureCollection): void {
+  map.addSource(SOURCE_IDS.gsiBase, {
+    type: 'raster',
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    minzoom: 2,
+    maxzoom: 18,
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>',
+  })
+  map.addLayer({ id: LAYER_IDS.gsiBase, type: 'raster', source: SOURCE_IDS.gsiBase, paint: { 'raster-opacity': 0.72, 'raster-saturation': -0.75, 'raster-contrast': -0.12, 'raster-brightness-max': 0.96 } })
   map.addSource(SOURCE_IDS.entities, { type: 'geojson', data })
   map.addSource(SOURCE_IDS.highlight, { type: 'geojson', data: empty })
   map.addLayer({ id: LAYER_IDS.chomeFill, type: 'fill', source: SOURCE_IDS.entities, filter: ['==',['get','type'],'chome'], paint: { 'fill-color':'#749aa5','fill-opacity':0.16 } })

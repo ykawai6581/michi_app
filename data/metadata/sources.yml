@@ -1,4 +1,14 @@
 datasets:
+  - id: gsi-standard-tiles
+    name: GSI Tiles - Standard Map
+    provider: Geospatial Information Authority of Japan
+    version: live tile service
+    retrieval_date: 2026-08-27
+    source_page: https://maps.gsi.go.jp/development/ichiran.html
+    license: GSI-TERMS
+    required_attribution: 国土地理院
+    derived_files: []
+    delivery: Online raster tiles; not bundled in this repository.
   - id: michi-v0.1-sample
     name: Michi Map v0.1 hand-drawn demonstration data
     provider: Michi Map project

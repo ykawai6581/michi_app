@@ -1,4 +1,8 @@
 licenses:
+  - id: GSI-TERMS
+    name: Geospatial Information Authority of Japan Website Terms of Use
+    url: https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html
+    attribution: 国土地理院
   - id: CC0-1.0
     name: Creative Commons CC0 1.0 Universal
     url: https://creativecommons.org/publicdomain/zero/1.0/
