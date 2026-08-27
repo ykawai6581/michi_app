@@ -1,4 +1,4 @@
-import type { Feature, Geometry } from 'geojson'
+import type { Feature, Geometry, MultiLineString } from 'geojson'
 
 export type MapEntityType = 'road' | 'historical-road' | 'place' | 'historical-place' | 'chome' | 'station' | 'railway' | 'river' | 'water' | 'terrain-feature' | 'custom'
 export type Confidence = 'high' | 'medium' | 'low' | 'unknown'
@@ -18,6 +18,7 @@ export interface EntityProperties {
   note?: string
   relatedEntities?: string[]
   illustrationWidthScale?: number
+  sourceGeometry?: MultiLineString
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>

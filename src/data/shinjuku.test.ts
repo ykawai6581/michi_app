@@ -20,6 +20,7 @@ describe('Shinjuku road entities', () => {
     expect(result[0].properties.aliases).toEqual([])
     expect(result[0].properties.source_url).toHaveLength(3)
     expect(result[0].properties.illustrationWidthScale).toBe(1.8)
+    expect(result[0].properties.sourceGeometry?.coordinates).toHaveLength(3)
     expect(result[0].geometry.type).toBe('LineString')
     if (result[0].geometry.type !== 'LineString') throw new Error('Expected a derived centerline')
     const coordinates = result[0].geometry.coordinates

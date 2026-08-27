@@ -99,6 +99,11 @@ export function mergeRoadEntities(entities: EntityFeature[]): EntityFeature[] {
     const first = segments[0]
     const key = normalizeJapanese(first.properties.name)
     const coordinates = deriveCenterline(segments)
+    const sourceCoordinates = segments.flatMap(({ geometry }) => {
+      if (geometry.type === 'LineString') return [geometry.coordinates]
+      if (geometry.type === 'MultiLineString') return geometry.coordinates
+      return []
+    })
     const unique = (values: (string | undefined)[]) => [...new Set(values.filter((value): value is string => Boolean(value)))]
     return {
       type: 'Feature' as const,
@@ -110,6 +115,7 @@ export function mergeRoadEntities(entities: EntityFeature[]): EntityFeature[] {
         source: unique(segments.flatMap(({ properties }) => properties.source ?? [])),
         source_url: unique(segments.flatMap(({ properties }) => properties.source_url ?? [])),
         illustrationWidthScale: 1.8,
+        sourceGeometry: { type: 'MultiLineString' as const, coordinates: sourceCoordinates },
       },
       geometry: { type: 'LineString' as const, coordinates },
     }
