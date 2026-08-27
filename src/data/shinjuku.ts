@@ -6,7 +6,8 @@ interface SearchEntry { id: string }
 
 const CENTERLINE_SAMPLE_METERS = 15
 const CENTERLINE_BIN_METERS = 30
-const CENTERLINE_MEDIAN_RADIUS = 4
+const CENTERLINE_MEDIAN_RADIUS = 20
+const CENTERLINE_SMOOTHING_RADIUS = 5
 const ROADS_WITHOUT_EXPOSED_ALIASES = new Set([normalizeJapanese('甲州街道')])
 
 function median(values: number[]): number {
@@ -54,13 +55,29 @@ function deriveCenterline(segments: EntityFeature[]): Position[] {
     const bin = Math.floor((distance - minimum) / CENTERLINE_BIN_METERS)
     bins.set(bin, [...(bins.get(bin) ?? []), { distance, offset }])
   })
-  const populatedBins = [...bins.keys()].sort((left, right) => left - right)
-  const centerline = populatedBins.map((bin) => {
-    const neighborhood = populatedBins
-      .filter((candidate) => Math.abs(candidate - bin) <= CENTERLINE_MEDIAN_RADIUS)
+  const populatedBins = [...bins.keys()]
+  const lastBin = Math.max(...populatedBins)
+  const routeBins = Array.from({ length: lastBin + 1 }, (_, bin) => bin)
+  const offsets = routeBins.map((bin) => {
+    const nearbyBins = populatedBins.filter((candidate) => Math.abs(candidate - bin) <= CENTERLINE_MEDIAN_RADIUS)
+    const neighborhoodBins = nearbyBins.length ? nearbyBins : [populatedBins.reduce((nearest, candidate) => Math.abs(candidate - bin) < Math.abs(nearest - bin) ? candidate : nearest)]
+    const neighborhood = neighborhoodBins
       .flatMap((candidate) => bins.get(candidate) ?? [])
-    const distance = median(bins.get(bin)?.map((sample) => sample.distance) ?? [])
-    const offset = median(neighborhood.map((sample) => sample.offset))
+    return median(neighborhood.map((sample) => sample.offset))
+  })
+  const smoothedOffsets = offsets.map((_, bin) => {
+    let weightedOffset = 0
+    let totalWeight = 0
+    for (let neighbor = Math.max(0, bin - CENTERLINE_SMOOTHING_RADIUS); neighbor <= Math.min(lastBin, bin + CENTERLINE_SMOOTHING_RADIUS); neighbor += 1) {
+      const weight = CENTERLINE_SMOOTHING_RADIUS + 1 - Math.abs(neighbor - bin)
+      weightedOffset += offsets[neighbor] * weight
+      totalWeight += weight
+    }
+    return weightedOffset / totalWeight
+  })
+  const centerline = routeBins.map((bin) => {
+    const distance = minimum + (bin + 0.5) * CENTERLINE_BIN_METERS
+    const offset = smoothedOffsets[bin]
     return [meanX + axis[0] * distance + normal[0] * offset, meanY + axis[1] * distance + normal[1] * offset]
   })
   return centerline.map((point) => [point[0] / longitudeScale + referenceLongitude, point[1] / 110_540 + referenceLatitude])
