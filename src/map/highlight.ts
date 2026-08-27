@@ -1,8 +1,8 @@
 import bbox from '@turf/bbox'
-import type { Position } from 'geojson'
+import type { FeatureCollection, Geometry, Position } from 'geojson'
 import type maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
-import type { EntityFeature, HighlightStyle } from '../types/geo'
+import type { EntityFeature, EntityProperties, HighlightStyle } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 
 const activeAnimations = new WeakMap<maplibregl.Map, number>()
@@ -59,7 +59,11 @@ function partialFeature(feature: EntityFeature, progress: number): EntityFeature
   return feature
 }
 
-function revealFeature(map: maplibregl.Map, feature: EntityFeature): void {
+function collection(features: EntityFeature[]): FeatureCollection<Geometry, EntityProperties> {
+  return { type: 'FeatureCollection', features }
+}
+
+function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: EntityFeature): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
   const source = map.getSource(SOURCE_IDS.highlight) as GeoJSONSource
@@ -68,20 +72,22 @@ function revealFeature(map: maplibregl.Map, feature: EntityFeature): void {
   const frame = (now: number) => {
     const linearProgress = Math.min((now - started) / duration, 1)
     const easedProgress = 1 - Math.pow(1 - linearProgress, 3)
-    source.setData(partialFeature(feature, Math.max(easedProgress, 0.002)))
+    const frameFeatures = features.map((candidate) => candidate.properties.id === feature.properties.id ? partialFeature(candidate, Math.max(easedProgress, 0.002)) : candidate)
+    source.setData(collection(frameFeatures))
     if (linearProgress < 1) activeAnimations.set(map, requestAnimationFrame(frame))
     else activeAnimations.delete(map)
   }
   activeAnimations.set(map, requestAnimationFrame(frame))
 }
 
-export function selectFeature(map: maplibregl.Map, feature: EntityFeature, animate = false): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  if (animate && (feature.geometry.type === 'LineString' || feature.geometry.type === 'Polygon')) revealFeature(map, feature)
-  else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(feature)
-  if (feature.geometry.type === 'Point') map.flyTo({ center: feature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
-  else { const bounds = bbox(feature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
+  if (focusFeature && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, features, focusFeature)
+  else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(features))
+  if (!focusFeature) return
+  if (focusFeature.geometry.type === 'Point') map.flyTo({ center: focusFeature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
+  else { const bounds = bbox(focusFeature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
 }
 
 export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle): void {
@@ -93,4 +99,6 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle)
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-opacity', style.opacity * 0.38)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-opacity', style.opacity)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-opacity', style.glow ? style.opacity * 0.24 : 0)
+  map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', style.color)
+  map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-color', style.color)
 }

@@ -12,6 +12,8 @@ YouTube で道・地名・都市の歴史を説明するための、**検索可�
 - 名称・alias（全角／半角、空白、一丁目／1丁目を正規化）で検索し、線・点・面を適切に強調
 - 強調色、線幅、透明度を即時調整
 - road・polygonを左から徐々に描くhighlight animationと、ON/OFF可能なglow
+- 面（最下層）→ road → location（最上層）の順で複数地物を同時選択し、checkboxで個別解除
+- 選択したregion・road・locationの名称を、highlightと同色で地図上へ直接annotation
 - カメラ位置をブラウザの `localStorage` に保存し復元
 - 現在の WebGL canvas を通常解像度 PNG としてダウンロード
 - 静的ファイルだけで動作し、有料 API やバックエンドは不要
