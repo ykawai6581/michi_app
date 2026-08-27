@@ -18,9 +18,10 @@ describe('Shinjuku road entities', () => {
     expect(result).toHaveLength(1)
     expect(result[0].properties.aliases).toEqual(['20', '新宿通り'])
     expect(result[0].properties.source_url).toHaveLength(2)
-    expect(result[0].geometry).toMatchObject({ type: 'MultiLineString', coordinates: expect.arrayContaining([
-      [[139.7, 35.6], [139.8, 35.6]],
-      [[139.8, 35.61], [139.7, 35.61]],
-    ]) })
+    expect(result[0].properties.illustrationWidthScale).toBe(1.8)
+    expect(result[0].geometry.type).toBe('LineString')
+    if (result[0].geometry.type !== 'LineString') throw new Error('Expected a derived centerline')
+    expect(result[0].geometry.coordinates.length).toBeGreaterThan(2)
+    expect(result[0].geometry.coordinates.every((coordinate) => coordinate[1] > 35.6 && coordinate[1] < 35.61)).toBe(true)
   })
 })

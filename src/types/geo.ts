@@ -17,6 +17,7 @@ export interface EntityProperties {
   confidence?: Confidence
   note?: string
   relatedEntities?: string[]
+  illustrationWidthScale?: number
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>
