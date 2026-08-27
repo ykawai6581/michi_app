@@ -91,7 +91,10 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], f
 }
 
 export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle): void {
-  for (const id of [LAYER_IDS.highlightLine, LAYER_IDS.highlightFill, LAYER_IDS.highlightPoint, LAYER_IDS.highlightPointGlow]) map.setPaintProperty(id, id.includes('line') ? 'line-color' : id.includes('fill') ? 'fill-color' : 'circle-color', style.color)
+  map.setPaintProperty(LAYER_IDS.highlightLine, 'line-color', ['match', ['geometry-type'], 'LineString', style.roadColor, style.regionColor])
+  map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-color', style.regionColor)
+  map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-color', style.locationColor)
+  map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-color', style.locationColor)
   map.setPaintProperty(LAYER_IDS.highlightLine, 'line-width', style.width)
   map.setPaintProperty(LAYER_IDS.highlightLine, 'line-opacity', style.opacity)
   map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-width', style.width + 7)
@@ -99,6 +102,8 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle)
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-opacity', style.opacity * 0.38)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-opacity', style.opacity)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-opacity', style.glow ? style.opacity * 0.24 : 0)
-  map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', style.color)
-  map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-color', style.color)
+  map.setLayoutProperty(LAYER_IDS.highlightLineLabels, 'text-size', style.annotationSize === 'large' ? 28 : 14)
+  map.setLayoutProperty(LAYER_IDS.highlightLabels, 'text-size', style.annotationSize === 'large' ? 28 : 14)
+  map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', style.roadColor)
+  map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-color', ['match', ['geometry-type'], 'Polygon', style.regionColor, style.locationColor])
 }

@@ -14,6 +14,8 @@ YouTube で道・地名・都市の歴史を説明するための、**検索可�
 - road・polygonを左から徐々に描くhighlight animationと、ON/OFF可能なglow
 - 面（最下層）→ road → location（最上層）の順で複数地物を同時選択し、checkboxで個別解除
 - 選択したregion・road・locationの名称を、highlightと同色で地図上へ直接annotation
+- default colorはroad RGB(239,98,98)、location RGB(100,194,242)、region RGB(50,100,170)で個別変更可能
+- roadの端点はround、annotationは14px / 28pxを切替（default 28px）
 - カメラ位置をブラウザの `localStorage` に保存し復元
 - 現在の WebGL canvas を通常解像度 PNG としてダウンロード
 - 静的ファイルだけで動作し、有料 API やバックエンドは不要
