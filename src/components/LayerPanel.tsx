@@ -2,6 +2,7 @@ import type { BasemapMode, LayerVisibility } from '../types/geo'
 
 const basemaps: { id: BasemapMode; name: string; hint: string }[] = [
   { id: 'presentation', name: 'Presentation', hint: 'ベクター' },
+  { id: 'dark', name: 'Dark', hint: '夜間・高contrast' },
   { id: 'gsi', name: '地理院地図', hint: '詳細' },
   { id: 'white', name: '白背景', hint: '素材用' },
   { id: 'transparent', name: '透明', hint: '合成用' },

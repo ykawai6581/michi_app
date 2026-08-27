@@ -7,10 +7,11 @@ YouTube で道・地名・都市の歴史を説明するための、**検索可�
 - 東京・新宿を中心にした MapLibre GL JS のベクター地図をズーム／移動
 - OpenFreeMap / OpenStreetMap の軽量な Presentation vector styleをdefault表示
 - 国土地理院の標準地図タイルを、出典表示付きのオンライン現代ベースマップとして表示
-- Presentation / 地理院地図 / 白背景 / 透明背景を即時切替
+- Presentation / Dark / 地理院地図 / 白背景 / 透明背景を即時切替
 - 現代道路、歴史街道、宿場・地名、町丁目の小さなデモデータを個別に表示
 - 名称・alias（全角／半角、空白、一丁目／1丁目を正規化）で検索し、線・点・面を適切に強調
 - 強調色、線幅、透明度を即時調整
+- road・polygonを左から徐々に描くhighlight animationと、ON/OFF可能なglow
 - カメラ位置をブラウザの `localStorage` に保存し復元
 - 現在の WebGL canvas を通常解像度 PNG としてダウンロード
 - 静的ファイルだけで動作し、有料 API やバックエンドは不要
