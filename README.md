@@ -51,6 +51,8 @@ npm run data:osm:shinjuku
 
 This writes `public/data/modern/shinjuku-osm.geojson` and `public/search/modern-shinjuku.json`. Every generated feature retains its OSM object URL, retrieval date, ODbL license, and an explicit warning that current OSM geometry is not evidence for a historical alignment. The official CODH road/post-town files must be verified and ingested separately rather than inferred from these modern roads.
 
+To build the files without a local GIS environment, open **Actions → Rebuild Shinjuku OSM data → Run workflow**. The manual workflow validates the result, uploads a 14-day review artifact, and commits changed generated files to the repository's default branch. That commit triggers the normal Pages deployment. The data workflow only needs to be rerun when refreshing or changing source data—not for CSS, layout, colors, or other cosmetic application changes. The repository must allow GitHub Actions **Read and write permissions** under **Settings → Actions → General → Workflow permissions**.
+
 `dist/` は相対パスで生成されるため、GitHub Pages の repository site に配置できます。
 
 ## 画面構成
