@@ -16,7 +16,7 @@ describe('Shinjuku road entities', () => {
     ])
 
     expect(result).toHaveLength(1)
-    expect(result[0].properties.aliases).toEqual(['20', '新宿通り'])
+    expect(result[0].properties.aliases).toEqual(['20'])
     expect(result[0].properties.source_url).toHaveLength(2)
     expect(result[0].properties.illustrationWidthScale).toBe(1.8)
     expect(result[0].geometry.type).toBe('LineString')
