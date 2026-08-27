@@ -1,11 +1,5 @@
 [
   {
-    "id": "logical-road-甲州街道",
-    "name": "甲州街道",
-    "aliases": [],
-    "type": "road"
-  },
-  {
     "id": "osm-node-1926277346",
     "name": "新宿",
     "aliases": [

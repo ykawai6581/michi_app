@@ -9,7 +9,6 @@ datasets:
     required_attribution: © OpenStreetMap contributors
     derived_files:
       - public/data/modern/shinjuku-osm.geojson
-      - public/data/modern/shinjuku-logical-roads.geojson
       - public/search/modern-shinjuku.json
     delivery: Reproducible Overpass download; generated files are not fabricated historical data.
   - id: openfreemap-positron

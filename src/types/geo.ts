@@ -3,7 +3,7 @@ import type { Feature, Geometry, MultiLineString } from 'geojson'
 export type MapEntityType = 'road' | 'historical-road' | 'place' | 'historical-place' | 'chome' | 'station' | 'railway' | 'river' | 'water' | 'terrain-feature' | 'custom'
 export type Confidence = 'high' | 'medium' | 'low' | 'unknown'
 export type BasemapMode = 'presentation' | 'dark' | 'gsi' | 'white' | 'transparent'
-export type RoadReconstructionMethod = 'direct_source' | 'stroke_continuation' | 'graph_gap_completion'
+export type RoadReconstructionMethod = 'direct_source' | 'stroke_continuation'
 
 export interface RoadSegmentProvenance {
   segmentId: string
@@ -34,8 +34,11 @@ export interface EntityProperties {
   sourceSegmentIds?: string[]
   osmIds?: number[]
   segmentProvenance?: RoadSegmentProvenance[]
-  inferredConnections?: unknown[]
   strokeCount?: number
+  coinsDebug?: unknown[]
+  osm_id?: number
+  ref?: string
+  highway?: string
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>

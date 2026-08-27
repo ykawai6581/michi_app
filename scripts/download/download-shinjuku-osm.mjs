@@ -1,5 +1,4 @@
 import { mkdir, writeFile } from 'node:fs/promises'
-import { processRoadStrokes } from '../process/road-strokes.mjs'
 
 const defaultEndpoints = [
   'https://overpass-api.de/api/interpreter',
@@ -10,7 +9,7 @@ const endpoints = process.env.OVERPASS_URLS?.split(',').map((value) => value.tri
   ?? (process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : defaultEndpoints)
 const bounds = '35.6500,139.6000,35.7200,139.7800'
 const query = `[out:json][timeout:180][maxsize:268435456];
-way["highway"]["name"="甲州街道"](${bounds})->.seedRoads;
+way["highway"]["name"~"^(甲州街道|新宿通り)$"](${bounds})->.seedRoads;
 (
   .seedRoads;
   way(around.seedRoads:300)["highway"];
@@ -70,12 +69,10 @@ const features = payload.elements.flatMap((element) => {
 })
 
 const collection = { type: 'FeatureCollection', features }
-const logicalRoads = processRoadStrokes(collection, ['甲州街道'])
-const searchable = [...logicalRoads.features, ...features.filter(({ properties }) => properties.type !== 'road')]
+const searchable = features.filter(({ properties }) => properties.type !== 'road')
 const index = searchable.map(({ properties, geometry }) => ({ id: properties.id, name: properties.name, aliases: properties.aliases, type: properties.type, center: geometry.type === 'Point' ? geometry.coordinates : undefined }))
 await mkdir('public/data/modern', { recursive: true })
 await mkdir('public/search', { recursive: true })
 await writeFile('public/data/modern/shinjuku-osm.geojson', `${JSON.stringify(collection, null, 2)}\n`)
-await writeFile('public/data/modern/shinjuku-logical-roads.geojson', `${JSON.stringify(logicalRoads, null, 2)}\n`)
 await writeFile('public/search/modern-shinjuku.json', `${JSON.stringify(index, null, 2)}\n`)
 console.log(`Wrote ${features.length} current OSM features checked ${checked}.`)
