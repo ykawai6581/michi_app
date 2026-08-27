@@ -13,6 +13,7 @@ concurrency:
 jobs:
   rebuild:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out the default branch
         uses: actions/checkout@v4

@@ -53,7 +53,7 @@ This writes `public/data/modern/shinjuku-osm.geojson` and `public/search/modern-
 
 To build the files without a local GIS environment, open **Actions → Rebuild Shinjuku OSM data → Run workflow**. The manual workflow validates the result, uploads a 14-day review artifact, and commits changed generated files to the repository's default branch. That commit triggers the normal Pages deployment. The data workflow only needs to be rerun when refreshing or changing source data—not for CSS, layout, colors, or other cosmetic application changes. The repository must allow GitHub Actions **Read and write permissions** under **Settings → Actions → General → Workflow permissions**.
 
-The downloader uses an identified HTTP GET request and tries the primary Overpass instance followed by a secondary instance, sequentially, when no endpoint is specified. To force one instance for debugging, set `OVERPASS_URL`, for example `OVERPASS_URL=https://overpass.kumi.systems/api/interpreter npm run data:osm:shinjuku`. Failed responses include a short response excerpt in the Actions log so HTTP policy and query errors can be diagnosed.
+The downloader uses an identified HTTP GET request and tries three public Overpass instances sequentially. Transient 5xx/rate-limit failures are retried for up to three rounds with increasing delays. To force one instance, set `OVERPASS_URL`; to supply an ordered comma-separated list, set `OVERPASS_URLS`. For example: `OVERPASS_URL=https://overpass.kumi.systems/api/interpreter npm run data:osm:shinjuku`. Failed responses include the attempt number and a short response excerpt in the Actions log.
 
 `dist/` は相対パスで生成されるため、GitHub Pages の repository site に配置できます。
 

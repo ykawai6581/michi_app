@@ -3,35 +3,44 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const defaultEndpoints = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
 ]
-const endpoints = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : defaultEndpoints
+const endpoints = process.env.OVERPASS_URLS?.split(',').map((value) => value.trim()).filter(Boolean)
+  ?? (process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : defaultEndpoints)
 const bounds = '35.6500,139.6000,35.7200,139.7800'
-const query = `[out:json][timeout:120];
+const query = `[out:json][timeout:180][maxsize:268435456];
 (
-  way["highway"]["name"~"甲州街道|新宿通り|国道20号"](${bounds});
-  node["railway"="station"]["name"~"新宿|四ツ谷|高井戸"](${bounds});
+  way["highway"]["name"~"^(甲州街道|新宿通り|国道20号)$"](${bounds});
+  node["railway"="station"]["name"~"^(新宿|四ツ谷|高井戸)駅?$"](${bounds});
 );
 out tags geom;`
 
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
 async function requestOverpass() {
   const failures = []
-  for (const endpoint of endpoints) {
-    const url = new URL(endpoint)
-    url.searchParams.set('data', query)
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'michi-map-data-pipeline/0.1 (+https://github.com/ykawai6581/michi_app)',
-        },
-      })
-      if (response.ok) return response
-      const detail = (await response.text()).replace(/\s+/g, ' ').slice(0, 240)
-      failures.push(`${endpoint}: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`)
-    } catch (error) {
-      failures.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`)
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    for (const endpoint of endpoints) {
+      const url = new URL(endpoint)
+      url.searchParams.set('data', query)
+      try {
+        console.log(`Overpass attempt ${attempt}/3: ${endpoint}`)
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'User-Agent': 'michi-map-data-pipeline/0.1 (+https://github.com/ykawai6581/michi_app)',
+          },
+          signal: AbortSignal.timeout(210_000),
+        })
+        if (response.ok) return response
+        const detail = (await response.text()).replace(/\s+/g, ' ').slice(0, 240)
+        failures.push(`attempt ${attempt} ${endpoint}: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`)
+      } catch (error) {
+        failures.push(`attempt ${attempt} ${endpoint}: ${error instanceof Error ? error.message : String(error)}`)
+      }
     }
+    if (attempt < 3) await wait(attempt * 15_000)
   }
   throw new Error(`Every Overpass endpoint failed:\n${failures.map((failure) => `- ${failure}`).join('\n')}`)
 }
