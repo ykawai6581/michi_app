@@ -4,6 +4,7 @@ import type { BasemapMode } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
+export type DiagnosticVisibility = { osmSource: boolean; osmDerived: boolean; n13: boolean }
 export function getPresentationLayerIds(map: maplibregl.Map): string[] {
   return map.getStyle().layers.map((layer) => layer.id)
 }
@@ -34,6 +35,22 @@ export function addDataLayers(map: maplibregl.Map, data: FeatureCollection): voi
   map.addLayer({ id: LAYER_IDS.highlightPoint, type: 'circle', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Point'], paint: { 'circle-color':'#64c2f2','circle-radius':10,'circle-opacity':1,'circle-stroke-color':'#fff','circle-stroke-width':3 } })
   map.addLayer({ id: LAYER_IDS.highlightLineLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'LineString'], layout: { 'symbol-placement':'line','symbol-spacing':380,'text-field':['get','name'],'text-size':28,'text-font':['Noto Sans Regular'],'text-keep-upright':true }, paint: { 'text-color':'#ef6262','text-halo-color':'#fff','text-halo-width':3 } })
   map.addLayer({ id: LAYER_IDS.highlightLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['Point','Polygon']]], layout: { 'text-field':['get','name'],'text-size':28,'text-font':['Noto Sans Regular'],'text-offset':['case',['==',['geometry-type'],'Point'],['literal',[0,1.5]],['literal',[0,0]]],'text-anchor':['case',['==',['geometry-type'],'Point'],'top','center'] }, paint: { 'text-color':['match',['geometry-type'],'Polygon','#3264aa','#64c2f2'],'text-halo-color':'#fff','text-halo-width':3 } })
+}
+
+export function addDiagnosticLayers(map: maplibregl.Map, road: FeatureCollection, n13: FeatureCollection): void {
+  const sourceGeometry = road.features[0]?.properties?.sourceGeometry
+  const osmSource: FeatureCollection = sourceGeometry ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: sourceGeometry }] } : empty
+  map.addSource(SOURCE_IDS.diagnosticOsmSource, { type: 'geojson', data: osmSource })
+  map.addSource(SOURCE_IDS.diagnosticOsmDerived, { type: 'geojson', data: road })
+  map.addSource(SOURCE_IDS.diagnosticN13, { type: 'geojson', data: n13 })
+  map.addLayer({ id: LAYER_IDS.diagnosticN13, type: 'line', source: SOURCE_IDS.diagnosticN13, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#20a55a', 'line-width': 3, 'line-opacity': 0.8 } })
+  map.addLayer({ id: LAYER_IDS.diagnosticOsmSource, type: 'line', source: SOURCE_IDS.diagnosticOsmSource, layout: { 'line-cap': 'butt', 'line-join': 'round' }, paint: { 'line-color': '#d936a5', 'line-width': 5, 'line-opacity': 0.88, 'line-dasharray': [1, 1] } })
+  map.addLayer({ id: LAYER_IDS.diagnosticOsmDerived, type: 'line', source: SOURCE_IDS.diagnosticOsmDerived, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1769e0', 'line-width': 2.5, 'line-opacity': 1 } })
+}
+
+export function setDiagnosticVisibility(map: maplibregl.Map, visibility: DiagnosticVisibility): void {
+  ;([[LAYER_IDS.diagnosticOsmSource, visibility.osmSource], [LAYER_IDS.diagnosticOsmDerived, visibility.osmDerived], [LAYER_IDS.diagnosticN13, visibility.n13]] as const)
+    .forEach(([id, visible]) => map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none'))
 }
 
 export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentationLayerIds: string[]): void {
