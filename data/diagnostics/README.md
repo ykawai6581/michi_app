@@ -1,43 +1,36 @@
-# Canonical N13 road matching
+# N13 / National Route 20 diagnostic
 
-Road identity and display geometry are deliberately separate:
+`build-n13-koshu-fixture.py` now starts with **every N13 feature in the study
+area**, filters it to ordinary national roads (`N13_003 == "1"`), and only then
+compares those features with OSM National Route 20. It does not use the former
+100 m all-road corridor candidate file.
 
-* `data/roads/registry.json` owns canonical IDs, names, aliases, route numbers,
-  jurisdiction, N13 classification, OSM identity, and matching parameters.
-* OSM supplies a spatial reference for that configured identity.
-* MLIT N13 supplies the preferred display geometry.
-* Search loads only compact canonical road entities, never regional N13 data.
-
-Build National Route 20 with:
+Run the reproducible diagnostic with:
 
 ```sh
-python scripts/preprocess/match-road.py jp-national-20 --refresh-osm
-```
-
-The legacy command remains as a compatibility wrapper:
-
-```sh
+python scripts/preprocess/build-n13-shinjuku-fixture.py
 python scripts/preprocess/build-n13-koshu-fixture.py --refresh-osm
 ```
 
-The generic matcher filters N13 by the registry entry, computes exact minimum
-and regularly sampled median/p90 residuals, applies the configured diagnostic
-selection limits, and retains each selected N13 carriageway in the output union.
-It performs no COINS processing, geometry interpolation, or centerline synthesis.
+The second command writes:
 
-It writes:
+* `n13-national-roads-route-20.geojson`: all shortlisted N13 features with
+  minimum, median, and p90 sampled residuals attached;
+* `n13-national-roads-route-20.csv`: the same per-feature diagnostic attributes;
+* `n13-national-roads-route-20.report.json`: before/after counts and lengths,
+  N13 attribute distributions, and residual percentiles; and
+* `data/cache/osm-route-20.geojson`: the OSM reference ways, obtained by `ref=20`
+  and membership of a `route=road`, `ref=20` relation rather than by an exact
+  Japanese road name.
 
-* `public/data/roads/jp-national-20.geojson`, a compact canonical search/display
-  entity with configured/OSM identity and N13 geometry provenance;
-* `public/data/roads/jp-national-20.report.json`, containing candidate and selected
-  counts, residual statistics, OSM reference coverage, unresolved reference
-  sections, N13 attribute distributions, and output byte size; and
-* `public/search/roads.json`, the generated canonical-road search index.
+Distances are calculated in JGD2011 / Japan Plane Rectangular CS IX at both
+endpoints and every 5 m along each original N13 geometry. No final cutoff is
+assigned: the report's percentiles are intended to reveal (or refute) a separate
+low-residual population before a production threshold is discussed. Each N13
+feature remains independent, preserving divided carriageways; there is no COINS,
+interpolation of output geometry, or synthetic centerline.
 
-Run `npm run dev`, search for `国道20号`, `国道20`, or `20号`, and select the
-single canonical result to highlight the derived N13 geometry. `甲州街道` is not
-an alias of this entity; its common/historical road entity remains separate.
-
-Adding another road should normally require only a registry entry. National roads
-use N13 class `1`; prefectural/metropolitan roads can use class `2`. Prefectural
-IDs must include jurisdiction because route numbers can repeat across prefectures.
+The source N13 study-area fixture and cached OSM download are intentionally
+gitignored source data. Consequently generated diagnostic outputs should be
+produced only from those authoritative inputs, not reconstructed from the old
+100 m corridor fixture.
