@@ -87,8 +87,11 @@ def rebuild_search_index(registry_path: Path) -> None:
     roads = json.loads(registry_path.read_text())["roads"]
     entries = [{
         "id": road["id"], "name": road["displayName"], "aliases": road["aliases"],
-        "type": "road", "geometry": f"data/roads/{road['id']}.geojson",
-    } for road in roads if (PUBLIC_ROADS / f"{road['id']}.geojson").exists()]
+        "type": "road", "sources": {
+            "n13": f"data/roads/{road['id']}-n13.geojson",
+            "osm": f"data/roads/{road['id']}-osm.geojson",
+        },
+    } for road in roads if all((PUBLIC_ROADS / f"{road['id']}-{source}.geojson").exists() for source in ("n13", "osm"))]
     SEARCH_INDEX.parent.mkdir(parents=True, exist_ok=True)
     SEARCH_INDEX.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n")
 
@@ -131,21 +134,33 @@ def main() -> None:
         reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"]
     )
     selected_wgs84 = selected.to_crs("EPSG:4326")
-    feature = {
+    common_properties = {
+        "id": road["id"], "name": road["displayName"], "aliases": road["aliases"], "type": "road",
+        "roadClass": road["roadClass"], "routeNumber": road["routeNumber"], "jurisdiction": road["jurisdiction"],
+    }
+    n13_feature = {
         "type": "Feature",
         "properties": {
-            "id": road["id"], "name": road["displayName"], "aliases": road["aliases"], "type": "road",
-            "roadClass": road["roadClass"], "routeNumber": road["routeNumber"], "jurisdiction": road["jurisdiction"],
-            "source": ["Configured/OSM road identity", "MLIT National Land Numerical Information N13 2024 geometry"],
-            "license": "OSM ODbL 1.0; N13 source terms apply", "confidence": "medium",
+            **common_properties, "geometrySource": "n13",
+            "source": ["MLIT National Land Numerical Information N13 2024"],
+            "license": "N13 source terms apply", "confidence": "medium",
             "note": "Identity comes from the road registry and OSM reference; display geometry is selected from N13.",
             "match": {"candidateCount": len(candidates), "selectedFeatureCount": len(selected), "osmCoveragePercent": round(coverage, 2)},
         },
         "geometry": mapping(selected_wgs84.geometry.union_all()),
     }
-    output = PUBLIC_ROADS / f"{road['id']}.geojson"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"type": "FeatureCollection", "features": [feature]}, ensure_ascii=False, separators=(",", ":")) + "\n")
+    osm_feature = {
+        "type": "Feature", "properties": {
+            **common_properties, "geometrySource": "osm", "source": ["OpenStreetMap"],
+            "license": "ODbL 1.0", "confidence": "high",
+            "note": "OSM reference geometry used to identify and validate the canonical road.",
+        }, "geometry": mapping(osm.to_crs("EPSG:4326").geometry.union_all()),
+    }
+    n13_output = PUBLIC_ROADS / f"{road['id']}-n13.geojson"
+    osm_output = PUBLIC_ROADS / f"{road['id']}-osm.geojson"
+    n13_output.parent.mkdir(parents=True, exist_ok=True)
+    n13_output.write_text(json.dumps({"type": "FeatureCollection", "features": [n13_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n")
+    osm_output.write_text(json.dumps({"type": "FeatureCollection", "features": [osm_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n")
     rebuild_search_index(args.registry)
     report = {
         "roadId": road["id"], "n13CandidateCount": len(candidates), "selectedFeatureCount": len(selected),
@@ -155,9 +170,11 @@ def main() -> None:
             for field in ("match_min_m", "match_median_m", "match_p90_m")
         },
         "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
-        "unresolvedSections": unresolved, "outputBytes": output.stat().st_size, "output": str(output),
+        "matchingThresholds": match, "unresolvedSections": unresolved,
+        "outputBytes": {"n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},
+        "outputs": {"n13": str(n13_output), "osm": str(osm_output)},
     }
-    output.with_suffix(".report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    (PUBLIC_ROADS / f"{road['id']}.report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 

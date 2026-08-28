@@ -1,9 +1,8 @@
 import type { FeatureCollection } from 'geojson'
 import type { EntityFeature } from '../types/geo'
-import { buildLogicalRoadEntities } from '../road-network/coins'
 
 interface SearchEntry { id: string }
-interface RoadSearchEntry extends SearchEntry { geometry: string }
+interface RoadSearchEntry extends SearchEntry { name: string; aliases: string[]; sources: { n13: string; osm: string } }
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${import.meta.env.BASE_URL}${path}`)
@@ -24,13 +23,14 @@ export async function loadShinjukuEntities(): Promise<EntityFeature[]> {
     if (!feature || feature.properties.type === 'road') return []
     return [feature]
   })
-  const canonicalRoads = await Promise.all(roadIndex.map(async ({ geometry }) => {
+  const canonicalRoads = await Promise.all(roadIndex.map(async (entry) => {
     try {
-      const collection = await getJson<FeatureCollection>(geometry)
-      return collection.features[0] as EntityFeature
+      const [n13, osm] = await Promise.all([getJson<FeatureCollection>(entry.sources.n13), getJson<FeatureCollection>(entry.sources.osm)])
+      const feature = n13.features[0] as EntityFeature
+      return { ...feature, properties: { ...feature.properties, id: entry.id, name: entry.name, aliases: entry.aliases, type: 'road', roadSourceGeometries: { n13: feature.geometry, osm: osm.features[0].geometry } } } as EntityFeature
     } catch {
       return undefined
     }
   }))
-  return [...canonicalRoads.filter((road): road is EntityFeature => road !== undefined), ...buildLogicalRoadEntities(rawFeatures, ['甲州街道', '新宿通り']), ...nonRoads]
+  return [...canonicalRoads.filter((road): road is EntityFeature => road !== undefined), ...nonRoads]
 }

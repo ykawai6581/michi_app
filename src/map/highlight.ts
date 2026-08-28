@@ -2,7 +2,7 @@ import bbox from '@turf/bbox'
 import type { FeatureCollection, Geometry, Position } from 'geojson'
 import type maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
-import type { EntityFeature, EntityProperties, HighlightStyle } from '../types/geo'
+import type { EntityFeature, EntityProperties, HighlightStyle, RoadSourceVisibility } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 
 const activeAnimations = new WeakMap<maplibregl.Map, number>()
@@ -82,6 +82,15 @@ function collection(features: EntityFeature[]): FeatureCollection<Geometry, Enti
   return { type: 'FeatureCollection', features }
 }
 
+export function splitRoadSourceFeatures(features: EntityFeature[], roadSources: RoadSourceVisibility): { primary: EntityFeature[]; osm: EntityFeature[] } {
+  return {
+    primary: features.filter((feature) => feature.properties.type !== 'road' || roadSources.n13),
+    osm: features.flatMap((feature): EntityFeature[] => feature.properties.type === 'road' && roadSources.osm && feature.properties.roadSourceGeometries
+      ? [{ ...feature, geometry: feature.properties.roadSourceGeometries.osm }]
+      : []),
+  }
+}
+
 function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: EntityFeature): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
@@ -99,11 +108,13 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
   activeAnimations.set(map, requestAnimationFrame(frame))
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], focusFeature?: EntityFeature, animate = false): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  if (focusFeature && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'MultiLineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, features, focusFeature)
-  else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(features))
+  const { primary, osm } = splitRoadSourceFeatures(features, roadSources)
+  if (focusFeature && primary.includes(focusFeature) && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'MultiLineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, primary, focusFeature)
+  else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
+  ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
   if (!focusFeature) return
   if (focusFeature.geometry.type === 'Point') map.flyTo({ center: focusFeature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
   else { const bounds = bbox(focusFeature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
