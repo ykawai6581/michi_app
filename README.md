@@ -98,7 +98,7 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 python scripts/preprocess/add-road.py tokyo-prefectural-319
 ```
 
-現在サポートする ID は `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` です。書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せずエラーになります。追加後の形状生成は別工程なので、必要な N13 fixture を用意して `scripts/preprocess/match-road.py` を実行してください。
+現在サポートする ID は `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` です。都県境をまたぐ路線の Wikipedia 記事名（例: `東京都道・埼玉県道25号…`）も検索します。書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せず、修正方法を含む短いエラーを表示します。追加後の形状生成は別工程なので、必要な N13 fixture を用意して `scripts/preprocess/match-road.py` を実行してください。
 
 登録と形状生成を同じ ID で続けて実行する場合は、まとめたコマンドを使用できます。
 

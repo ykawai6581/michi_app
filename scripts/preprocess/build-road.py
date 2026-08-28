@@ -61,7 +61,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    run_pipeline(parse_args())
+    args = parse_args()
+    try:
+        run_pipeline(args)
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"build-road: error: {error}") from None
+    except subprocess.CalledProcessError as error:
+        script = Path(error.cmd[1]).name if len(error.cmd) > 1 else str(error.cmd[0])
+        raise SystemExit(
+            f"build-road: {script} failed for {args.road_id!r} with exit status {error.returncode}; "
+            "the pipeline has stopped."
+        ) from None
 
 
 if __name__ == "__main__":
