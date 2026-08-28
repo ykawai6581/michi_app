@@ -14,6 +14,6 @@
     "cacheDirectory": "data/cache/osm/references"
   },
   "n13": {
-    "cache": "data/cache/n13/roads.parquet"
+    "cache": "data/cache/n13/roads"
   }
 }

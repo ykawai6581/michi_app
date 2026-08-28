@@ -95,11 +95,19 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 #### Canonical-road build sources
 
 Canonical roads use build-time data that is deliberately separate from browser assets. Put a full/natural-extent
-N13 GeoJSON under `data/raw/n13/`, then create the reusable road-class cache (classes 1 national, 2 prefectural,
-and 3 municipal/ward) with:
+N13 GeoJSON under `data/raw/n13/`, then create the default major-road cache (class 1 national and class 2
+prefectural) with:
 
 ```bash
-python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads.parquet
+python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads
+```
+
+The cache is partitioned as `class=1/roads.parquet` and `class=2/roads.parquet`, so matching reads only the required
+class. Municipal/ward class 3 is intentionally separate for future named-road work and can be added without
+rebuilding or combining the major-road partitions:
+
+```bash
+python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads --classes 3
 ```
 
 The preprocessor reads the source in chunks, and `match-road.py` reads GeoParquet without a Shinjuku spatial

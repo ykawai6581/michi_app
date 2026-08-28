@@ -236,10 +236,14 @@ def load_n13_candidates(road: dict, source: Path) -> gpd.GeoDataFrame:
     """Load a prefiltered regional N13 cache without applying matcher geography bounds."""
     if not source.exists():
         raise RuntimeError(f"N13 cache not found: {source}; run preprocess-n13.py first")
-    n13 = gpd.read_parquet(source) if source.suffix.lower() in (".parquet", ".geoparquet") else gpd.read_file(source)
+    road_class = str(road["n13"]["classification"])
+    partition = source / f"class={road_class}" / "roads.parquet" if source.is_dir() else source
+    if not partition.exists():
+        raise RuntimeError(f"N13 class {road_class} cache not found: {partition}; rebuild it with --classes {road_class}")
+    n13 = gpd.read_parquet(partition) if partition.suffix.lower() in (".parquet", ".geoparquet") else gpd.read_file(partition)
     if n13.crs is None:
         n13 = n13.set_crs("EPSG:6668")
-    candidates = n13[n13["N13_003"].astype(str) == str(road["n13"]["classification"])].copy()
+    candidates = n13[n13["N13_003"].astype(str) == road_class].copy()
     return candidates.to_crs(METRIC_CRS)
 
 

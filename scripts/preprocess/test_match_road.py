@@ -67,6 +67,16 @@ class SourceArchitectureTests(unittest.TestCase):
             self.assertEqual(len(candidates), 1)
             self.assertGreater(candidates.geometry.iloc[0].length, 90_000)
 
+    def test_candidate_loading_reads_only_requested_class_partition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "roads"
+            for road_class in ("1", "2"):
+                partition = root / f"class={road_class}"; partition.mkdir(parents=True)
+                gpd.GeoDataFrame({"N13_003": [road_class], "geometry": [LineString([(139, 35), (140, 35)])]},
+                                 crs="EPSG:4326").to_parquet(partition / "roads.parquet")
+            candidates = MATCH_ROAD.load_n13_candidates({"n13": {"classification": "2"}}, root)
+            self.assertEqual(set(candidates["N13_003"]), {"2"})
+
     def test_cached_osm_reference_is_reused(self):
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory) / "cache"; cache.mkdir()

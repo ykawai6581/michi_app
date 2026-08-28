@@ -11,14 +11,27 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 class PreprocessN13Tests(unittest.TestCase):
-    def test_keeps_road_classes_one_through_three(self):
+    def make_source(self, directory):
+        source = Path(directory) / "source.geojson"
+        gpd.GeoDataFrame({"N13_003": ["1", "2", "3", "4"], "geometry": [
+            LineString([(i, 0), (i, 1)]) for i in range(4)]}, crs="EPSG:4326").to_file(source, driver="GeoJSON")
+        return source
+
+    def test_default_cache_partitions_major_road_classes_only(self):
         with tempfile.TemporaryDirectory() as directory:
-            source, output = Path(directory) / "source.geojson", Path(directory) / "roads.parquet"
-            gpd.GeoDataFrame({"N13_003": ["1", "2", "3", "4"], "geometry": [
-                LineString([(i, 0), (i, 1)]) for i in range(4)]}, crs="EPSG:4326").to_file(source, driver="GeoJSON")
+            source, output = self.make_source(directory), Path(directory) / "roads"
             report = MODULE.preprocess_n13(source, output, chunk_size=2)
-            self.assertEqual(set(gpd.read_parquet(output)["N13_003"]), {"1", "2", "3"})
+            self.assertEqual(set(report["outputs"]), {"1", "2"})
+            self.assertFalse((output / "class=3").exists())
+            self.assertEqual(set(gpd.read_parquet(output / "class=1/roads.parquet")["N13_003"]), {"1"})
             self.assertEqual(report["sourceFeatureCount"], 4)
+
+    def test_class_three_can_be_built_separately(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, output = self.make_source(directory), Path(directory) / "roads"
+            report = MODULE.preprocess_n13(source, output, classes={"3"}, chunk_size=2)
+            self.assertEqual(report["classes"], ["3"])
+            self.assertEqual(set(gpd.read_parquet(output / "class=3/roads.parquet")["N13_003"]), {"3"})
 
 if __name__ == "__main__":
     unittest.main()
