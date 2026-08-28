@@ -3,6 +3,3 @@ dist/
 *.tsbuildinfo
 data/raw/
 data/cache/
-data/fixtures/n13-shinjuku.geojson
-data/raw/
-data/cache/

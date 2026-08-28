@@ -1,0 +1,19 @@
+{
+  "osm": {
+    "provider": "auto",
+    "local": {
+      "path": "data/raw/osm/kanto-latest.osm.pbf"
+    },
+    "overpass": {
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "boundsByJurisdiction": {
+        "Tokyo": [138.90, 35.45, 140.00, 35.95],
+        "JP": [122.00, 20.00, 154.00, 46.00]
+      }
+    },
+    "cacheDirectory": "data/cache/osm/references"
+  },
+  "n13": {
+    "cache": "data/cache/n13/roads"
+  }
+}

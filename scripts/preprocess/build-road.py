@@ -11,7 +11,7 @@ from typing import Callable
 
 
 REGISTRY = Path("data/roads/registry.json")
-N13_INPUT = Path("data/fixtures/n13-shinjuku.geojson")
+N13_INPUT = Path("data/cache/n13/roads")
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
 
 

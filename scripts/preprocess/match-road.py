@@ -14,12 +14,10 @@ import numpy as np
 from shapely.geometry import LineString, MultiLineString, Point, mapping
 
 REGISTRY = Path("data/roads/registry.json")
-N13_INPUT = Path("data/fixtures/n13-shinjuku.geojson")
-CACHE = Path("data/cache/roads")
+SOURCE_CONFIG = Path("data/roads/sources.json")
 PUBLIC_ROADS = Path("public/data/roads")
 SEARCH_INDEX = Path("public/search/roads.json")
 METRIC_CRS = "EPSG:6677"
-STUDY_BBOX = (139.6000, 35.6500, 139.7800, 35.7200)
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 DEFAULT_ENDPOINT_SNAP_METERS = 2.0
 
@@ -154,8 +152,8 @@ def load_road(registry_path: Path, road_id: str) -> dict:
         raise RuntimeError(f"Unknown road id {road_id!r}; add it to {registry_path}") from error
 
 
-def osm_query(road: dict) -> str:
-    south, west, north, east = STUDY_BBOX[1], STUDY_BBOX[0], STUDY_BBOX[3], STUDY_BBOX[2]
+def osm_query(road: dict, bounds: list[float]) -> str:
+    west, south, east, north = bounds
     ref = road["osm"]["ref"].replace('"', '\\"')
     network = road["osm"].get("network")
     network_filter = f'["network"="{network}"]' if network else ""
@@ -167,8 +165,8 @@ way(r.r)({south},{west},{north},{east})->.rw;
 out tags geom;'''
 
 
-def download_reference(road: dict, output: Path, endpoint: str) -> None:
-    request = Request(f"{endpoint}?{urlencode({'data': osm_query(road)})}", headers={
+def download_reference(road: dict, output: Path, endpoint: str, bounds: list[float]) -> None:
+    request = Request(f"{endpoint}?{urlencode({'data': osm_query(road, bounds)})}", headers={
         "Accept": "application/json", "User-Agent": "michi-map-road-matcher/0.1",
     })
     with urlopen(request, timeout=210) as response:  # noqa: S310
@@ -182,6 +180,87 @@ def download_reference(road: dict, output: Path, endpoint: str) -> None:
         raise RuntimeError(f"OSM returned no reference geometry for {road['id']}")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps({"type": "FeatureCollection", "features": features}) + "\n")
+
+
+def load_source_config(path: Path) -> dict:
+    if not path.exists():
+        raise RuntimeError(f"Source configuration not found: {path}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _local_osm_reference(road: dict, source: Path) -> gpd.GeoDataFrame:
+    """Read matching ways from a regional GIS source; PBF requires GDAL OSM support."""
+    ref = str(road["osm"]["ref"])
+    try:
+        frame = gpd.read_file(source, layer="lines") if source.suffix == ".pbf" else gpd.read_file(source)
+    except Exception as error:
+        raise RuntimeError(f"Cannot read local OSM source {source}: {error}") from error
+    if "ref" not in frame:
+        raise RuntimeError(f"Local OSM source {source} has no ref field")
+    refs = frame["ref"].fillna("").astype(str).str.split(";")
+    frame = frame[refs.apply(lambda values: ref in [value.strip() for value in values])].copy()
+    if frame.empty:
+        raise RuntimeError(f"Local OSM source {source} contains no ways for {road['id']}")
+    return frame
+
+
+def build_osm_reference(road: dict, source_config: dict, refresh: bool = False,
+                        endpoint_override: str | None = None) -> tuple[gpd.GeoDataFrame, dict]:
+    """Resolve a reference from cache, regional source, or configured Overpass fallback."""
+    config = source_config["osm"]
+    cache = Path(config["cacheDirectory"]) / f"{road['id']}-osm.geojson"
+    if cache.exists() and not refresh:
+        return gpd.read_file(cache), {"provider": "cache", "path": str(cache)}
+    provider = config.get("provider", "auto")
+    local = Path(config.get("local", {}).get("path", ""))
+    if provider in ("auto", "local") and local.is_file():
+        try:
+            frame = _local_osm_reference(road, local)
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            frame.to_file(cache, driver="GeoJSON")
+            return frame, {"provider": "local", "path": str(local), "cache": str(cache)}
+        except RuntimeError:
+            if provider == "local":
+                raise
+    if provider == "local":
+        raise RuntimeError(f"Configured local OSM source does not exist: {local}")
+    overpass = config["overpass"]
+    bounds = overpass["boundsByJurisdiction"].get(road["jurisdiction"])
+    if not bounds:
+        raise RuntimeError(f"No OSM source bounds configured for jurisdiction {road['jurisdiction']!r}")
+    download_reference(road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), bounds)
+    return gpd.read_file(cache), {"provider": "overpass", "bounds": bounds, "cache": str(cache)}
+
+
+def load_n13_candidates(road: dict, source: Path) -> gpd.GeoDataFrame:
+    """Load a prefiltered regional N13 cache without applying matcher geography bounds."""
+    legacy_root = source.with_suffix("") if source.suffix.lower() in (".parquet", ".geoparquet") else source
+    if legacy_root != source and legacy_root.is_dir():
+        source = legacy_root
+    if not source.exists():
+        raise RuntimeError(f"N13 cache not found: {source}; run preprocess-n13.py first")
+    road_class = str(road["n13"]["classification"])
+    partition = source / f"class={road_class}" / "roads.parquet" if source.is_dir() else source
+    if not partition.exists():
+        raise RuntimeError(f"N13 class {road_class} cache not found: {partition}; rebuild it with --classes {road_class}")
+    n13 = gpd.read_parquet(partition) if partition.suffix.lower() in (".parquet", ".geoparquet") else gpd.read_file(partition)
+    if n13.crs is None:
+        n13 = n13.set_crs("EPSG:6668")
+    candidates = n13[n13["N13_003"].astype(str) == road_class].copy()
+    return candidates.to_crs(METRIC_CRS)
+
+
+def match_n13(candidates: gpd.GeoDataFrame, reference, road: dict):
+    match = road["matching"]
+    diagnostics = []
+    for geometry in candidates.geometry:
+        sampled = distances(geometry, reference, match["sampleIntervalMeters"])
+        diagnostics.append((geometry.distance(reference), np.median(sampled), np.percentile(sampled, 90)))
+    candidates = candidates.copy()
+    candidates[["match_min_m", "match_median_m", "match_p90_m"]] = np.round(diagnostics, 3)
+    selected = candidates[(candidates["match_median_m"] <= match["maximumMedianResidualMeters"])
+                          & (candidates["match_p90_m"] <= match["maximumP90ResidualMeters"])].copy()
+    return selected, candidates
 
 
 def distances(line, reference, interval: float) -> np.ndarray:
@@ -223,34 +302,20 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("road_id")
     parser.add_argument("--registry", type=Path, default=REGISTRY)
-    parser.add_argument("--n13", type=Path, default=N13_INPUT)
+    parser.add_argument("--sources", type=Path, default=SOURCE_CONFIG)
+    parser.add_argument("--n13", type=Path, help="override the N13 cache path from source configuration")
     parser.add_argument("--refresh-osm", action="store_true")
-    parser.add_argument("--overpass-url", default=OVERPASS_URL)
+    parser.add_argument("--overpass-url")
     args = parser.parse_args()
     road = load_road(args.registry, args.road_id)
-    reference_path = CACHE / f"{road['id']}-osm.geojson"
-    if args.refresh_osm or not reference_path.exists():
-        download_reference(road, reference_path, args.overpass_url)
-
-    n13 = gpd.read_file(args.n13)
-    if n13.crs is None:
-        n13 = n13.set_crs("EPSG:6668")
-    candidates = n13.to_crs(METRIC_CRS)
-    candidates = candidates[candidates["N13_003"].astype(str) == road["n13"]["classification"]].copy()
-    osm = gpd.read_file(reference_path)
+    source_config = load_source_config(args.sources)
+    osm, osm_provenance = build_osm_reference(road, source_config, args.refresh_osm, args.overpass_url)
+    candidates = load_n13_candidates(road, args.n13 or Path(source_config["n13"]["cache"]))
     if osm.crs is None:
         osm = osm.set_crs("EPSG:4326")
     reference = osm.to_crs(METRIC_CRS).geometry.union_all()
     match = road["matching"]
-    diagnostics = []
-    for geometry in candidates.geometry:
-        sampled = distances(geometry, reference, match["sampleIntervalMeters"])
-        diagnostics.append((geometry.distance(reference), np.median(sampled), np.percentile(sampled, 90)))
-    candidates[["match_min_m", "match_median_m", "match_p90_m"]] = np.round(diagnostics, 3)
-    selected = candidates[
-        (candidates["match_median_m"] <= match["maximumMedianResidualMeters"])
-        & (candidates["match_p90_m"] <= match["maximumP90ResidualMeters"])
-    ].copy()
+    selected, candidates = match_n13(candidates, reference, road)
     if selected.empty:
         raise RuntimeError(f"No plausible N13 features selected for {road['id']}")
     coverage, unresolved = reference_coverage(
@@ -281,6 +346,7 @@ def main() -> None:
             **common_properties, "geometrySource": "osm", "source": ["OpenStreetMap"],
             "license": "ODbL 1.0", "confidence": "high",
             "note": "OSM reference geometry used to identify and validate the canonical road.",
+            "provenance": osm_provenance,
         }, "geometry": mapping(osm.to_crs("EPSG:4326").geometry.union_all()),
     }
     n13_output = PUBLIC_ROADS / f"{road['id']}-n13.geojson"
@@ -302,7 +368,8 @@ def main() -> None:
             for field in ("match_min_m", "match_median_m", "match_p90_m")
         },
         "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
-        "matchingThresholds": match, "unresolvedSections": unresolved,
+        "matchingThresholds": match, "unresolvedSections": unresolved, "osmReference": osm_provenance,
+        "n13Source": str(args.n13 or Path(source_config["n13"]["cache"])),
         "geometryProcessing": {**stitching, "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
         "outputBytes": {"n13BeforeStitching": unstitched_bytes, "n13AfterStitching": n13_output.stat().st_size,
                         "n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},

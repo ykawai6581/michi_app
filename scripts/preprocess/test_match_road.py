@@ -2,9 +2,12 @@
 
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+import geopandas as gpd
 from shapely.geometry import LineString
 
 
@@ -51,6 +54,65 @@ class DisplayChainTests(unittest.TestCase):
         report_path = Path(__file__).parents[2] / "public/data/roads/jp-national-20.report.json"
         processing = json.loads(report_path.read_text())["geometryProcessing"]
         self.assertLess(processing["displayChainCount"], processing["sourceSegmentCount"] / 4)
+
+
+class SourceArchitectureTests(unittest.TestCase):
+    def test_candidate_loading_filters_class_without_a_bbox(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "roads.parquet"
+            gpd.GeoDataFrame({"N13_003": ["1", "2"], "geometry": [
+                LineString([(130, 30), (131, 30)]), LineString([(140, 36), (141, 36)])]},
+                crs="EPSG:4326").to_parquet(path)
+            candidates = MATCH_ROAD.load_n13_candidates({"n13": {"classification": "1"}}, path)
+            self.assertEqual(len(candidates), 1)
+            self.assertGreater(candidates.geometry.iloc[0].length, 90_000)
+
+    def test_candidate_loading_reads_only_requested_class_partition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "roads"
+            for road_class in ("1", "2"):
+                partition = root / f"class={road_class}"; partition.mkdir(parents=True)
+                gpd.GeoDataFrame({"N13_003": [road_class], "geometry": [LineString([(139, 35), (140, 35)])]},
+                                 crs="EPSG:4326").to_parquet(partition / "roads.parquet")
+            candidates = MATCH_ROAD.load_n13_candidates({"n13": {"classification": "2"}}, root)
+            self.assertEqual(set(candidates["N13_003"]), {"2"})
+
+    def test_candidate_loading_normalizes_legacy_parquet_root_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            requested = Path(directory) / "roads.parquet"
+            requested.write_text("old cache")
+            partition = Path(directory) / "roads/class=1"; partition.mkdir(parents=True)
+            gpd.GeoDataFrame({"N13_003": ["1"], "geometry": [LineString([(139, 35), (140, 35)])]},
+                             crs="EPSG:4326").to_parquet(partition / "roads.parquet")
+            candidates = MATCH_ROAD.load_n13_candidates({"n13": {"classification": "1"}}, requested)
+            self.assertEqual(len(candidates), 1)
+
+    def test_cached_osm_reference_is_reused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory) / "cache"; cache.mkdir()
+            path = cache / "jp-national-20-osm.geojson"
+            gpd.GeoDataFrame({"ref": ["20"], "geometry": [LineString([(139, 35), (140, 35)])]},
+                             crs="EPSG:4326").to_file(path, driver="GeoJSON")
+            frame, provenance = MATCH_ROAD.build_osm_reference(
+                {"id": "jp-national-20"}, {"osm": {"provider": "auto", "cacheDirectory": str(cache)}})
+            self.assertEqual(len(frame), 1)
+            self.assertEqual(provenance["provider"], "cache")
+
+    def test_provider_uses_configured_statutory_identity_and_bounds(self):
+        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-prefectural-318")
+        config = {"osm": {"provider": "overpass", "cacheDirectory": "/tmp/unused", "overpass": {
+            "endpoint": "https://example.test", "boundsByJurisdiction": {"Tokyo": [1, 2, 3, 4]}}}}
+        with patch.object(MATCH_ROAD, "download_reference") as download, patch.object(
+                MATCH_ROAD.gpd, "read_file", return_value=gpd.GeoDataFrame(geometry=[])):
+            MATCH_ROAD.build_osm_reference(road, config, refresh=True)
+        query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
+        self.assertIn('["ref"="318"]', query)
+        self.assertIn("(2,1,4,3)", query)
+        self.assertEqual(download.call_args.args[3], [1, 2, 3, 4])
+
+    def test_registry_contains_current_statutory_roads(self):
+        for road_id in ("jp-national-20", "jp-national-246", "tokyo-prefectural-318", "tokyo-prefectural-311"):
+            self.assertEqual(MATCH_ROAD.load_road(Path("data/roads/registry.json"), road_id)["id"], road_id)
 
 
 if __name__ == "__main__":
