@@ -5,7 +5,7 @@
   "osmReferenceCoveragePercent": 93.885,
   "selectedResidualMeters": {
     "match_min_m": {
-      "min": 0.0,
+      "min": 0,
       "median": 5.611,
       "p90": 11.861,
       "max": 15.44
@@ -33,10 +33,10 @@
       "3": 2
     },
     "N13_006": {
-      "5": 733,
-      "3": 186,
       "2": 31,
-      "4": 51
+      "3": 186,
+      "4": 51,
+      "5": 733
     }
   },
   "matchingThresholds": {
@@ -78,11 +78,24 @@
     }
   ],
   "outputBytes": {
-    "n13": 42352,
-    "osm": 38002
+    "n13": 29158,
+    "osm": 38002,
+    "n13BeforeStitching": 42352,
+    "n13AfterStitching": 29158
   },
   "outputs": {
     "n13": "public/data/roads/jp-national-20-n13.geojson",
     "osm": "public/data/roads/jp-national-20-osm.geojson"
+  },
+  "geometryProcessing": {
+    "sourceSegmentCount": 424,
+    "displayChainCount": 19,
+    "sourceLengthMeters": 22365.389,
+    "stitchedLengthMeters": 22365.036,
+    "endpointSnapCount": 4,
+    "maximumSnappedGapMeters": 1.29,
+    "unresolvedBreakCount": 36,
+    "endpointSnapMeters": 2,
+    "parallelCarriagewaysCollapsed": false
   }
 }

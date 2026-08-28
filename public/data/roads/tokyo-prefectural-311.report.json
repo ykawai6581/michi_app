@@ -5,7 +5,7 @@
   "osmReferenceCoveragePercent": 98.458,
   "selectedResidualMeters": {
     "match_min_m": {
-      "min": 0.0,
+      "min": 0,
       "median": 3.77,
       "p90": 6.325,
       "max": 14.912
@@ -35,11 +35,11 @@
       "4": 1
     },
     "N13_006": {
+      "1": 2,
       "2": 651,
       "3": 1512,
-      "5": 3216,
       "4": 822,
-      "1": 2
+      "5": 3216
     }
   },
   "matchingThresholds": {
@@ -71,11 +71,24 @@
     }
   ],
   "outputBytes": {
-    "n13": 22026,
-    "osm": 15753
+    "n13": 15659,
+    "osm": 15753,
+    "n13BeforeStitching": 22026,
+    "n13AfterStitching": 15659
   },
   "outputs": {
     "n13": "public/data/roads/tokyo-prefectural-311-n13.geojson",
     "osm": "public/data/roads/tokyo-prefectural-311-osm.geojson"
+  },
+  "geometryProcessing": {
+    "sourceSegmentCount": 219,
+    "displayChainCount": 21,
+    "sourceLengthMeters": 13820.899,
+    "stitchedLengthMeters": 13820.899,
+    "endpointSnapCount": 0,
+    "maximumSnappedGapMeters": 0,
+    "unresolvedBreakCount": 42,
+    "endpointSnapMeters": 2,
+    "parallelCarriagewaysCollapsed": false
   }
 }

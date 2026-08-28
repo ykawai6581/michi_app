@@ -1,4 +1,7 @@
 {
+  "display": {
+    "endpointSnapMeters": 2.0
+  },
   "roads": [
     {
       "id": "jp-national-20",

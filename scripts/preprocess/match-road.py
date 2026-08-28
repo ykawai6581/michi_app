@@ -11,7 +11,7 @@ from urllib.request import Request, urlopen
 
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import mapping
+from shapely.geometry import LineString, MultiLineString, Point, mapping
 
 REGISTRY = Path("data/roads/registry.json")
 N13_INPUT = Path("data/fixtures/n13-shinjuku.geojson")
@@ -21,12 +21,135 @@ SEARCH_INDEX = Path("public/search/roads.json")
 METRIC_CRS = "EPSG:6677"
 STUDY_BBOX = (139.6000, 35.6500, 139.7800, 35.7200)
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+DEFAULT_ENDPOINT_SNAP_METERS = 2.0
+
+
+def _line_parts(geometries) -> list[LineString]:
+    """Flatten line-like N13 features without changing their vertices."""
+    parts = []
+    for geometry in geometries:
+        if geometry.geom_type == "LineString":
+            parts.append(geometry)
+        elif geometry.geom_type == "MultiLineString":
+            parts.extend(geometry.geoms)
+        else:
+            raise ValueError(f"N13 display input must be line geometry, not {geometry.geom_type}")
+    return [part for part in parts if not part.is_empty and len(part.coords) > 1]
+
+
+def _reference_position(point, reference) -> tuple[int, float, float]:
+    parts = list(reference.geoms) if reference.geom_type == "MultiLineString" else [reference]
+    index, part = min(enumerate(parts), key=lambda item: item[1].distance(point))
+    return index, part.project(point), part.distance(point)
+
+
+def build_display_chains(selected_n13, osm_reference, config: dict | None = None):
+    """Snap tiny endpoint gaps and form inspectable, source-aligned display chains.
+
+    At a junction, incident ends are paired greedily by (1) opposite progression
+    along the same OSM part, (2) smallest turn, then (3) OSM proximity.  Turns
+    above 60 degrees are left unresolved.  This deliberately does not conflate
+    nearby parallel lines: only endpoints in the same small snap cluster can join.
+    """
+    config = config or {}
+    tolerance = float(config.get("endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS))
+    parts = _line_parts(selected_n13.geometry if hasattr(selected_n13, "geometry") else selected_n13)
+    original = MultiLineString([list(part.coords) for part in parts])
+
+    # Conservative complete-link clustering prevents a chain of 2 m gaps from
+    # moving endpoints that were much farther than the configured tolerance.
+    endpoints = [(i, end, part.coords[end]) for i, part in enumerate(parts) for end in (0, -1)]
+    clusters: list[list[tuple[int, int, tuple]]] = []
+    for endpoint in endpoints:
+        point = Point(endpoint[2])
+        cluster = next((c for c in clusters if all(point.distance(Point(e[2])) <= tolerance for e in c)), None)
+        if cluster is None:
+            clusters.append([endpoint])
+        else:
+            cluster.append(endpoint)
+    snapped = [list(part.coords) for part in parts]
+    node_for: dict[tuple[int, int], int] = {}
+    snap_gaps = []
+    for node, cluster in enumerate(clusters):
+        x = sum(e[2][0] for e in cluster) / len(cluster)
+        y = sum(e[2][1] for e in cluster) / len(cluster)
+        for edge, end, coordinate in cluster:
+            node_for[(edge, end)] = node
+            snapped[edge][end] = (x, y)
+        if len(cluster) > 1:
+            snap_gaps.extend(Point(cluster[i][2]).distance(Point(cluster[j][2]))
+                             for i in range(len(cluster)) for j in range(i + 1, len(cluster)))
+
+    incident: dict[int, list[tuple[int, int]]] = {}
+    for end, node in node_for.items():
+        incident.setdefault(node, []).append(end)
+    paired: dict[tuple[int, int], tuple[int, int]] = {}
+    for ends in incident.values():
+        choices = []
+        for ai, a in enumerate(ends):
+            for b in ends[ai + 1:]:
+                if a[0] == b[0]:
+                    continue
+                ac = snapped[a[0]]; bc = snapped[b[0]]
+                av = np.asarray(ac[1] if a[1] == 0 else ac[-2]) - np.asarray(ac[a[1]])
+                bv = np.asarray(bc[1] if b[1] == 0 else bc[-2]) - np.asarray(bc[b[1]])
+                cosine = float(np.dot(av, bv) / (np.linalg.norm(av) * np.linalg.norm(bv)))
+                turn = float(np.degrees(np.arccos(np.clip(-cosine, -1, 1))))
+                ap0 = _reference_position(Point(ac[a[1]]), osm_reference)
+                ap1 = _reference_position(Point(ac[1] if a[1] == 0 else ac[-2]), osm_reference)
+                bp1 = _reference_position(Point(bc[1] if b[1] == 0 else bc[-2]), osm_reference)
+                progresses_oppositely = ap0[0] == ap1[0] == bp1[0] and (ap1[1] - ap0[1]) * (bp1[1] - ap0[1]) < 0
+                choices.append(((0 if progresses_oppositely else 1, turn, ap1[2] + bp1[2]), a, b))
+        for score, a, b in sorted(choices):
+            if a not in paired and b not in paired and score[1] <= 60:
+                paired[a] = b; paired[b] = a
+
+    # Walk the endpoint pairing graph; each source edge is consumed exactly once.
+    chains, used = [], set()
+    starts = [(i, end) for i in range(len(parts)) for end in (0, -1) if (i, end) not in paired]
+    starts += [(i, 0) for i in range(len(parts))]
+    for start in starts:
+        if start[0] in used:
+            continue
+        coordinates, current = [], start
+        while current[0] not in used:
+            edge, enter = current; used.add(edge)
+            coords = snapped[edge] if enter == 0 else list(reversed(snapped[edge]))
+            coordinates.extend(coords if not coordinates else coords[1:])
+            leave = (edge, -1 if enter == 0 else 0)
+            if leave not in paired:
+                break
+            current = paired[leave]
+        chains.append(LineString(coordinates))
+
+    display = chains[0] if len(chains) == 1 else MultiLineString(chains)
+    if display.hausdorff_distance(original) > tolerance + 1e-6:
+        raise RuntimeError("Display stitching moved N13 geometry beyond endpointSnapMeters")
+    source_residual = max((max(distances(part, osm_reference, 5), default=0) for part in parts), default=0)
+    display_residual = max((max(distances(chain, osm_reference, 5), default=0) for chain in chains), default=0)
+    if display_residual > source_residual + tolerance + 1e-6:
+        raise RuntimeError("Display stitching introduced geometry farther from the OSM reference")
+    diagnostics = {
+        "sourceSegmentCount": len(parts), "displayChainCount": len(chains),
+        "sourceLengthMeters": round(original.length, 3), "stitchedLengthMeters": round(display.length, 3),
+        "endpointSnapCount": sum(len(cluster) - 1 for cluster in clusters
+                                 if len(cluster) > 1 and any(Point(a[2]).distance(Point(b[2])) > 1e-9
+                                                             for a in cluster for b in cluster)),
+        "maximumSnappedGapMeters": round(max(snap_gaps, default=0), 3),
+        "unresolvedBreakCount": sum(1 for ends in incident.values() if len(ends) > 1 for end in ends if end not in paired),
+        "maximumSourceResidualMeters": round(source_residual, 3),
+        "maximumDisplayResidualMeters": round(display_residual, 3),
+        "parallelCarriagewaysCollapsed": False,
+    }
+    return display, diagnostics
 
 
 def load_road(registry_path: Path, road_id: str) -> dict:
-    roads = json.loads(registry_path.read_text())["roads"]
+    registry = json.loads(registry_path.read_text())
+    roads = registry["roads"]
     try:
-        return next(road for road in roads if road["id"] == road_id)
+        road = next(road for road in roads if road["id"] == road_id)
+        return {**road, "display": {**registry.get("display", {}), **road.get("display", {})}}
     except StopIteration as error:
         raise RuntimeError(f"Unknown road id {road_id!r}; add it to {registry_path}") from error
 
@@ -133,7 +256,9 @@ def main() -> None:
     coverage, unresolved = reference_coverage(
         reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"]
     )
-    selected_wgs84 = selected.to_crs("EPSG:4326")
+    display_config = road.get("display", {"endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS})
+    display_geometry, stitching = build_display_chains(selected, reference, display_config)
+    display_wgs84 = gpd.GeoSeries([display_geometry], crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0]
     common_properties = {
         "id": road["id"], "name": road["displayName"], "aliases": road["aliases"], "type": "road",
         "roadClass": road["roadClass"], "routeNumber": road["routeNumber"], "jurisdiction": road["jurisdiction"],
@@ -144,10 +269,12 @@ def main() -> None:
             **common_properties, "geometrySource": "n13",
             "source": ["MLIT National Land Numerical Information N13 2024"],
             "license": "N13 source terms apply", "confidence": "medium",
-            "note": "Identity comes from the road registry and OSM reference; display geometry is selected from N13.",
+            "note": "Identity comes from the road registry and OSM reference; display geometry is stitched from selected N13 segments.",
             "match": {"candidateCount": len(candidates), "selectedFeatureCount": len(selected), "osmCoveragePercent": round(coverage, 2)},
+            "geometryProcessing": {"source": "MLIT N13", "display": "endpoint-snapped and line-merged", **stitching,
+                                   "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
         },
-        "geometry": mapping(selected_wgs84.geometry.union_all()),
+        "geometry": mapping(display_wgs84),
     }
     osm_feature = {
         "type": "Feature", "properties": {
@@ -159,7 +286,12 @@ def main() -> None:
     n13_output = PUBLIC_ROADS / f"{road['id']}-n13.geojson"
     osm_output = PUBLIC_ROADS / f"{road['id']}-osm.geojson"
     n13_output.parent.mkdir(parents=True, exist_ok=True)
-    n13_output.write_text(json.dumps({"type": "FeatureCollection", "features": [n13_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n")
+    n13_payload = json.dumps({"type": "FeatureCollection", "features": [n13_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n"
+    source_geometry = selected.to_crs("EPSG:4326").geometry.union_all()
+    unstitched_feature = {**n13_feature, "geometry": mapping(source_geometry)}
+    unstitched_bytes = len((json.dumps({"type": "FeatureCollection", "features": [unstitched_feature]},
+                                      ensure_ascii=False, separators=(",", ":")) + "\n").encode())
+    n13_output.write_text(n13_payload)
     osm_output.write_text(json.dumps({"type": "FeatureCollection", "features": [osm_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n")
     rebuild_search_index(args.registry)
     report = {
@@ -171,7 +303,9 @@ def main() -> None:
         },
         "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
         "matchingThresholds": match, "unresolvedSections": unresolved,
-        "outputBytes": {"n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},
+        "geometryProcessing": {**stitching, "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
+        "outputBytes": {"n13BeforeStitching": unstitched_bytes, "n13AfterStitching": n13_output.stat().st_size,
+                        "n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},
         "outputs": {"n13": str(n13_output), "osm": str(osm_output)},
     }
     (PUBLIC_ROADS / f"{road['id']}.report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
