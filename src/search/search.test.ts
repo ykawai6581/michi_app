@@ -2,9 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { entities } from '../data/sample'
 import { normalizeJapanese } from './normalizeJapanese'
 import { searchEntities } from './search'
+import roadIndex from '../../public/search/roads.json'
+import type { EntityFeature } from '../types/geo'
 
 describe('Japanese search', () => {
   it('normalizes width, whitespace, and chome numerals', () => expect(normalizeJapanese(' 新宿１丁目 ')).toBe(normalizeJapanese('新宿一丁目')))
   it('resolves historical aliases', () => expect(searchEntities(entities, '甲州街道').map((f) => f.properties.id)).toContain('R003-sample'))
   it('keeps modern and historical road entities distinct', () => expect(searchEntities(entities, '甲州街道').filter((f) => ['road','historical-road'].includes(f.properties.type))).toHaveLength(2))
+  it.each(['国道20号', '国道20', '20号'])('resolves %s to the canonical Route 20 entity', (query) => {
+    const road = roadIndex[0]
+    const canonical = { type: 'Feature', properties: { id: road.id, name: road.name, aliases: road.aliases, type: 'road' }, geometry: { type: 'MultiLineString', coordinates: [] } } as EntityFeature
+    expect(searchEntities([canonical], query).map((feature) => feature.properties.id)).toEqual(['jp-national-20'])
+  })
 })

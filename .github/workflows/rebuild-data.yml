@@ -40,8 +40,11 @@ jobs:
           const geojson = JSON.parse(await readFile('public/data/modern/shinjuku-osm.geojson', 'utf8'))
           const search = JSON.parse(await readFile('public/search/modern-shinjuku.json', 'utf8'))
           if (geojson.type !== 'FeatureCollection' || !Array.isArray(geojson.features) || geojson.features.length === 0) throw new Error('Generated GeoJSON has no features')
-          if (!Array.isArray(search) || search.length !== geojson.features.length) throw new Error('Search index does not match generated GeoJSON')
-          console.log(`Validated ${geojson.features.length} OSM features.`)
+          const roads = geojson.features.filter(({ properties }) => properties.type === 'road')
+          const exactSeeds = roads.filter(({ properties }) => ['甲州街道', '新宿通り'].includes(properties.name))
+          if (roads.length <= exactSeeds.length) throw new Error('Road extract contains only named seeds; surrounding topology is missing')
+          if (!Array.isArray(search) || !search.every(({ type }) => type !== 'road')) throw new Error('Search index must contain only non-road entities; roads are generated dynamically')
+          console.log(`Validated ${roads.length} road features (${exactSeeds.length} named seeds) and ${search.length} non-road search entities.`)
           NODE
 
       - name: Upload a review copy

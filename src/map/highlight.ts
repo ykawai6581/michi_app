@@ -2,7 +2,7 @@ import bbox from '@turf/bbox'
 import type { FeatureCollection, Geometry, Position } from 'geojson'
 import type maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
-import type { EntityFeature, EntityProperties, HighlightStyle } from '../types/geo'
+import type { EntityFeature, EntityProperties, HighlightStyle, RoadSourceVisibility } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 
 const activeAnimations = new WeakMap<maplibregl.Map, number>()
@@ -29,6 +29,22 @@ function linePrefix(coordinates: Position[], progress: number): Position[] {
   return result
 }
 
+function multiLinePrefix(lines: Position[][], progress: number): Position[][] {
+  const lengths = lines.map((line) => line.slice(1).reduce((sum, point, index) => sum + Math.hypot(point[0] - line[index][0], point[1] - line[index][1]), 0))
+  const target = lengths.reduce((sum, length) => sum + length, 0) * progress
+  const result: Position[][] = []
+  let travelled = 0
+  for (let index = 0; index < lines.length; index += 1) {
+    if (travelled + lengths[index] >= target) {
+      result.push(linePrefix(lines[index], lengths[index] === 0 ? 1 : (target - travelled) / lengths[index]))
+      break
+    }
+    result.push(lines[index])
+    travelled += lengths[index]
+  }
+  return result
+}
+
 function clipRingAtLongitude(ring: Position[], limit: number): Position[] {
   const output: Position[] = []
   for (let index = 0; index < ring.length; index += 1) {
@@ -50,6 +66,9 @@ function partialFeature(feature: EntityFeature, progress: number): EntityFeature
   if (feature.geometry.type === 'LineString') {
     return { ...feature, geometry: { ...feature.geometry, coordinates: linePrefix(feature.geometry.coordinates, progress) } }
   }
+  if (feature.geometry.type === 'MultiLineString') {
+    return { ...feature, geometry: { ...feature.geometry, coordinates: multiLinePrefix(feature.geometry.coordinates, progress) } }
+  }
   if (feature.geometry.type === 'Polygon') {
     const bounds = bbox(feature)
     const limit = bounds[0] + (bounds[2] - bounds[0]) * progress
@@ -61,6 +80,15 @@ function partialFeature(feature: EntityFeature, progress: number): EntityFeature
 
 function collection(features: EntityFeature[]): FeatureCollection<Geometry, EntityProperties> {
   return { type: 'FeatureCollection', features }
+}
+
+export function splitRoadSourceFeatures(features: EntityFeature[], roadSources: RoadSourceVisibility): { primary: EntityFeature[]; osm: EntityFeature[] } {
+  return {
+    primary: features.filter((feature) => feature.properties.type !== 'road' || roadSources.n13),
+    osm: features.flatMap((feature): EntityFeature[] => feature.properties.type === 'road' && roadSources.osm && feature.properties.roadSourceGeometries
+      ? [{ ...feature, geometry: feature.properties.roadSourceGeometries.osm }]
+      : []),
+  }
 }
 
 function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: EntityFeature): void {
@@ -80,11 +108,13 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
   activeAnimations.set(map, requestAnimationFrame(frame))
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], focusFeature?: EntityFeature, animate = false): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  if (focusFeature && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, features, focusFeature)
-  else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(features))
+  const { primary, osm } = splitRoadSourceFeatures(features, roadSources)
+  if (focusFeature && primary.includes(focusFeature) && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'MultiLineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, primary, focusFeature)
+  else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
+  ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
   if (!focusFeature) return
   if (focusFeature.geometry.type === 'Point') map.flyTo({ center: focusFeature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
   else { const bounds = bbox(focusFeature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
@@ -95,9 +125,9 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle)
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-color', style.regionColor)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-color', style.locationColor)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-color', style.locationColor)
-  map.setPaintProperty(LAYER_IDS.highlightLine, 'line-width', style.width)
+  map.setPaintProperty(LAYER_IDS.highlightLine, 'line-width', ['*', style.width, ['coalesce', ['get', 'illustrationWidthScale'], 1]])
   map.setPaintProperty(LAYER_IDS.highlightLine, 'line-opacity', style.opacity)
-  map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-width', style.width + 7)
+  map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-width', ['+', ['*', style.width, ['coalesce', ['get', 'illustrationWidthScale'], 1]], 7])
   map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-opacity', style.glow ? style.opacity * 0.65 : 0)
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-opacity', style.opacity * 0.38)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-opacity', style.opacity)

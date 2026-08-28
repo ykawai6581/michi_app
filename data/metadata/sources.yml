@@ -21,6 +21,20 @@ datasets:
     required_attribution: OpenFreeMap and OpenStreetMap contributors
     derived_files: []
     delivery: Online vector tiles and style; not bundled in this repository.
+  - id: canonical-modern-roads
+    name: Canonical modern road entities
+    provider: Michi Map pipeline / MLIT N13 / OpenStreetMap contributors
+    version: generated from data/roads/registry.json
+    retrieval_date: Run scripts/preprocess/match-road.py
+    source_page: null
+    license: OSM-ODBL
+    required_attribution: MLIT National Land Numerical Information and © OpenStreetMap contributors
+    derived_files:
+      - public/data/roads/<canonical-id>-n13.geojson
+      - public/data/roads/<canonical-id>-osm.geojson
+      - public/data/roads/<canonical-id>.report.json
+      - public/search/roads.json
+    delivery: Registry identity with separately generated N13 display and OSM reference geometries.
   - id: gsi-standard-tiles
     name: GSI Tiles - Standard Map
     provider: Geospatial Information Authority of Japan

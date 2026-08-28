@@ -1,0 +1,20 @@
+{
+  "roads": [
+    {
+      "id": "jp-national-20",
+      "displayName": "国道20号",
+      "roadClass": "national",
+      "routeNumber": "20",
+      "jurisdiction": "JP",
+      "aliases": ["国道20", "20号"],
+      "n13": { "classification": "1" },
+      "osm": { "ref": "20", "network": "JP:national" },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    }
+  ]
+}

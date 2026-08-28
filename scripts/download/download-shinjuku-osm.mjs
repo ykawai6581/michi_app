@@ -9,8 +9,10 @@ const endpoints = process.env.OVERPASS_URLS?.split(',').map((value) => value.tri
   ?? (process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : defaultEndpoints)
 const bounds = '35.6500,139.6000,35.7200,139.7800'
 const query = `[out:json][timeout:180][maxsize:268435456];
+way["highway"]["name"~"^(甲州街道|新宿通り)$"](${bounds})->.seedRoads;
 (
-  way["highway"]["name"~"^(甲州街道|新宿通り|国道20号)$"](${bounds});
+  .seedRoads;
+  way(around.seedRoads:300)["highway"];
   node["railway"="station"]["name"~"^(新宿|四ツ谷|高井戸)駅?$"](${bounds});
 );
 out tags geom;`
@@ -61,13 +63,14 @@ const features = payload.elements.flatMap((element) => {
     confidence: 'high',
     note: 'Current-geography OSM extract; this is not evidence of a historical alignment.',
   }
-  if (element.type === 'way' && element.geometry?.length > 1) return [{ type: 'Feature', properties: { ...common, type: 'road', osm_id: element.id, ref: element.tags?.ref }, geometry: { type: 'LineString', coordinates: element.geometry.map(({ lon, lat }) => [lon, lat]) } }]
+  if (element.type === 'way' && element.geometry?.length > 1) return [{ type: 'Feature', properties: { ...common, type: 'road', osm_id: element.id, ref: element.tags?.ref, highway: element.tags?.highway }, geometry: { type: 'LineString', coordinates: element.geometry.map(({ lon, lat }) => [lon, lat]) } }]
   if (element.type === 'node' && Number.isFinite(element.lon) && Number.isFinite(element.lat)) return [{ type: 'Feature', properties: { ...common, type: 'station', osm_id: element.id }, geometry: { type: 'Point', coordinates: [element.lon, element.lat] } }]
   return []
 })
 
 const collection = { type: 'FeatureCollection', features }
-const index = features.map(({ properties, geometry }) => ({ id: properties.id, name: properties.name, aliases: properties.aliases, type: properties.type, center: geometry.type === 'Point' ? geometry.coordinates : undefined }))
+const searchable = features.filter(({ properties }) => properties.type !== 'road')
+const index = searchable.map(({ properties, geometry }) => ({ id: properties.id, name: properties.name, aliases: properties.aliases, type: properties.type, center: geometry.type === 'Point' ? geometry.coordinates : undefined }))
 await mkdir('public/data/modern', { recursive: true })
 await mkdir('public/search', { recursive: true })
 await writeFile('public/data/modern/shinjuku-osm.geojson', `${JSON.stringify(collection, null, 2)}\n`)
