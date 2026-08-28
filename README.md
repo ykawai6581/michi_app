@@ -92,13 +92,40 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 
 ### 道路 registry に路線を追加する
 
+#### Canonical-road build sources
+
+Canonical roads use build-time data that is deliberately separate from browser assets. Put a full/natural-extent
+N13 GeoJSON under `data/raw/n13/`, then create the reusable road-class cache (classes 1 national, 2 prefectural,
+and 3 municipal/ward) with:
+
+```bash
+python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads.parquet
+```
+
+The preprocessor reads the source in chunks, and `match-road.py` reads GeoParquet without a Shinjuku spatial
+filter. Both `data/raw/` and `data/cache/` are gitignored; only small canonical outputs in `public/data/roads/`
+are web assets.
+
+OSM reference acquisition is configured in `data/roads/sources.json`. In `auto` mode it reuses a cached reference,
+then tries the configured regional source (`data/raw/osm/kanto-latest.osm.pbf`), and finally uses Overpass. Local
+PBF reading is optional and depends on the installed GDAL OSM driver. Overpass bounds are source configuration
+keyed by jurisdiction rather than matcher constants. Build one road with:
+
+```bash
+python scripts/preprocess/match-road.py jp-national-20
+```
+
+The old `public/data/modern/shinjuku-osm.geojson` and `scripts/download/download-shinjuku-osm.mjs` remain only for
+the separate current-road/station UI prototype described above; canonical matching does not read them. The old
+`data/fixtures/n13-shinjuku.geojson` input is no longer created or referenced by the canonical pipeline.
+
 路線 ID から日本語版 Wikipedia を検索し、正式名、基本 alias、N13 区分、OSM ref、既定の matching 設定を `data/roads/registry.json` に追加できます。
 
 ```bash
 python scripts/preprocess/add-road.py tokyo-prefectural-319
 ```
 
-現在サポートする ID は `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` です。都県境をまたぐ路線の Wikipedia 記事名（例: `東京都道・埼玉県道25号…`）も検索します。書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せず、修正方法を含む短いエラーを表示します。追加後の形状生成は別工程なので、必要な N13 fixture を用意して `scripts/preprocess/match-road.py` を実行してください。
+現在サポートする ID は `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` です。都県境をまたぐ路線の Wikipedia 記事名（例: `東京都道・埼玉県道25号…`）も検索します。書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せず、修正方法を含む短いエラーを表示します。追加後の形状生成は別工程なので、N13 road cache を用意して `scripts/preprocess/match-road.py` を実行してください。
 
 登録と形状生成を同じ ID で続けて実行する場合は、まとめたコマンドを使用できます。
 
