@@ -1,6 +1,7 @@
 """Synthetic regression tests for N13 display-geometry stitching."""
 
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 
@@ -45,6 +46,11 @@ class DisplayChainTests(unittest.TestCase):
         geometry, report = stitch(lines, LineString([(-10, 2.5), (30, 2.5)]))
         self.assertEqual(geometry.geom_type, "MultiLineString")
         self.assertEqual(report["displayChainCount"], 2)
+
+    def test_route_20_output_has_substantially_fewer_display_chains(self):
+        report_path = Path(__file__).parents[2] / "public/data/roads/jp-national-20.report.json"
+        processing = json.loads(report_path.read_text())["geometryProcessing"]
+        self.assertLess(processing["displayChainCount"], processing["sourceSegmentCount"] / 4)
 
 
 if __name__ == "__main__":

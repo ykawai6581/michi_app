@@ -139,6 +139,7 @@ def build_display_chains(selected_n13, osm_reference, config: dict | None = None
         "unresolvedBreakCount": sum(1 for ends in incident.values() if len(ends) > 1 for end in ends if end not in paired),
         "maximumSourceResidualMeters": round(source_residual, 3),
         "maximumDisplayResidualMeters": round(display_residual, 3),
+        "parallelCarriagewaysCollapsed": False,
     }
     return display, diagnostics
 
