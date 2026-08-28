@@ -43,7 +43,14 @@ export function addDiagnosticLayers(map: maplibregl.Map, road: FeatureCollection
   map.addSource(SOURCE_IDS.diagnosticOsmSource, { type: 'geojson', data: osmSource })
   map.addSource(SOURCE_IDS.diagnosticOsmDerived, { type: 'geojson', data: road })
   map.addSource(SOURCE_IDS.diagnosticN13, { type: 'geojson', data: n13 })
-  map.addLayer({ id: LAYER_IDS.diagnosticN13, type: 'line', source: SOURCE_IDS.diagnosticN13, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#20a55a', 'line-width': 3, 'line-opacity': 0.8 } })
+  map.addLayer({ id: LAYER_IDS.diagnosticN13, type: 'line', source: SOURCE_IDS.diagnosticN13, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
+    // The low-residual population is vivid green; increasingly distant national
+    // roads fade through amber to gray. This visualizes evidence without choosing
+    // a production cutoff or removing any shortlisted N13 feature.
+    'line-color': ['interpolate', ['linear'], ['coalesce', ['get', 'route20_median_m'], 1000], 0, '#00a84f', 10, '#62bd55', 20, '#e5a735', 50, '#b3a69a', 500, '#777b80'],
+    'line-width': ['interpolate', ['linear'], ['coalesce', ['get', 'route20_median_m'], 1000], 0, 5, 20, 3, 50, 1.5],
+    'line-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'route20_median_m'], 1000], 0, 0.95, 20, 0.85, 50, 0.3, 500, 0.14],
+  } })
   map.addLayer({ id: LAYER_IDS.diagnosticOsmSource, type: 'line', source: SOURCE_IDS.diagnosticOsmSource, layout: { 'line-cap': 'butt', 'line-join': 'round' }, paint: { 'line-color': '#d936a5', 'line-width': 5, 'line-opacity': 0.88, 'line-dasharray': [1, 1] } })
   map.addLayer({ id: LAYER_IDS.diagnosticOsmDerived, type: 'line', source: SOURCE_IDS.diagnosticOsmDerived, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1769e0', 'line-width': 2.5, 'line-opacity': 1 } })
 }
