@@ -1,0 +1,88 @@
+{
+  "roadId": "jp-national-20",
+  "n13CandidateCount": 1001,
+  "selectedFeatureCount": 424,
+  "osmReferenceCoveragePercent": 93.885,
+  "selectedResidualMeters": {
+    "match_min_m": {
+      "min": 0.0,
+      "median": 5.611,
+      "p90": 11.861,
+      "max": 15.44
+    },
+    "match_median_m": {
+      "min": 0.008,
+      "median": 6.309,
+      "p90": 12.023,
+      "max": 15.9
+    },
+    "match_p90_m": {
+      "min": 0.018,
+      "median": 6.619,
+      "p90": 12.22,
+      "max": 23.993
+    }
+  },
+  "candidateDistributions": {
+    "N13_002": {
+      "1": 1001
+    },
+    "N13_004": {
+      "1": 983,
+      "2": 16,
+      "3": 2
+    },
+    "N13_006": {
+      "5": 733,
+      "3": 186,
+      "2": 31,
+      "4": 51
+    }
+  },
+  "matchingThresholds": {
+    "sampleIntervalMeters": 5,
+    "maximumMedianResidualMeters": 20,
+    "maximumP90ResidualMeters": 25,
+    "coverageToleranceMeters": 25
+  },
+  "unresolvedSections": [
+    {
+      "osmPart": 9,
+      "uncoveredSamples": 77,
+      "samples": 171
+    },
+    {
+      "osmPart": 84,
+      "uncoveredSamples": 132,
+      "samples": 375
+    },
+    {
+      "osmPart": 92,
+      "uncoveredSamples": 252,
+      "samples": 430
+    },
+    {
+      "osmPart": 98,
+      "uncoveredSamples": 3,
+      "samples": 6
+    },
+    {
+      "osmPart": 100,
+      "uncoveredSamples": 3,
+      "samples": 6
+    },
+    {
+      "osmPart": 237,
+      "uncoveredSamples": 83,
+      "samples": 83
+    }
+  ],
+  "outputBytes": {
+    "n13": 42352,
+    "osm": 38002
+  },
+  "outputs": {
+    "n13": "public/data/roads/jp-national-20-n13.geojson",
+    "osm": "public/data/roads/jp-national-20-osm.geojson"
+  }
+}

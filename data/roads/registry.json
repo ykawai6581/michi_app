@@ -6,14 +6,130 @@
       "roadClass": "national",
       "routeNumber": "20",
       "jurisdiction": "JP",
-      "aliases": ["国道20", "20号"],
-      "n13": { "classification": "1" },
-      "osm": { "ref": "20", "network": "JP:national" },
+      "aliases": [
+        "国道20",
+        "20号"
+      ],
+      "n13": {
+        "classification": "1"
+      },
+      "osm": {
+        "ref": "20",
+        "network": "JP:national"
+      },
       "matching": {
         "sampleIntervalMeters": 5,
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "jp-national-246",
+      "displayName": "国道246号",
+      "roadClass": "national",
+      "routeNumber": "246",
+      "jurisdiction": "JP",
+      "aliases": [
+        "国道246",
+        "246号",
+        "246"
+      ],
+      "n13": {
+        "classification": "1"
+      },
+      "osm": {
+        "ref": "246",
+        "network": "JP:national"
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-prefectural-318",
+      "displayName": "東京都道318号環状七号線",
+      "roadClass": "prefectural",
+      "routeNumber": "318",
+      "jurisdiction": "Tokyo",
+      "aliases": [
+        "都道318号",
+        "東京都道318号",
+        "環状七号線",
+        "環七通り",
+        "環七",
+        "環7"
+      ],
+      "n13": {
+        "classification": "2"
+      },
+      "osm": {
+        "ref": "318"
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-prefectural-311",
+      "displayName": "東京都道311号環状八号線",
+      "roadClass": "prefectural",
+      "routeNumber": "311",
+      "jurisdiction": "Tokyo",
+      "aliases": [
+        "都道311号",
+        "東京都道311号",
+        "環状八号線",
+        "環八通り",
+        "環八",
+        "環8"
+      ],
+      "n13": {
+        "classification": "2"
+      },
+      "osm": {
+        "ref": "311"
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    }
+  ],
+  "pendingRoads": [
+    {
+      "id": "tokyo-common-inokashira-dori",
+      "displayName": "井ノ頭通り",
+      "roadClass": "common-road-name",
+      "jurisdiction": "Tokyo",
+      "aliases": [
+        "井の頭通り",
+        "井ノ頭通り"
+      ],
+      "status": "pending-matcher-support",
+      "reason": "井ノ頭通り is a common road name spanning multiple statutory road identities, including Tokyo Metropolitan Roads 413 and 7 and a ward-road section. The current matcher assumes one OSM ref and one N13 road classification, so treating it as a single current 'roads' entry would produce incomplete geometry.",
+      "futureMatching": {
+        "osmNames": [
+          "井ノ頭通り",
+          "井の頭通り"
+        ],
+        "osmRefs": [
+          "413",
+          "7",
+          "14"
+        ],
+        "n13Classifications": [
+          "2",
+          "3"
+        ]
       }
     }
   ]

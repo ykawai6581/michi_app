@@ -1,0 +1,73 @@
+{
+  "roadId": "jp-national-246",
+  "n13CandidateCount": 1001,
+  "selectedFeatureCount": 139,
+  "osmReferenceCoveragePercent": 99.123,
+  "selectedResidualMeters": {
+    "match_min_m": {
+      "min": 0.0,
+      "median": 5.051,
+      "p90": 7.514,
+      "max": 11.681
+    },
+    "match_median_m": {
+      "min": 0.132,
+      "median": 5.895,
+      "p90": 7.965,
+      "max": 13.19
+    },
+    "match_p90_m": {
+      "min": 0.407,
+      "median": 6.321,
+      "p90": 9.612,
+      "max": 13.591
+    }
+  },
+  "candidateDistributions": {
+    "N13_002": {
+      "1": 1001
+    },
+    "N13_004": {
+      "1": 983,
+      "2": 16,
+      "3": 2
+    },
+    "N13_006": {
+      "5": 733,
+      "3": 186,
+      "2": 31,
+      "4": 51
+    }
+  },
+  "matchingThresholds": {
+    "sampleIntervalMeters": 5,
+    "maximumMedianResidualMeters": 20,
+    "maximumP90ResidualMeters": 25,
+    "coverageToleranceMeters": 25
+  },
+  "unresolvedSections": [
+    {
+      "osmPart": 7,
+      "uncoveredSamples": 9,
+      "samples": 18
+    },
+    {
+      "osmPart": 37,
+      "uncoveredSamples": 2,
+      "samples": 72
+    },
+    {
+      "osmPart": 46,
+      "uncoveredSamples": 22,
+      "samples": 79
+    }
+  ],
+  "outputBytes": {
+    "n13": 16093,
+    "osm": 17365
+  },
+  "outputs": {
+    "n13": "public/data/roads/jp-national-246-n13.geojson",
+    "osm": "public/data/roads/jp-national-246-osm.geojson"
+  }
+}

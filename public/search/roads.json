@@ -2,11 +2,62 @@
   {
     "id": "jp-national-20",
     "name": "国道20号",
-    "aliases": ["国道20", "20号"],
+    "aliases": [
+      "国道20",
+      "20号"
+    ],
     "type": "road",
     "sources": {
       "n13": "data/roads/jp-national-20-n13.geojson",
       "osm": "data/roads/jp-national-20-osm.geojson"
+    }
+  },
+  {
+    "id": "jp-national-246",
+    "name": "国道246号",
+    "aliases": [
+      "国道246",
+      "246号",
+      "246"
+    ],
+    "type": "road",
+    "sources": {
+      "n13": "data/roads/jp-national-246-n13.geojson",
+      "osm": "data/roads/jp-national-246-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-prefectural-318",
+    "name": "東京都道318号環状七号線",
+    "aliases": [
+      "都道318号",
+      "東京都道318号",
+      "環状七号線",
+      "環七通り",
+      "環七",
+      "環7"
+    ],
+    "type": "road",
+    "sources": {
+      "n13": "data/roads/tokyo-prefectural-318-n13.geojson",
+      "osm": "data/roads/tokyo-prefectural-318-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-prefectural-311",
+    "name": "東京都道311号環状八号線",
+    "aliases": [
+      "都道311号",
+      "東京都道311号",
+      "環状八号線",
+      "環八通り",
+      "環八",
+      "環8"
+    ],
+    "type": "road",
+    "sources": {
+      "n13": "data/roads/tokyo-prefectural-311-n13.geojson",
+      "osm": "data/roads/tokyo-prefectural-311-osm.geojson"
     }
   }
 ]

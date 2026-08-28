@@ -1,0 +1,71 @@
+{
+  "roadId": "tokyo-prefectural-318",
+  "n13CandidateCount": 6203,
+  "selectedFeatureCount": 239,
+  "osmReferenceCoveragePercent": 99.718,
+  "selectedResidualMeters": {
+    "match_min_m": {
+      "min": 0.0,
+      "median": 4.247,
+      "p90": 5.775,
+      "max": 11.563
+    },
+    "match_median_m": {
+      "min": 1.085,
+      "median": 4.454,
+      "p90": 6.327,
+      "max": 15.795
+    },
+    "match_p90_m": {
+      "min": 1.116,
+      "median": 4.632,
+      "p90": 6.959,
+      "max": 24.997
+    }
+  },
+  "candidateDistributions": {
+    "N13_002": {
+      "1": 6201,
+      "2": 2
+    },
+    "N13_004": {
+      "1": 6076,
+      "2": 87,
+      "3": 39,
+      "4": 1
+    },
+    "N13_006": {
+      "2": 651,
+      "3": 1512,
+      "5": 3216,
+      "4": 822,
+      "1": 2
+    }
+  },
+  "matchingThresholds": {
+    "sampleIntervalMeters": 5,
+    "maximumMedianResidualMeters": 20,
+    "maximumP90ResidualMeters": 25,
+    "coverageToleranceMeters": 25
+  },
+  "unresolvedSections": [
+    {
+      "osmPart": 1,
+      "uncoveredSamples": 6,
+      "samples": 41
+    },
+    {
+      "osmPart": 53,
+      "uncoveredSamples": 5,
+      "samples": 39
+    }
+  ],
+  "outputBytes": {
+    "n13": 22864,
+    "osm": 16679
+  },
+  "outputs": {
+    "n13": "public/data/roads/tokyo-prefectural-318-n13.geojson",
+    "osm": "public/data/roads/tokyo-prefectural-318-osm.geojson"
+  }
+}
