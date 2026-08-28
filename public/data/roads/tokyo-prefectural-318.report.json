@@ -1,45 +1,47 @@
 {
   "roadId": "tokyo-prefectural-318",
-  "n13CandidateCount": 6203,
-  "selectedFeatureCount": 239,
-  "osmReferenceCoveragePercent": 99.718,
+  "n13CandidateCount": 84398,
+  "selectedFeatureCount": 1596,
+  "osmReferenceCoveragePercent": 99.766,
   "selectedResidualMeters": {
     "match_min_m": {
-      "min": 0,
-      "median": 4.247,
-      "p90": 5.775,
-      "max": 11.563
+      "min": 0.0,
+      "median": 3.753,
+      "p90": 8.904,
+      "max": 14.391
     },
     "match_median_m": {
-      "min": 1.085,
-      "median": 4.454,
-      "p90": 6.327,
-      "max": 15.795
+      "min": 0.192,
+      "median": 4.25,
+      "p90": 9.651,
+      "max": 17.905
     },
     "match_p90_m": {
-      "min": 1.116,
-      "median": 4.632,
-      "p90": 6.959,
+      "min": 0.447,
+      "median": 4.495,
+      "p90": 10.223,
       "max": 24.997
     }
   },
   "candidateDistributions": {
     "N13_002": {
-      "1": 6201,
-      "2": 2
+      "1": 84182,
+      "3": 67,
+      "2": 140,
+      "4": 9
     },
     "N13_004": {
-      "1": 6076,
-      "2": 87,
-      "3": 39,
-      "4": 1
+      "1": 82399,
+      "2": 1686,
+      "4": 6,
+      "3": 307
     },
     "N13_006": {
-      "1": 2,
-      "2": 651,
-      "3": 1512,
-      "4": 822,
-      "5": 3216
+      "2": 8402,
+      "3": 50778,
+      "1": 814,
+      "5": 16637,
+      "4": 7767
     }
   },
   "matchingThresholds": {
@@ -50,35 +52,47 @@
   },
   "unresolvedSections": [
     {
-      "osmPart": 1,
-      "uncoveredSamples": 6,
-      "samples": 41
+      "osmPart": 2,
+      "uncoveredSamples": 7,
+      "samples": 15
     },
     {
-      "osmPart": 53,
-      "uncoveredSamples": 5,
-      "samples": 39
+      "osmPart": 298,
+      "uncoveredSamples": 20,
+      "samples": 20
+    },
+    {
+      "osmPart": 575,
+      "uncoveredSamples": 34,
+      "samples": 34
     }
   ],
+  "osmReference": {
+    "provider": "cache",
+    "path": "data/cache/osm/references/tokyo-prefectural-318-osm.geojson"
+  },
+  "n13Source": "data/cache/n13/roads",
+  "geometryProcessing": {
+    "sourceSegmentCount": 1596,
+    "displayChainCount": 106,
+    "sourceLengthMeters": 87269.848,
+    "stitchedLengthMeters": 87270.897,
+    "endpointSnapCount": 44,
+    "maximumSnappedGapMeters": 1.96,
+    "unresolvedBreakCount": 180,
+    "maximumSourceResidualMeters": 27.497,
+    "maximumDisplayResidualMeters": 27.497,
+    "parallelCarriagewaysCollapsed": false,
+    "endpointSnapMeters": 2.0
+  },
   "outputBytes": {
-    "n13": 15147,
-    "osm": 16679,
-    "n13BeforeStitching": 22864,
-    "n13AfterStitching": 15147
+    "n13BeforeStitching": 155142,
+    "n13AfterStitching": 100787,
+    "n13": 100787,
+    "osm": 92921
   },
   "outputs": {
     "n13": "public/data/roads/tokyo-prefectural-318-n13.geojson",
     "osm": "public/data/roads/tokyo-prefectural-318-osm.geojson"
-  },
-  "geometryProcessing": {
-    "sourceSegmentCount": 247,
-    "displayChainCount": 10,
-    "sourceLengthMeters": 10908.699,
-    "stitchedLengthMeters": 10908.696,
-    "endpointSnapCount": 3,
-    "maximumSnappedGapMeters": 1.944,
-    "unresolvedBreakCount": 18,
-    "endpointSnapMeters": 2,
-    "parallelCarriagewaysCollapsed": false
   }
 }

@@ -105,6 +105,33 @@
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
       }
+    },
+    {
+      "id": "tokyo-prefectural-317",
+      "displayName": "東京都道317号環状六号線",
+      "roadClass": "prefectural",
+      "routeNumber": "317",
+      "jurisdiction": "Tokyo",
+      "aliases": [
+        "都道317号",
+        "東京都道317号",
+        "環状六号線",
+        "環六通り",
+        "環六",
+        "環6"
+      ],
+      "n13": {
+        "classification": "2"
+      },
+      "osm": {
+        "ref": "317"
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
     }
   ],
   "pendingRoads": [

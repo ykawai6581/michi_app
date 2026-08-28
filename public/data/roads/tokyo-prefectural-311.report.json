@@ -1,45 +1,47 @@
 {
   "roadId": "tokyo-prefectural-311",
-  "n13CandidateCount": 6203,
-  "selectedFeatureCount": 205,
-  "osmReferenceCoveragePercent": 98.458,
+  "n13CandidateCount": 84398,
+  "selectedFeatureCount": 1021,
+  "osmReferenceCoveragePercent": 84.644,
   "selectedResidualMeters": {
     "match_min_m": {
-      "min": 0,
-      "median": 3.77,
-      "p90": 6.325,
-      "max": 14.912
+      "min": 0.0,
+      "median": 3.661,
+      "p90": 5.918,
+      "max": 17.946
     },
     "match_median_m": {
-      "min": 1.36,
-      "median": 4.416,
-      "p90": 9.07,
-      "max": 16.466
+      "min": 0.113,
+      "median": 4.267,
+      "p90": 7.953,
+      "max": 18.337
     },
     "match_p90_m": {
-      "min": 1.819,
-      "median": 4.714,
-      "p90": 10.534,
-      "max": 23.488
+      "min": 0.299,
+      "median": 4.543,
+      "p90": 9.297,
+      "max": 24.279
     }
   },
   "candidateDistributions": {
     "N13_002": {
-      "1": 6201,
-      "2": 2
+      "1": 84182,
+      "3": 67,
+      "2": 140,
+      "4": 9
     },
     "N13_004": {
-      "1": 6076,
-      "2": 87,
-      "3": 39,
-      "4": 1
+      "1": 82399,
+      "2": 1686,
+      "4": 6,
+      "3": 307
     },
     "N13_006": {
-      "1": 2,
-      "2": 651,
-      "3": 1512,
-      "4": 822,
-      "5": 3216
+      "2": 8402,
+      "3": 50778,
+      "1": 814,
+      "5": 16637,
+      "4": 7767
     }
   },
   "matchingThresholds": {
@@ -50,45 +52,512 @@
   },
   "unresolvedSections": [
     {
-      "osmPart": 2,
-      "uncoveredSamples": 29,
-      "samples": 320
+      "osmPart": 0,
+      "uncoveredSamples": 23,
+      "samples": 23
     },
     {
-      "osmPart": 34,
-      "uncoveredSamples": 5,
-      "samples": 296
+      "osmPart": 3,
+      "uncoveredSamples": 44,
+      "samples": 44
     },
     {
-      "osmPart": 68,
+      "osmPart": 5,
+      "uncoveredSamples": 139,
+      "samples": 139
+    },
+    {
+      "osmPart": 6,
+      "uncoveredSamples": 63,
+      "samples": 63
+    },
+    {
+      "osmPart": 7,
+      "uncoveredSamples": 68,
+      "samples": 68
+    },
+    {
+      "osmPart": 8,
+      "uncoveredSamples": 48,
+      "samples": 48
+    },
+    {
+      "osmPart": 59,
+      "uncoveredSamples": 77,
+      "samples": 77
+    },
+    {
+      "osmPart": 61,
+      "uncoveredSamples": 118,
+      "samples": 119
+    },
+    {
+      "osmPart": 62,
+      "uncoveredSamples": 10,
+      "samples": 66
+    },
+    {
+      "osmPart": 108,
+      "uncoveredSamples": 58,
+      "samples": 58
+    },
+    {
+      "osmPart": 109,
+      "uncoveredSamples": 8,
+      "samples": 8
+    },
+    {
+      "osmPart": 110,
+      "uncoveredSamples": 11,
+      "samples": 11
+    },
+    {
+      "osmPart": 111,
+      "uncoveredSamples": 9,
+      "samples": 9
+    },
+    {
+      "osmPart": 112,
+      "uncoveredSamples": 6,
+      "samples": 6
+    },
+    {
+      "osmPart": 113,
+      "uncoveredSamples": 7,
+      "samples": 7
+    },
+    {
+      "osmPart": 114,
+      "uncoveredSamples": 18,
+      "samples": 18
+    },
+    {
+      "osmPart": 115,
+      "uncoveredSamples": 7,
+      "samples": 7
+    },
+    {
+      "osmPart": 128,
+      "uncoveredSamples": 89,
+      "samples": 93
+    },
+    {
+      "osmPart": 130,
+      "uncoveredSamples": 12,
+      "samples": 12
+    },
+    {
+      "osmPart": 135,
+      "uncoveredSamples": 31,
+      "samples": 31
+    },
+    {
+      "osmPart": 136,
+      "uncoveredSamples": 10,
+      "samples": 10
+    },
+    {
+      "osmPart": 170,
       "uncoveredSamples": 15,
-      "samples": 97
+      "samples": 15
     },
     {
-      "osmPart": 70,
-      "uncoveredSamples": 20,
+      "osmPart": 171,
+      "uncoveredSamples": 15,
+      "samples": 15
+    },
+    {
+      "osmPart": 212,
+      "uncoveredSamples": 93,
+      "samples": 93
+    },
+    {
+      "osmPart": 224,
+      "uncoveredSamples": 52,
+      "samples": 52
+    },
+    {
+      "osmPart": 225,
+      "uncoveredSamples": 68,
+      "samples": 68
+    },
+    {
+      "osmPart": 226,
+      "uncoveredSamples": 68,
+      "samples": 68
+    },
+    {
+      "osmPart": 233,
+      "uncoveredSamples": 3,
+      "samples": 20
+    },
+    {
+      "osmPart": 234,
+      "uncoveredSamples": 3,
+      "samples": 17
+    },
+    {
+      "osmPart": 276,
+      "uncoveredSamples": 115,
+      "samples": 115
+    },
+    {
+      "osmPart": 304,
+      "uncoveredSamples": 28,
+      "samples": 81
+    },
+    {
+      "osmPart": 310,
+      "uncoveredSamples": 105,
+      "samples": 105
+    },
+    {
+      "osmPart": 313,
+      "uncoveredSamples": 58,
+      "samples": 58
+    },
+    {
+      "osmPart": 314,
+      "uncoveredSamples": 112,
+      "samples": 112
+    },
+    {
+      "osmPart": 315,
+      "uncoveredSamples": 48,
+      "samples": 48
+    },
+    {
+      "osmPart": 316,
+      "uncoveredSamples": 14,
+      "samples": 14
+    },
+    {
+      "osmPart": 318,
+      "uncoveredSamples": 58,
+      "samples": 58
+    },
+    {
+      "osmPart": 319,
+      "uncoveredSamples": 52,
+      "samples": 52
+    },
+    {
+      "osmPart": 326,
+      "uncoveredSamples": 13,
+      "samples": 13
+    },
+    {
+      "osmPart": 340,
+      "uncoveredSamples": 139,
+      "samples": 139
+    },
+    {
+      "osmPart": 349,
+      "uncoveredSamples": 12,
+      "samples": 12
+    },
+    {
+      "osmPart": 362,
+      "uncoveredSamples": 56,
+      "samples": 56
+    },
+    {
+      "osmPart": 388,
+      "uncoveredSamples": 9,
+      "samples": 19
+    },
+    {
+      "osmPart": 389,
+      "uncoveredSamples": 8,
+      "samples": 17
+    },
+    {
+      "osmPart": 417,
+      "uncoveredSamples": 99,
+      "samples": 99
+    },
+    {
+      "osmPart": 418,
+      "uncoveredSamples": 101,
       "samples": 101
+    },
+    {
+      "osmPart": 419,
+      "uncoveredSamples": 9,
+      "samples": 9
+    },
+    {
+      "osmPart": 423,
+      "uncoveredSamples": 31,
+      "samples": 31
+    },
+    {
+      "osmPart": 433,
+      "uncoveredSamples": 22,
+      "samples": 22
+    },
+    {
+      "osmPart": 434,
+      "uncoveredSamples": 28,
+      "samples": 28
+    },
+    {
+      "osmPart": 435,
+      "uncoveredSamples": 46,
+      "samples": 46
+    },
+    {
+      "osmPart": 436,
+      "uncoveredSamples": 25,
+      "samples": 25
+    },
+    {
+      "osmPart": 437,
+      "uncoveredSamples": 51,
+      "samples": 51
+    },
+    {
+      "osmPart": 438,
+      "uncoveredSamples": 10,
+      "samples": 10
+    },
+    {
+      "osmPart": 439,
+      "uncoveredSamples": 21,
+      "samples": 21
+    },
+    {
+      "osmPart": 440,
+      "uncoveredSamples": 18,
+      "samples": 18
+    },
+    {
+      "osmPart": 447,
+      "uncoveredSamples": 14,
+      "samples": 14
+    },
+    {
+      "osmPart": 448,
+      "uncoveredSamples": 20,
+      "samples": 20
+    },
+    {
+      "osmPart": 449,
+      "uncoveredSamples": 19,
+      "samples": 19
+    },
+    {
+      "osmPart": 451,
+      "uncoveredSamples": 18,
+      "samples": 18
+    },
+    {
+      "osmPart": 452,
+      "uncoveredSamples": 5,
+      "samples": 5
+    },
+    {
+      "osmPart": 453,
+      "uncoveredSamples": 94,
+      "samples": 94
+    },
+    {
+      "osmPart": 454,
+      "uncoveredSamples": 28,
+      "samples": 28
+    },
+    {
+      "osmPart": 455,
+      "uncoveredSamples": 29,
+      "samples": 29
+    },
+    {
+      "osmPart": 456,
+      "uncoveredSamples": 15,
+      "samples": 15
+    },
+    {
+      "osmPart": 457,
+      "uncoveredSamples": 20,
+      "samples": 20
+    },
+    {
+      "osmPart": 458,
+      "uncoveredSamples": 89,
+      "samples": 89
+    },
+    {
+      "osmPart": 459,
+      "uncoveredSamples": 27,
+      "samples": 27
+    },
+    {
+      "osmPart": 460,
+      "uncoveredSamples": 22,
+      "samples": 22
+    },
+    {
+      "osmPart": 461,
+      "uncoveredSamples": 13,
+      "samples": 13
+    },
+    {
+      "osmPart": 462,
+      "uncoveredSamples": 8,
+      "samples": 25
+    },
+    {
+      "osmPart": 463,
+      "uncoveredSamples": 4,
+      "samples": 4
+    },
+    {
+      "osmPart": 464,
+      "uncoveredSamples": 18,
+      "samples": 18
+    },
+    {
+      "osmPart": 465,
+      "uncoveredSamples": 20,
+      "samples": 20
+    },
+    {
+      "osmPart": 468,
+      "uncoveredSamples": 22,
+      "samples": 25
+    },
+    {
+      "osmPart": 489,
+      "uncoveredSamples": 55,
+      "samples": 55
+    },
+    {
+      "osmPart": 490,
+      "uncoveredSamples": 5,
+      "samples": 5
+    },
+    {
+      "osmPart": 491,
+      "uncoveredSamples": 55,
+      "samples": 55
+    },
+    {
+      "osmPart": 492,
+      "uncoveredSamples": 4,
+      "samples": 4
+    },
+    {
+      "osmPart": 493,
+      "uncoveredSamples": 3,
+      "samples": 3
+    },
+    {
+      "osmPart": 494,
+      "uncoveredSamples": 55,
+      "samples": 55
+    },
+    {
+      "osmPart": 501,
+      "uncoveredSamples": 17,
+      "samples": 17
+    },
+    {
+      "osmPart": 502,
+      "uncoveredSamples": 16,
+      "samples": 16
+    },
+    {
+      "osmPart": 503,
+      "uncoveredSamples": 25,
+      "samples": 25
+    },
+    {
+      "osmPart": 504,
+      "uncoveredSamples": 26,
+      "samples": 28
+    },
+    {
+      "osmPart": 505,
+      "uncoveredSamples": 9,
+      "samples": 9
+    },
+    {
+      "osmPart": 506,
+      "uncoveredSamples": 3,
+      "samples": 3
+    },
+    {
+      "osmPart": 507,
+      "uncoveredSamples": 3,
+      "samples": 3
+    },
+    {
+      "osmPart": 508,
+      "uncoveredSamples": 7,
+      "samples": 7
+    },
+    {
+      "osmPart": 509,
+      "uncoveredSamples": 10,
+      "samples": 10
+    },
+    {
+      "osmPart": 534,
+      "uncoveredSamples": 36,
+      "samples": 36
+    },
+    {
+      "osmPart": 535,
+      "uncoveredSamples": 14,
+      "samples": 14
+    },
+    {
+      "osmPart": 536,
+      "uncoveredSamples": 22,
+      "samples": 22
+    },
+    {
+      "osmPart": 544,
+      "uncoveredSamples": 4,
+      "samples": 4
+    },
+    {
+      "osmPart": 545,
+      "uncoveredSamples": 8,
+      "samples": 8
+    },
+    {
+      "osmPart": 546,
+      "uncoveredSamples": 8,
+      "samples": 8
     }
   ],
+  "osmReference": {
+    "provider": "cache",
+    "path": "data/cache/osm/references/tokyo-prefectural-311-osm.geojson"
+  },
+  "n13Source": "data/cache/n13/roads",
+  "geometryProcessing": {
+    "sourceSegmentCount": 1021,
+    "displayChainCount": 92,
+    "sourceLengthMeters": 61230.445,
+    "stitchedLengthMeters": 61230.444,
+    "endpointSnapCount": 3,
+    "maximumSnappedGapMeters": 1.798,
+    "unresolvedBreakCount": 149,
+    "maximumSourceResidualMeters": 26.713,
+    "maximumDisplayResidualMeters": 26.713,
+    "parallelCarriagewaysCollapsed": false,
+    "endpointSnapMeters": 2.0
+  },
   "outputBytes": {
-    "n13": 15659,
-    "osm": 15753,
-    "n13BeforeStitching": 22026,
-    "n13AfterStitching": 15659
+    "n13BeforeStitching": 113611,
+    "n13AfterStitching": 75225,
+    "n13": 75225,
+    "osm": 89343
   },
   "outputs": {
     "n13": "public/data/roads/tokyo-prefectural-311-n13.geojson",
     "osm": "public/data/roads/tokyo-prefectural-311-osm.geojson"
-  },
-  "geometryProcessing": {
-    "sourceSegmentCount": 219,
-    "displayChainCount": 21,
-    "sourceLengthMeters": 13820.899,
-    "stitchedLengthMeters": 13820.899,
-    "endpointSnapCount": 0,
-    "maximumSnappedGapMeters": 0,
-    "unresolvedBreakCount": 42,
-    "endpointSnapMeters": 2,
-    "parallelCarriagewaysCollapsed": false
   }
 }

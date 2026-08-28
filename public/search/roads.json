@@ -59,5 +59,22 @@
       "n13": "data/roads/tokyo-prefectural-311-n13.geojson",
       "osm": "data/roads/tokyo-prefectural-311-osm.geojson"
     }
+  },
+  {
+    "id": "tokyo-prefectural-317",
+    "name": "東京都道317号環状六号線",
+    "aliases": [
+      "都道317号",
+      "東京都道317号",
+      "環状六号線",
+      "環六通り",
+      "環六",
+      "環6"
+    ],
+    "type": "road",
+    "sources": {
+      "n13": "data/roads/tokyo-prefectural-317-n13.geojson",
+      "osm": "data/roads/tokyo-prefectural-317-osm.geojson"
+    }
   }
 ]
