@@ -19,7 +19,7 @@ import numpy as np
 
 DEFAULT_N13 = Path("data/fixtures/n13-shinjuku.geojson")
 DEFAULT_OSM = Path("data/cache/osm-route-20.geojson")
-DEFAULT_OUTPUT = Path("public/data/diagnostics/n13-national-roads-route-20.geojson")
+DEFAULT_OUTPUT = Path("data/diagnostics/n13-national-roads-route-20.geojson")
 METRIC_CRS = "EPSG:6677"  # JGD2011 / Japan Plane Rectangular CS IX (Tokyo)
 STUDY_BBOX = (139.6000, 35.6500, 139.7800, 35.7200)
 SAMPLE_INTERVAL_METERS = 5.0
