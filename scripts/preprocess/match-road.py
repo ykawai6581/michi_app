@@ -234,6 +234,9 @@ def build_osm_reference(road: dict, source_config: dict, refresh: bool = False,
 
 def load_n13_candidates(road: dict, source: Path) -> gpd.GeoDataFrame:
     """Load a prefiltered regional N13 cache without applying matcher geography bounds."""
+    legacy_root = source.with_suffix("") if source.suffix.lower() in (".parquet", ".geoparquet") else source
+    if legacy_root != source and legacy_root.is_dir():
+        source = legacy_root
     if not source.exists():
         raise RuntimeError(f"N13 cache not found: {source}; run preprocess-n13.py first")
     road_class = str(road["n13"]["classification"])

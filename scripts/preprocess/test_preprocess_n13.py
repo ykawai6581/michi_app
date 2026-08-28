@@ -33,5 +33,14 @@ class PreprocessN13Tests(unittest.TestCase):
             self.assertEqual(report["classes"], ["3"])
             self.assertEqual(set(gpd.read_parquet(output / "class=3/roads.parquet")["N13_003"]), {"3"})
 
+    def test_legacy_parquet_output_name_is_normalized_to_partition_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, requested = self.make_source(directory), Path(directory) / "roads.parquet"
+            # An old single-file cache can coexist while the new cache is written to roads/.
+            requested.write_text("old cache")
+            report = MODULE.preprocess_n13(source, requested, chunk_size=2)
+            self.assertEqual(Path(report["cacheRoot"]), Path(directory) / "roads")
+            self.assertTrue((Path(directory) / "roads/class=1/roads.parquet").is_file())
+
 if __name__ == "__main__":
     unittest.main()

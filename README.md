@@ -102,6 +102,9 @@ prefectural) with:
 python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads
 ```
 
+For compatibility with the earlier command, `--output data/cache/n13/roads.parquet` is also accepted and is
+normalized to the partition root `data/cache/n13/roads`. An existing old `roads.parquet` file is left untouched.
+
 The cache is partitioned as `class=1/roads.parquet` and `class=2/roads.parquet`, so matching reads only the required
 class. Municipal/ward class 3 is intentionally separate for future named-road work and can be added without
 rebuilding or combining the major-road partitions:

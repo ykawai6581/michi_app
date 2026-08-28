@@ -13,6 +13,11 @@ AVAILABLE_ROAD_CLASSES = {"1", "2", "3"}
 DEFAULT_ROAD_CLASSES = {"1", "2"}
 
 
+def partition_root(output: Path) -> Path:
+    """Normalize the former single-Parquet CLI spelling to the partition root."""
+    return output.with_suffix("") if output.suffix.lower() in {".parquet", ".geoparquet"} else output
+
+
 def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
                    chunk_size: int = 25_000) -> dict:
     """Read *source* in bounded chunks and write one partition per requested class."""
@@ -38,6 +43,7 @@ def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
         start += len(chunk)
         if len(chunk) < chunk_size:
             break
+    root = partition_root(output)
     outputs = {}
     retained_count = 0
     for road_class in sorted(classes):
@@ -45,7 +51,7 @@ def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
             continue
         roads = pd.concat(retained[road_class], ignore_index=True)
         roads = gpd.GeoDataFrame(roads, geometry="geometry", crs=retained[road_class][0].crs)
-        partition = output / f"class={road_class}" / "roads.parquet"
+        partition = root / f"class={road_class}" / "roads.parquet"
         partition.parent.mkdir(parents=True, exist_ok=True)
         roads.to_parquet(partition, index=False)
         outputs[road_class] = str(partition)
@@ -53,14 +59,14 @@ def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
     if not outputs:
         raise RuntimeError(f"{source} contains none of the requested N13 road classes {sorted(classes)}")
     return {"sourceFeatureCount": read_count, "retainedFeatureCount": retained_count,
-            "classes": sorted(classes), "outputs": outputs}
+            "classes": sorted(classes), "requestedOutput": str(output), "cacheRoot": str(root), "outputs": outputs}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, help="raw N13 GeoJSON (for example data/raw/n13/N13.geojson)")
     parser.add_argument("--output", type=Path, default=Path("data/cache/n13/roads"),
-                        help="partition root; files are written below class=N/")
+                        help="partition root; legacy PATH.parquet is normalized to PATH before writing class=N/")
     parser.add_argument("--classes", nargs="+", choices=sorted(AVAILABLE_ROAD_CLASSES),
                         default=sorted(DEFAULT_ROAD_CLASSES), help="N13_003 classes to cache (default: 1 2)")
     parser.add_argument("--chunk-size", type=int, default=25_000)
