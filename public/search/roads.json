@@ -1,0 +1,9 @@
+[
+  {
+    "id": "jp-national-20",
+    "name": "国道20号",
+    "aliases": ["国道20", "20号"],
+    "type": "road",
+    "geometry": "data/roads/jp-national-20.geojson"
+  }
+]
