@@ -100,6 +100,14 @@ python scripts/preprocess/add-road.py tokyo-prefectural-319
 
 現在サポートする ID は `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` です。書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せずエラーになります。追加後の形状生成は別工程なので、必要な N13 fixture を用意して `scripts/preprocess/match-road.py` を実行してください。
 
+登録と形状生成を同じ ID で続けて実行する場合は、まとめたコマンドを使用できます。
+
+```bash
+python scripts/preprocess/build-road.py tokyo-prefectural-319
+```
+
+未登録なら `add-road.py` を実行した後に `match-road.py` を実行します。すでに登録済みなら追加処理を省略して matching だけを再実行します。`--n13 PATH`、`--registry PATH`、`--refresh-osm`、`--overpass-url URL` も指定でき、matching 処理へ引き継がれます。いずれかの処理が失敗した場合、後続処理は実行されません。
+
 ### 検索 index
 
 描画データを直接全文検索する将来設計にはしません。v0.1 はデータが小さいため `src/data/sample.ts` から軽量な entity 配列を構築していますが、検索処理自体は `src/search/` に分離済みです。実データでは軽量 JSON index（entity ID、name、aliases、bbox/center）から ID を解決し、PMTiles／GeoJSON の feature を選択する構成へ移行します。歴史道路と現代道路は alias が同じでも別 entity のまま候補に表示します。
