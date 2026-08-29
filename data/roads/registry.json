@@ -214,6 +214,243 @@
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
       }
+    },
+    {
+      "id": "tokyo-named-waseda-dori",
+      "displayName": "早稲田通り",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "早稲田通り",
+          "神楽坂通り",
+          "Kagurazaka-dori",
+          "Waseda Street",
+          "Waseda-Dori",
+          "Waseda-dori"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-kagurazaka-dori",
+      "displayName": "神楽坂通り",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "神楽坂通り",
+          "Kagurazaka Street",
+          "Kagurazaka-dori"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-yamate-dori",
+      "displayName": "山手通り",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "山手通り",
+          "Yamate Dori",
+          "Yamate Street"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "1",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-musashisakai-dori",
+      "displayName": "武蔵境通り",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "武蔵境通り"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "1",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-itsukaichi-kaido",
+      "displayName": "五日市街道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "五日市街道"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-kamakura-kaido",
+      "displayName": "鎌倉街道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "鎌倉街道",
+          "鎌倉通り"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-hitomi-kaido",
+      "displayName": "人見街道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "人見街道"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
     }
   ]
 }

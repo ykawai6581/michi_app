@@ -1,0 +1,178 @@
+/* eslint-disable react-refresh/only-export-components */
+import React,{useCallback,useEffect,useRef,useState} from 'react'
+import{createRoot}from'react-dom/client'
+import maplibregl,{GeoJSONSource,Map as MlMap}from'maplibre-gl'
+import type{LineLayerSpecification}from'maplibre-gl'
+import'maplibre-gl/dist/maplibre-gl.css'
+import'./style.css'
+import{diagnosticLayerIds,DiagnosticLayerId,emptyDiagnosticState,emptyRoad,initialLayerVisibility,LayerVisibility,removeAt,Road,toggle,toggleLayerVisibility,uniqueAdd}from'./model'
+
+type FC=GeoJSON.FeatureCollection
+type DiagnosticLayers=Partial<Record<DiagnosticLayerId,FC>>
+type AnalysisRow={class:string;nearbyFeatures:number;residualPassFeatures:number;matchedLengthMeters:number;medianResidualMeters:number|null;suggested:boolean}
+type Meta={classes:{value:string,label:string}[];availableClasses:string[];missingClasses:string[]}
+
+const layerPaint:Record<DiagnosticLayerId,NonNullable<LineLayerSpecification['paint']>>={
+  rejected:{'line-color':'#777','line-width':2,'line-opacity':.25},
+  candidates:{'line-color':'#da8a18','line-width':3,'line-opacity':.55},
+  reference:{'line-color':'#1677ff','line-width':3,'line-opacity':.85,'line-dasharray':[2,2]},
+  selected:{'line-color':'#d92727','line-width':5,'line-opacity':.9},
+}
+
+const api=async(path:string,method='GET',body?:unknown)=>{
+  const response=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined})
+  const value=await response.json()
+  if(!response.ok)throw new Error(value.error?.message||'Request failed')
+  return value
+}
+
+function coordinatesOf(value:unknown,result:[number,number][]=[]):[number,number][]{
+  if(Array.isArray(value)){
+    if(value.length>=2&&typeof value[0]==='number'&&typeof value[1]==='number')result.push([value[0],value[1]])
+    else value.forEach(item=>coordinatesOf(item,result))
+  }
+  return result
+}
+
+function fitGeoJson(map:MlMap,data:FC|undefined){
+  if(!data)return
+  const coordinates=data.features.flatMap(feature=>coordinatesOf(feature.geometry&&'coordinates'in feature.geometry?feature.geometry.coordinates:undefined))
+  if(!coordinates.length)return
+  const bounds=coordinates.slice(1).reduce((box,coordinate)=>box.extend(coordinate),new maplibregl.LngLatBounds(coordinates[0],coordinates[0]))
+  map.fitBounds(bounds,{padding:64,maxZoom:16,duration:500})
+}
+
+function List({values,onChange}:{values:string[],onChange:(values:string[])=>void}){
+  const[input,setInput]=useState('')
+  return <div>{values.map((value,index)=><span className="chip" key={value}>{value}<button onClick={()=>onChange(removeAt(values,index))}>×</button></span>)}<div><input value={input} onChange={event=>setInput(event.target.value)}/><button onClick={()=>{onChange(uniqueAdd(values,input));setInput('')}}>+ Add</button></div></div>
+}
+
+function Map({layers,visibility,fitVersion,onFeature}:{layers:DiagnosticLayers;visibility:LayerVisibility;fitVersion:number;onFeature:(properties:object)=>void}){
+  const node=useRef<HTMLDivElement>(null)
+  const map=useRef<MlMap|null>(null)
+  const layersRef=useRef(layers)
+  const visibilityRef=useRef(visibility)
+  const onFeatureRef=useRef(onFeature)
+  layersRef.current=layers
+  visibilityRef.current=visibility
+  onFeatureRef.current=onFeature
+
+  useEffect(()=>{
+    if(!node.current)return
+    const instance=new maplibregl.Map({
+      container:node.current,
+      style:{
+        version:8,
+        sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},
+        layers:[{id:'osm-basemap',type:'raster',source:'osm'}],
+      },
+      center:[139.7,35.68],zoom:9,
+    })
+    map.current=instance
+    instance.addControl(new maplibregl.NavigationControl())
+    const synchronize=()=>{
+      diagnosticLayerIds.forEach(id=>{
+        const data=layersRef.current[id]
+        if(!data)return
+        const source=instance.getSource(id)as GeoJSONSource|undefined
+        if(source)source.setData(data)
+        else{
+          instance.addSource(id,{type:'geojson',data})
+          instance.addLayer({id,type:'line',source:id,layout:{visibility:visibilityRef.current[id]?'visible':'none'},paint:layerPaint[id]})
+          instance.on('click',id,event=>{if(event.features?.[0])onFeatureRef.current(event.features[0].properties||{})})
+        }
+      })
+      diagnosticLayerIds.forEach(id=>{if(instance.getLayer(id))instance.moveLayer(id)})
+    }
+    instance.once('load',synchronize)
+    return()=>{instance.remove();map.current=null}
+  },[])
+
+  useEffect(()=>{
+    const instance=map.current
+    if(!instance)return
+    const synchronize=()=>diagnosticLayerIds.forEach(id=>{
+      const data=layers[id]
+      if(!data)return
+      const source=instance.getSource(id)as GeoJSONSource|undefined
+      if(source)source.setData(data)
+      else{
+        instance.addSource(id,{type:'geojson',data})
+        instance.addLayer({id,type:'line',source:id,layout:{visibility:visibility[id]?'visible':'none'},paint:layerPaint[id]})
+        instance.on('click',id,event=>{if(event.features?.[0])onFeatureRef.current(event.features[0].properties||{})})
+      }
+    })
+    const synchronizeInOrder=()=>{synchronize();diagnosticLayerIds.forEach(id=>{if(instance.getLayer(id))instance.moveLayer(id)})}
+    if(instance.loaded())synchronizeInOrder();else instance.once('load',synchronizeInOrder)
+  },[layers,visibility])
+
+  useEffect(()=>{
+    const instance=map.current
+    if(!instance)return
+    const update=()=>diagnosticLayerIds.forEach(id=>{if(instance.getLayer(id))instance.setLayoutProperty(id,'visibility',layers[id]&&visibility[id]?'visible':'none')})
+    if(instance.loaded())update();else instance.once('load',update)
+  },[layers,visibility])
+
+  useEffect(()=>{
+    if(!fitVersion)return
+    const instance=map.current
+    if(!instance)return
+    const fit=()=>fitGeoJson(instance,layers.reference||layers.selected||layers.candidates||layers.rejected)
+    if(instance.loaded())fit();else instance.once('load',fit)
+  },[fitVersion,layers])
+
+  return <div ref={node} className="map"/>
+}
+
+function App(){
+  const[roads,setRoads]=useState<Road[]>([])
+  const[road,setRoad]=useState(emptyRoad())
+  const[editing,setEditing]=useState<string>()
+  const[meta,setMeta]=useState<Meta>({classes:[],availableClasses:[],missingClasses:[]})
+  const[status,setStatus]=useState('Ready')
+  const[error,setError]=useState('')
+  const[analysis,setAnalysis]=useState<{classes:AnalysisRow[]}>()
+  const[discovered,setDiscovered]=useState<string[]>([])
+  const[layers,setLayers]=useState<DiagnosticLayers>({})
+  const[visibility,setVisibility]=useState(initialLayerVisibility())
+  const[fitVersion,setFitVersion]=useState(0)
+  const[picked,setPicked]=useState<object>({})
+  const onFeature=useCallback((properties:object)=>setPicked(properties),[])
+  const reload=()=>Promise.all([api('/api/roads'),api('/api/metadata')]).then(([roadsResult,metadata])=>{setRoads(roadsResult.roads);setMeta(metadata)})
+  useEffect(()=>{reload().catch(reason=>setError(reason.message))},[])
+  const change=(patch:Partial<Road>)=>setRoad(current=>({...current,...patch}))
+  const clearDiagnostics=()=>{const cleared=emptyDiagnosticState();setLayers(cleared.layers);setAnalysis(cleared.analysis);setDiscovered(cleared.discovered);setPicked(cleared.picked)}
+  const newRoad=()=>{setRoad(emptyRoad());setEditing(undefined);clearDiagnostics();setStatus('Ready');setError('')}
+  const act=async(label:string,path:string,body:unknown={road})=>{
+    setStatus(label+'…');setError('')
+    try{
+      const result=await api(path,'POST',body)
+      const hasGeometry=Boolean(result.reference||result.selected||result.candidates||result.diagnostics)
+      setLayers(current=>({
+        ...current,
+        ...(result.reference?{reference:result.reference}:{}),
+        ...(result.candidates?{candidates:result.candidates}:{}),
+        ...(result.selected?{selected:result.selected}:{}),
+        ...(result.diagnostics?{rejected:result.diagnostics}:{}),
+      }))
+      if(hasGeometry)setFitVersion(version=>version+1)
+      if(result.discoveredNames)setDiscovered(result.discoveredNames)
+      if(result.classes)setAnalysis(result)
+      setStatus(label+' complete')
+      return result
+    }catch(reason){setError((reason as Error).message);setStatus(label+' failed')}
+  }
+  const save=async(build=false)=>{
+    setStatus('Saving…');setError('')
+    try{
+      await api(editing?`/api/roads/${editing}`:'/api/roads',editing?'PUT':'POST',{road})
+      setEditing(road.id);await reload()
+      if(build){const result=await api(`/api/roads/${road.id}/build`,'POST',{});setStatus(`Built: ${result.reportPath}`);await act('Refresh preview','/api/match/preview')}
+      else setStatus('Road saved')
+    }catch(reason){setError((reason as Error).message);setStatus('Save failed')}
+  }
+
+  return <main><section className="editor"><header><h1>Road Builder</h1><b>LOCAL DEVELOPMENT TOOL ONLY</b></header><div className="toolbar"><button onClick={newRoad}>New road</button><select value={editing||''} onChange={async event=>{if(!event.target.value)return;const result=await api(`/api/roads/${event.target.value}`);setRoad(result.road);setEditing(event.target.value);clearDiagnostics()}}><option value="">Load existing road…</option>{roads.map(item=><option key={item.id} value={item.id}>{item.displayName} — {item.id}</option>)}</select></div><label>Canonical ID<input value={road.id} onChange={event=>change({id:event.target.value})}/></label><label>Display name<input value={road.displayName} onChange={event=>change({displayName:event.target.value})}/></label><fieldset><legend>Entity type</legend>{(['statutory-road','named-road']as const).map(type=><label className="inline" key={type}><input type="radio" checked={road.entityType===type} onChange={()=>change({entityType:type,reference:type==='named-road'?{type:'osm-name',names:[],tags:['name','name:ja','name:en','alt_name']}:{type:'osm-ref',ref:''}})}/>{type}</label>)}</fieldset><label>Jurisdiction<input value={road.jurisdiction} onChange={event=>change({jurisdiction:event.target.value})}/></label><label>Aliases<List values={road.aliases} onChange={aliases=>change({aliases})}/></label>{road.entityType==='named-road'?<><label>OSM names<List values={road.reference.names||[]} onChange={names=>change({reference:{...road.reference,names}})}/></label><fieldset><legend>OSM exact-name tags</legend>{['name','name:ja','name:en','alt_name'].map(tag=><label className="inline" key={tag}><input type="checkbox" checked={(road.reference.tags||[]).includes(tag)} onChange={()=>change({reference:{...road.reference,tags:toggle(road.reference.tags||[],tag)}})}/>{tag}</label>)}</fieldset></>:<label>OSM ref<input value={road.reference.ref||''} onChange={event=>change({reference:{...road.reference,ref:event.target.value}})}/></label>}<fieldset><legend>N13 candidate classifications</legend>{meta.classes.map(item=><label className="class" title={item.label} key={item.value}><input type="checkbox" checked={road.n13.classifications.includes(item.value)} onChange={()=>change({n13:{...road.n13,classifications:toggle(road.n13.classifications,item.value)}})}/>{item.value} — {item.label}{meta.missingClasses.includes(item.value)&&' (cache missing)'}</label>)}</fieldset><details><summary>Advanced matching settings</summary>{Object.entries(road.matching||{}).map(([key,value])=><label key={key}>{key}<input type="number" value={value} onChange={event=>change({matching:{...road.matching,[key]:Number(event.target.value)}})}/></label>)}{road.networkSelection&&Object.entries(road.networkSelection).map(([key,value])=><label key={key}>{key}<input type="number" value={value} onChange={event=>change({networkSelection:{...road.networkSelection,[key]:Number(event.target.value)}})}/></label>)}</details><div className="actions"><button onClick={()=>act('Inspecting OSM','/api/osm/inspect')}>Inspect OSM</button><button onClick={()=>act('Analyzing N13','/api/n13/analyze')}>Analyze N13</button><button onClick={()=>act('Previewing match','/api/match/preview')}>Preview Match</button><button onClick={()=>save(false)}>{editing?'Save changes':'Save Road'}</button><button className="primary" onClick={()=>save(true)}>Save &amp; Build</button></div><p className="status">{status}</p>{error&&<p className="error">{error}</p>}{discovered.length>0&&<section><h3>Detected exact OSM names</h3>{discovered.map(name=><label className="class" key={name}><input type="checkbox" checked={(road.reference.names||[]).includes(name)} onChange={()=>change({reference:{...road.reference,names:toggle(road.reference.names||[],name)}})}/>{name}</label>)}</section>}<p>Available cached classes: {meta.availableClasses.join(' ')||'none'}<br/>Missing supported classes: {meta.missingClasses.join(' ')||'none'}</p>{meta.missingClasses.filter(item=>road.n13.classifications.includes(item)).map(item=><button key={item} onClick={async()=>{await act(`Preparing class ${item}`,'/api/n13/prepare',{class:item});reload()}}>Prepare class {item}</button>)}{analysis&&<table><thead><tr><th>Class</th><th>Nearby</th><th>Residual pass</th><th>Length</th><th>Median</th></tr></thead><tbody>{analysis.classes.map(item=><tr className={item.suggested?'suggested':''} key={item.class}><td>{item.class}</td><td>{item.nearbyFeatures}</td><td>{item.residualPassFeatures}</td><td>{(item.matchedLengthMeters/1000).toFixed(2)} km</td><td>{item.medianResidualMeters??'–'}</td></tr>)}</tbody></table>}</section><section className="mapPane"><div className="layers">{(['reference','selected','candidates','rejected']as DiagnosticLayerId[]).map(id=><label key={id}><input type="checkbox" checked={visibility[id]} onChange={()=>setVisibility(current=>toggleLayerVisibility(current,id))}/>{id}</label>)}</div><Map layers={layers} visibility={visibility} fitVersion={fitVersion} onFeature={onFeature}/><pre>{JSON.stringify(picked,null,2)}</pre></section></main>
+}
+
+createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>)
