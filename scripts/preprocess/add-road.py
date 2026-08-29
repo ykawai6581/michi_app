@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import tempfile
+import sys
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
@@ -33,7 +33,9 @@ ROAD_KINDS = {
 NAMED_ROAD_PATTERN = re.compile(r"tokyo-named-[a-z0-9]+(?:-[a-z0-9]+)*")
 OSM_NAME_TAGS = ["name", "name:ja", "alt_name"]
 # Complete N13_003 source vocabulary, not the classes selected by any one road.
-SUPPORTED_N13_CLASSES = {"1", "2", "3", "4", "5", "6"}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from road_registry import (MATCHING_DEFAULTS, OSM_NAME_TAGS, SUPPORTED_N13_CLASSES,  # noqa: E402
+                           save_road)
 
 
 def parse_road_id(road_id: str) -> tuple[dict, str]:
@@ -160,15 +162,7 @@ def ensure_id_is_available(path: Path, road_id: str) -> None:
 
 
 def write_registry(path: Path, entry: dict) -> None:
-    registry = json.loads(path.read_text(encoding="utf-8"))
-    if any(road["id"] == entry["id"] for road in registry["roads"]):
-        raise RuntimeError(f"Road {entry['id']!r} is already present in {path}")
-    registry["roads"].append(entry)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as output:
-        json.dump(registry, output, ensure_ascii=False, indent=2)
-        output.write("\n")
-        temporary = Path(output.name)
-    temporary.replace(path)
+    save_road(path, entry)
 
 
 def main() -> None:

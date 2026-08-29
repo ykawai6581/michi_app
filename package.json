@@ -9,6 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
+    "road-builder": "python scripts/road-ui/launch.py",
+    "road-builder:test": "npm --prefix tools/road-builder test",
     "data:osm:shinjuku": "node scripts/download/download-shinjuku-osm.mjs"
   },
   "dependencies": {

@@ -41,6 +41,44 @@ npm test
 npm run build
 ```
 
+### Road Builder (local developer tool only)
+
+> **LOCAL DEVELOPMENT TOOL ONLY:** Road Builder is not deployed, is not a production backend, and does not alter
+> the static GitHub Pages application. The normal `npm run build` continues to build only the existing Vite app.
+
+Prepare the Python GIS dependencies used by the existing preprocessing scripts, then launch both the loopback-only
+Python API and the separate Road Builder Vite application with:
+
+```bash
+npm run road-builder
+```
+
+Open **http://127.0.0.1:5174**. The API listens only on `http://127.0.0.1:8765`; the development Vite server proxies
+`/api` to it. The intended workflow is **New Road → Inspect OSM → Analyze N13 → Preview Match → Save & Build**.
+
+- **Inspect OSM** resolves an unsaved draft through the canonical OSM source configuration and current N13 coverage.
+  It displays the exact tag values found; selecting a discovered name explicitly adds it to the draft. It never
+  fuzzy-matches or automatically declares variants equivalent.
+- **Analyze N13** runs the current spatial/residual matcher stages and summarizes the selected draft classes
+  independently. Suggested rows are visual hints only and never change the road's class checkboxes.
+- Missing class partitions are read from the cache manifest. **Prepare class N** calls the existing N13 preprocessor
+  for that one class and requires the manifest's raw source to still be present; no large preprocessing starts
+  silently.
+- **Preview Match** passes the in-memory draft to the existing matcher functions and returns reference, candidate,
+  residual-pass, selected, and diagnostic GeoJSON without writing the registry.
+- **Save Road** uses the same shared validation and atomic registry writer as `add-road.py`. Editing retains unknown
+  fields because the UI round-trips the complete object. **Save & Build** saves first and invokes the existing
+  `build-road.py` pipeline with a subprocess argument array.
+
+For a local smoke test, keep `npm run road-builder` running, confirm the editor and map load at the URL above, choose
+an existing road, and click **Inspect OSM**. A prepared N13 cache and its raw source are needed for analysis/preview.
+Automated Road Builder checks can be run with:
+
+```bash
+python -m unittest discover -s scripts/road-ui -p 'test_*.py'
+npm run road-builder:test
+```
+
 ### Real modern overlay data
 
 The Presentation basemap already uses real OpenStreetMap-derived vector tiles. To generate a small, reproducible Shinjuku-area overlay and search-index input for current Kōshū Kaidō roads and stations, run:
