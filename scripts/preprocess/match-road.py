@@ -30,12 +30,16 @@ DEFAULT_NETWORK_SELECTION = {
     "minimumProgressRatio": 0.35,
     "minimumChainageMonotonicity": 0.7,
     "maximumOrientationMismatchDegrees": 55.0,
-    "minimumNewReferenceCoverageMeters": 8.0,
-    "minimumParallelLengthMeters": 150.0,
-    "minimumParallelReferenceCoverageMeters": 120.0,
-    "maximumParallelOrientationMismatchDegrees": 30.0,
-    "minimumParallelProgressRatio": 0.65,
-    "minimumParallelChainageMonotonicity": 0.85,
+    "maximumSampleDistanceMeters": 35.0,
+    "unmatchedSampleCost": 45.0,
+    "edgeSwitchCost": 6.0,
+    "disconnectedTransitionCost": 250.0,
+    "maximumTransitionPathMeters": 120.0,
+    "maximumGapConnectorMeters": 300.0,
+    "maximumGapDetourRatio": 3.0,
+    "orientationCostWeight": 0.2,
+    "progressCostWeight": 8.0,
+    "monotonicityCostWeight": 8.0,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
@@ -509,26 +513,21 @@ def _progression_metrics(line: LineString, reference_parts: list[LineString], in
     }
 
 
-def _endpoint_nodes(lines: list[LineString], tolerance: float) -> tuple[list[tuple[int, int]], dict[int, list[int]]]:
-    """Cluster only genuinely nearby source endpoints; never construct graph edges."""
-    clusters: list[list[Point]] = []
-    nodes = []
-    for line in lines:
-        edge_nodes = []
-        for coordinate in (line.coords[0], line.coords[-1]):
-            point = Point(coordinate)
-            node = next((index for index, cluster in enumerate(clusters)
-                         if all(point.distance(other) <= tolerance for other in cluster)), None)
-            if node is None:
-                node = len(clusters); clusters.append([point])
-            else:
-                clusters[node].append(point)
-            edge_nodes.append(node)
-        nodes.append(tuple(edge_nodes))
-    adjacency: dict[int, list[int]] = {}
-    for edge, (start, end) in enumerate(nodes):
-        adjacency.setdefault(start, []).append(edge); adjacency.setdefault(end, []).append(edge)
-    return nodes, adjacency
+def _edge_adjacency(lines: list[LineString], tolerance: float) -> dict[int, set[int]]:
+    """Build logical N13 topology, including endpoint-to-line-interior junctions.
+
+    This graph is reasoning-only: detecting a junction never splits, moves, or
+    otherwise changes the source geometry used for display.
+    """
+    adjacency = {edge: set() for edge in range(len(lines))}
+    endpoints = [(edge, Point(coordinate)) for edge, line in enumerate(lines)
+                 for coordinate in (line.coords[0], line.coords[-1])]
+    for edge, endpoint in endpoints:
+        for other, line in enumerate(lines):
+            if edge != other and endpoint.distance(line) <= tolerance:
+                adjacency[edge].add(other)
+                adjacency[other].add(edge)
+    return adjacency
 
 
 def _edge_cost(row) -> float:
@@ -540,32 +539,166 @@ def _edge_cost(row) -> float:
                                          + (1 - float(row.chainageMonotonicity)) * 2)
 
 
-def _best_component_path(edge_ids: set[int], frame, nodes, adjacency) -> list[int]:
-    endpoints = {node for edge in edge_ids for node in nodes[edge]}
-    node_chainage = {node: np.mean([value for edge in adjacency[node] if edge in edge_ids
-                                    for value in (frame.iloc[edge].referenceStartMeters,
-                                                  frame.iloc[edge].referenceEndMeters)]) for node in endpoints}
-    start, goal = min(endpoints, key=node_chainage.get), max(endpoints, key=node_chainage.get)
-    queue = [(0.0, start, [])]; best = {start: 0.0}
+def _local_orientation(line: LineString, point: Point, interval: float) -> np.ndarray:
+    position = line.project(point)
+    epsilon = min(max(interval / 2, .5), max(line.length / 2, .5))
+    before = line.interpolate(max(0, position - epsilon))
+    after = line.interpolate(min(line.length, position + epsilon))
+    return np.asarray(after.coords[0]) - np.asarray(before.coords[0])
+
+
+def _graph_path(start: int, goal: int, frame, adjacency, maximum_length: float,
+                cache: dict[tuple[int, int, float], tuple[float, list[int]]]) -> tuple[float, list[int]]:
+    """Return a bounded source-edge route; all progression penalties remain soft."""
+    key = (start, goal, maximum_length)
+    if key in cache:
+        return cache[key]
+    if start == goal:
+        return 0.0, [start]
+    queue = [(0.0, start, [start])]
+    best = {start: 0.0}
     while queue:
-        cost, node, path = heapq.heappop(queue)
-        if node == goal:
-            return path
-        if cost > best.get(node, float("inf")):
+        length, edge, path = heapq.heappop(queue)
+        if edge == goal:
+            cache[key] = (length, path)
+            cache[(goal, start, maximum_length)] = (length, list(reversed(path)))
+            return length, path
+        if length > best.get(edge, float("inf")):
             continue
-        for edge in adjacency[node]:
-            if edge not in edge_ids:
-                continue
-            other = nodes[edge][1] if nodes[edge][0] == node else nodes[edge][0]
-            candidate = cost + _edge_cost(frame.iloc[edge])
-            if candidate < best.get(other, float("inf")):
+        for other in adjacency[edge]:
+            # Reaching the goal's junction does not imply traversing its full
+            # source geometry; only intermediate connector edges add length.
+            candidate = length + (0.0 if other == goal else float(frame.iloc[other].geometry.length))
+            if candidate <= maximum_length and candidate < best.get(other, float("inf")):
                 best[other] = candidate
-                heapq.heappush(queue, (candidate, other, path + [edge]))
-    return []
+                heapq.heappush(queue, (candidate, other, path + [other]))
+    cache[key] = (float("inf"), [])
+    return cache[key]
+
+
+def _sample_reference(part: LineString, interval: float) -> tuple[np.ndarray, list[Point]]:
+    offsets = np.unique(np.append(np.arange(0, part.length, interval), part.length))
+    return offsets, [part.interpolate(float(offset)) for offset in offsets]
+
+
+def _infer_reference_sequence(part_index: int, part: LineString, frame, adjacency, settings,
+                              path_cache) -> dict:
+    """Viterbi inference over ordered OSM samples and nearby N13 source edges."""
+    offsets, samples = _sample_reference(part, float(settings["progressSampleMeters"]))
+    maximum_distance = float(settings["maximumSampleDistanceMeters"])
+    states: list[list[int | None]] = []
+    emissions: list[dict[int | None, float]] = []
+    support: dict[int, list[float]] = {edge: [] for edge in frame.index}
+    for offset, sample in zip(offsets, samples):
+        osm_vector = _local_orientation(part, sample, float(settings["progressSampleMeters"]))
+        nearby = []
+        costs: dict[int | None, float] = {None: float(settings["unmatchedSampleCost"])}
+        for edge, line in enumerate(frame.geometry):
+            distance = float(line.distance(sample))
+            if distance > maximum_distance:
+                continue
+            mismatch = _angle_difference(_local_orientation(line, sample, float(settings["progressSampleMeters"])),
+                                         osm_vector)
+            # Former hard eligibility metrics are deliberately soft. A poor
+            # local edge can win when graph continuity and reference coverage
+            # make it the necessary explanation for this sample.
+            progress_penalty = max(0.0, float(settings["minimumProgressRatio"]) - float(frame.iloc[edge].progressRatio))
+            monotonicity_penalty = max(0.0, float(settings["minimumChainageMonotonicity"])
+                                       - float(frame.iloc[edge].chainageMonotonicity))
+            orientation_excess = max(0.0, mismatch - float(settings["maximumOrientationMismatchDegrees"]))
+            costs[edge] = (distance + mismatch * float(settings["orientationCostWeight"])
+                           + progress_penalty * float(settings["progressCostWeight"])
+                           + monotonicity_penalty * float(settings["monotonicityCostWeight"])
+                           + orientation_excess * float(settings["orientationCostWeight"]))
+            nearby.append(edge)
+            support[edge].append(float(offset))
+        states.append(nearby + [None])
+        emissions.append(costs)
+
+    supported_samples = [index for index, candidates in enumerate(states) if len(candidates) > 1]
+    if not supported_samples:
+        return {"part": part_index, "offsets": offsets, "states": [None] * len(samples),
+                "paths": [], "support": support, "emissions": emissions, "cost": 0.0,
+                "activeRange": None, "repairedGaps": []}
+    first, last = min(supported_samples), max(supported_samples)
+    costs = {state: emissions[first][state] for state in states[first]}
+    histories = {state: [] for state in states[first]}
+    connector_histories = {state: [] for state in states[first]}
+    for sample_index in range(first + 1, last + 1):
+        next_costs = {}
+        next_histories = {}
+        next_connectors = {}
+        chainage_step = max(float(offsets[sample_index] - offsets[sample_index - 1]), 1.0)
+        for current in states[sample_index]:
+            best_choice = None
+            for previous, previous_cost in costs.items():
+                connector = []
+                if current is None or previous is None:
+                    transition = 0.0 if current == previous else float(settings["edgeSwitchCost"])
+                elif current == previous:
+                    transition = 0.0
+                else:
+                    length, connector = _graph_path(previous, current, frame, adjacency,
+                                                    float(settings["maximumTransitionPathMeters"]), path_cache)
+                    if not connector:
+                        transition = float(settings["disconnectedTransitionCost"])
+                    else:
+                        # Switching and graph travel are penalized, but an awkward
+                        # connector is never excluded by per-edge orientation/progress.
+                        transition = float(settings["edgeSwitchCost"]) + max(0.0, length - chainage_step)
+                    previous_chainage = float(frame.iloc[previous].referenceEndMeters)
+                    current_chainage = float(frame.iloc[current].referenceEndMeters)
+                    if current_chainage + chainage_step < previous_chainage:
+                        transition += previous_chainage - current_chainage
+                candidate = previous_cost + transition + emissions[sample_index][current]
+                if best_choice is None or candidate < best_choice[0]:
+                    best_choice = (candidate, previous, connector)
+            next_costs[current] = best_choice[0]
+            next_histories[current] = histories[best_choice[1]] + [best_choice[1]]
+            next_connectors[current] = connector_histories[best_choice[1]] + [best_choice[2]]
+        costs, histories, connector_histories = next_costs, next_histories, next_connectors
+    final = min(costs, key=costs.get)
+    sequence = histories[final] + [final]
+    full_sequence = [None] * first + sequence + [None] * (len(samples) - last - 1)
+    return {"part": part_index, "offsets": offsets, "states": full_sequence,
+            "support": support, "emissions": emissions, "cost": float(costs[final]),
+            "activeRange": (first, last), "transitionConnectors": connector_histories[final],
+            "repairedGaps": []}
+
+
+def _repair_internal_gaps(inference: dict, frame, adjacency, settings, path_cache) -> set[int]:
+    """Connect selected states across internal unmatched sample runs when plausible."""
+    repaired = set()
+    states = inference["states"]
+    index = 0
+    while index < len(states):
+        if states[index] is not None:
+            index += 1
+            continue
+        start = index
+        while index < len(states) and states[index] is None:
+            index += 1
+        if start == 0 or index == len(states):
+            continue  # legitimate termination: never repair beyond supported coverage
+        left, right = states[start - 1], states[index]
+        gap_length = float(inference["offsets"][index] - inference["offsets"][start - 1])
+        maximum = min(float(settings["maximumGapConnectorMeters"]),
+                      gap_length * float(settings["maximumGapDetourRatio"]))
+        connector_length, connector = _graph_path(left, right, frame, adjacency, maximum, path_cache)
+        if connector and connector_length <= maximum:
+            repaired.update(connector)
+            inference["repairedGaps"].append({
+                "referencePart": inference["part"],
+                "startMeters": round(float(inference["offsets"][start]), 3),
+                "endMeters": round(float(inference["offsets"][index - 1]), 3),
+                "connectorLengthMeters": round(connector_length, 3),
+                "sourceEdges": connector,
+            })
+    return repaired
 
 
 def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
-    """Select N13 paths that explain ordered OSM chainage, then sustained parallels."""
+    """Infer the source-edge sequence that best explains ordered OSM samples."""
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
@@ -574,68 +707,81 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     metrics = [_progression_metrics(line, parts, float(settings["progressSampleMeters"])) for line in frame.geometry]
     for key in metrics[0]:
         frame[key] = [value[key] for value in metrics]
-    frame["selectionStatus"] = "rejected-low-progress"; frame["selectionReason"] = "rejected-low-progress"
+    frame["selectionStatus"] = "rejected-disconnected"; frame["selectionReason"] = "rejected-disconnected"
     frame["routeCost"] = [_edge_cost(row) for _, row in frame.iterrows()]
-    eligible = ((frame.progressRatio >= settings["minimumProgressRatio"])
-                & (frame.chainageMonotonicity >= settings["minimumChainageMonotonicity"])
-                & (frame.orientationMismatchDegrees <= settings["maximumOrientationMismatchDegrees"]))
-    frame.loc[frame.orientationMismatchDegrees > settings["maximumOrientationMismatchDegrees"], ["selectionStatus", "selectionReason"]] = "rejected-orientation"
-    nodes, adjacency = _endpoint_nodes(list(frame.geometry), float(settings["endpointSnapMeters"]))
-    chosen: set[int] = set()
-    for part_index in range(len(parts)):
-        remaining = set(frame.index[eligible & (frame.referencePart == part_index)])
-        components = []
-        while remaining:
-            seed = remaining.pop(); edges = {seed}; frontier = list(nodes[seed])
-            while frontier:
-                node = frontier.pop()
-                for edge in adjacency[node]:
-                    if edge in remaining and int(frame.iloc[edge].referencePart) == part_index:
-                        remaining.remove(edge); edges.add(edge); frontier.extend(nodes[edge])
-            path = _best_component_path(edges, frame, nodes, adjacency)
-            if path:
-                interval = (min(frame.iloc[path].referenceStartMeters.min(), frame.iloc[path].referenceEndMeters.min()),
-                            max(frame.iloc[path].referenceStartMeters.max(), frame.iloc[path].referenceEndMeters.max()))
-                components.append((sum(_edge_cost(frame.iloc[e]) for e in path) / max(interval[1] - interval[0], 1), path, interval))
-        covered: list[tuple[float, float]] = []
-        for _, path, interval in sorted(components):
-            new_coverage = interval[1] - interval[0] - sum(max(0, min(interval[1], b) - max(interval[0], a)) for a, b in covered)
-            if new_coverage >= min(float(settings["minimumNewReferenceCoverageMeters"]), interval[1] - interval[0]):
-                chosen.update(path); covered.append(interval)
-    frame.loc[list(chosen), ["selectionStatus", "selectionReason"]] = "accepted-backbone"
-
-    # Unselected connected chains may be a second carriageway only when their
-    # sustained length and reference coverage make a short slip/loop implausible.
-    unselected = set(frame.index[eligible]) - chosen
-    while unselected:
-        seed = unselected.pop(); chain = {seed}; frontier = list(nodes[seed])
+    adjacency = _edge_adjacency(list(frame.geometry), float(settings["endpointSnapMeters"]))
+    path_cache = {}
+    inferences = [_infer_reference_sequence(index, part, frame, adjacency, settings, path_cache)
+                  for index, part in enumerate(parts)]
+    membership: dict[int, set[int]] = {edge: set() for edge in frame.index}
+    gap_repair: set[int] = set()
+    sample_support = Counter()
+    minimum_emission = {edge: float("inf") for edge in frame.index}
+    for inference in inferences:
+        for edge, offsets in inference["support"].items():
+            sample_support[edge] += len(offsets)
+        for sample_index, state in enumerate(inference["states"]):
+            if state is not None:
+                membership[state].add(inference["part"])
+                minimum_emission[state] = min(minimum_emission[state], inference["emissions"][sample_index][state])
+        for connector in inference.get("transitionConnectors", []):
+            # Intermediate edges explain graph continuity rather than an
+            # emission at one reference sample; expose them as gap repairs.
+            gap_repair.update(connector[1:-1])
+        gap_repair.update(_repair_internal_gaps(inference, frame, adjacency, settings, path_cache))
+    selected = {edge for edge, support_parts in membership.items() if support_parts} | gap_repair
+    frame["referenceSampleSupportCount"] = [sample_support[edge] for edge in frame.index]
+    frame["emissionCost"] = [round(minimum_emission[edge], 3) if math.isfinite(minimum_emission[edge]) else None
+                             for edge in frame.index]
+    frame["backboneMembership"] = [edge in selected for edge in frame.index]
+    frame["parallelOsmSupportPart"] = [",".join(map(str, sorted(membership[edge]))) if membership[edge] else None
+                                       for edge in frame.index]
+    frame["gapRepairMembership"] = [edge in gap_repair for edge in frame.index]
+    for edge in selected:
+        reason = "accepted-gap-repair" if edge in gap_repair and not membership[edge] else "accepted-backbone"
+        if membership[edge] and min(membership[edge]) > 0:
+            reason = "accepted-parallel-osm-supported"
+        frame.loc[edge, ["selectionStatus", "selectionReason"]] = reason
+    # Diagnose whole rejected chains, so a multi-edge route that leaves and
+    # rejoins the backbone is a detour rather than two unrelated stems.
+    rejected = set(frame.index) - selected
+    while rejected:
+        seed = rejected.pop()
+        component = {seed}
+        frontier = [seed]
         while frontier:
-            for edge in adjacency[frontier.pop()]:
-                if edge in unselected:
-                    unselected.remove(edge); chain.add(edge); frontier.extend(nodes[edge])
-        rows = frame.iloc[list(chain)]
-        span = rows.referenceEndMeters.combine(rows.referenceStartMeters, max).max() - rows.referenceEndMeters.combine(rows.referenceStartMeters, min).min()
-        if (rows.geometry.length.sum() >= settings["minimumParallelLengthMeters"]
-                and span >= settings["minimumParallelReferenceCoverageMeters"]
-                and rows.progressRatio.median() >= settings["minimumParallelProgressRatio"]
-                and rows.chainageMonotonicity.median() >= settings["minimumParallelChainageMonotonicity"]
-                and rows.orientationMismatchDegrees.median() <= settings["maximumParallelOrientationMismatchDegrees"]):
-            frame.loc[list(chain), ["selectionStatus", "selectionReason"]] = "accepted-parallel"
+            for other in adjacency[frontier.pop()]:
+                if other in rejected:
+                    rejected.remove(other)
+                    component.add(other)
+                    frontier.append(other)
+        attachments = set().union(*(adjacency[edge] & selected for edge in component))
+        if len(attachments) >= 2:
+            reason = "rejected-detour"
+        elif len(attachments) == 1:
+            reason = "rejected-spur"
+        elif any(sample_support[edge] for edge in component):
+            reason = "rejected-redundant-parallel"
         else:
-            # One-ended graph branches are spurs; rejoining redundant paths are detours.
-            attachments = sum(any(edge in chosen for edge in adjacency[node]) for edge in chain for node in nodes[edge])
-            reason = "rejected-detour" if attachments >= 2 else "rejected-spur"
-            frame.loc[list(chain), ["selectionStatus", "selectionReason"]] = reason
+            reason = "rejected-disconnected"
+        frame.loc[list(component), ["selectionStatus", "selectionReason"]] = reason
     accepted = frame[frame.selectionStatus.str.startswith("accepted-")].copy()
     counts = Counter(frame.selectionReason)
     report = {
         "stage1CandidateCount": len(frame),
         "backboneSelectedCount": int((frame.selectionStatus == "accepted-backbone").sum()),
-        "parallelSelectedCount": int((frame.selectionStatus == "accepted-parallel").sum()),
+        "parallelSelectedCount": int((frame.selectionStatus == "accepted-parallel-osm-supported").sum()),
         "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
         "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
         "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
         "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
+        "referencePartInference": [{
+            "referencePart": inference["part"],
+            "sampleCount": len(inference["offsets"]),
+            "matchedSampleCount": sum(state is not None for state in inference["states"]),
+            "pathCost": round(inference["cost"], 3),
+        } for inference in inferences],
+        "repairedGaps": [gap for inference in inferences for gap in inference["repairedGaps"]],
         "parameters": settings,
     }
     return accepted, frame, report

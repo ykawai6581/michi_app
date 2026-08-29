@@ -39,7 +39,7 @@ class NetworkSelectionTests(unittest.TestCase):
             LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
             LineString([(50, 0), (50, 20)])], LineString([(0, 0), (100, 0)]))
         self.assertEqual(len(accepted), 2)
-        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-orientation")
+        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-spur")
 
     def test_straight_road_rejects_diagonal_spur(self):
         accepted, diagnostic, _ = select([
@@ -69,13 +69,53 @@ class NetworkSelectionTests(unittest.TestCase):
         self.assertEqual(len(accepted), 2)
 
     def test_long_divided_carriageway_retains_parallel_chain(self):
-        reference = LineString([(0, 2), (300, 2)])
+        reference = MultiLineString([[(0, 0), (300, 0)], [(0, 4), (300, 4)]])
         lines = [LineString([(0, 0), (150, 0)]), LineString([(150, 0), (300, 0)]),
                  LineString([(0, 4), (150, 4)]), LineString([(150, 4), (300, 4)])]
         accepted, diagnostic, report = select(lines, reference)
         self.assertEqual(len(accepted), 4)
         self.assertEqual(report["parallelSelectedCount"], 2)
-        self.assertIn("accepted-parallel", set(diagnostic.selectionStatus))
+        self.assertIn("accepted-parallel-osm-supported", set(diagnostic.selectionStatus))
+
+    def test_multiple_oblique_stems_with_progress_are_rejected(self):
+        reference = LineString([(0, 0), (150, 0), (300, 10)])
+        road = [LineString([(0, 0), (100, 0)]), LineString([(100, 0), (200, 3)]),
+                LineString([(200, 3), (300, 10)])]
+        stems = [LineString([(40, 0), (65, 16)]), LineString([(130, .9), (165, 22)]),
+                 LineString([(240, 5.8), (280, 28)])]
+        accepted, diagnostic, _ = select(road + stems, reference)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertTrue(all(status == "rejected-spur" for status in diagnostic.iloc[3:].selectionStatus))
+
+    def test_long_connected_false_parallel_has_no_osm_support(self):
+        reference = LineString([(0, 0), (400, 0)])
+        road = [LineString([(0, 0), (200, 0)]), LineString([(200, 0), (400, 0)])]
+        false_parallel = [LineString([(50, 0), (65, 14), (200, 14)]),
+                          LineString([(200, 14), (335, 14), (350, 0)])]
+        accepted, diagnostic, report = select(road + false_parallel, reference)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1})
+        self.assertEqual(report["parallelSelectedCount"], 0)
+        self.assertTrue(all(status in {"rejected-detour", "rejected-redundant-parallel"}
+                            for status in diagnostic.iloc[2:].selectionStatus))
+
+    def test_awkward_connector_is_available_to_ordered_path(self):
+        reference = LineString([(0, 0), (200, 0)])
+        lines = [LineString([(0, 0), (100, 0)]),
+                 LineString([(100, 0), (105, 22), (110, 0)]),
+                 LineString([(110, 0), (200, 0)])]
+        accepted, diagnostic, _ = select(lines, reference)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertTrue(diagnostic.iloc[1].gapRepairMembership)
+
+    def test_internal_gap_is_repaired_through_stage1_graph(self):
+        reference = LineString([(0, 0), (220, 0)])
+        lines = [LineString([(0, 0), (90, 0)]),
+                 LineString([(90, 0), (105, 28), (125, 28), (140, 0)]),
+                 LineString([(140, 0), (220, 0)])]
+        accepted, diagnostic, report = select(lines, reference, maximumSampleDistanceMeters=15)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertTrue(diagnostic.iloc[1].gapRepairMembership)
+        self.assertTrue(report["repairedGaps"] or diagnostic.iloc[1].selectionReason == "accepted-gap-repair")
 
     def test_short_parallel_slip_detour_is_rejected(self):
         reference = LineString([(0, 0), (200, 0)])

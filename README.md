@@ -133,13 +133,18 @@ a larger extent is clipped safely, while one from a smaller extent is rebuilt au
 python scripts/preprocess/match-road.py jp-national-20
 ```
 
-Matching is deliberately two-stage. The existing median/p90 residual limits produce a generous spatial shortlist;
-an endpoint graph then projects ordered N13 samples onto each disconnected OSM reference component and chooses the
-lowest-cost chainage-progressing path. Cost combines physical length, median residual, orientation mismatch,
-unproductive length, and backtracking. Short one-ended branches and redundant rejoining routes are rejected, while
-an additional connected chain is retained as a parallel carriageway only when it meets sustained configurable
-length, reference-coverage, progression, monotonicity, and orientation thresholds. Original N13 vertices remain the
-public geometry; only the existing display endpoint snap is applied afterward.
+Matching is deliberately two-stage. The existing median/p90 residual limits produce a generous spatial shortlist.
+For each disconnected OSM reference part, Stage 2 samples ordered OSM chainage and uses Viterbi-style inference to
+choose the N13 edge sequence with the best distance/orientation emissions and graph-continuity transitions. Progress,
+monotonicity, and orientation are soft costs rather than hard per-feature eligibility gates, so a locally awkward
+edge remains available when it is needed between strong road sections. The reasoning graph detects both endpoint
+connections and endpoints meeting another edge's interior without changing source coordinates.
+
+An alternate N13 chain is accepted as a parallel carriageway only when a distinct OSM reference part selects it;
+a neighboring frontage road following the same single OSM centerline is not promoted merely because it is long and
+parallel. Internal unmatched sample runs are repaired through the complete Stage-1 graph when a bounded connector
+exists, while unmatched leading/trailing samples are treated as source-coverage termination. Original N13 vertices
+remain the public geometry; only the existing display endpoint snap is applied afterward.
 
 Every build writes all residual-shortlisted candidates and their selection reasons to the gitignored diagnostic
 GeoJSON. To validate the two current named roads with a local cache (including N13 class 3), run:
@@ -153,11 +158,12 @@ python scripts/preprocess/match-road.py tokyo-named-koshu-kaido \
   --diagnostics data/diagnostics/tokyo-named-koshu-kaido-selection.geojson
 ```
 
-Per-road `networkSelection` registry values can override `progressSampleMeters`, `minimumProgressRatio`,
-`minimumChainageMonotonicity`, `maximumOrientationMismatchDegrees`, `minimumNewReferenceCoverageMeters`,
-`minimumParallelLengthMeters`, `minimumParallelReferenceCoverageMeters`,
-`maximumParallelOrientationMismatchDegrees`, `minimumParallelProgressRatio`, and
-`minimumParallelChainageMonotonicity`. These are generic matcher controls, not road-name exceptions.
+Per-road `networkSelection` registry values can override `progressSampleMeters`, `maximumSampleDistanceMeters`,
+`unmatchedSampleCost`, `edgeSwitchCost`, `disconnectedTransitionCost`, `maximumTransitionPathMeters`,
+`maximumGapConnectorMeters`, `maximumGapDetourRatio`, `orientationCostWeight`, `progressCostWeight`,
+`monotonicityCostWeight`, `minimumProgressRatio`, `minimumChainageMonotonicity`, and
+`maximumOrientationMismatchDegrees`. The latter three values define where soft costs begin; they do not exclude an
+edge. These are generic matcher controls, not road-name exceptions.
 
 The old `public/data/modern/shinjuku-osm.geojson` and `scripts/download/download-shinjuku-osm.mjs` remain only for
 the separate current-road/station UI prototype described above; canonical matching does not read them. The old
