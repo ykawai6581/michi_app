@@ -14,17 +14,21 @@
         "20号"
       ],
       "n13": {
-        "classification": "1"
-      },
-      "osm": {
-        "ref": "20",
-        "network": "JP:national"
+        "classifications": [
+          "1"
+        ]
       },
       "matching": {
         "sampleIntervalMeters": 5,
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
+      },
+      "entityType": "statutory-road",
+      "reference": {
+        "type": "osm-ref",
+        "ref": "20",
+        "network": "JP:national"
       }
     },
     {
@@ -39,17 +43,21 @@
         "246"
       ],
       "n13": {
-        "classification": "1"
-      },
-      "osm": {
-        "ref": "246",
-        "network": "JP:national"
+        "classifications": [
+          "1"
+        ]
       },
       "matching": {
         "sampleIntervalMeters": 5,
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
+      },
+      "entityType": "statutory-road",
+      "reference": {
+        "type": "osm-ref",
+        "ref": "246",
+        "network": "JP:national"
       }
     },
     {
@@ -67,16 +75,20 @@
         "環7"
       ],
       "n13": {
-        "classification": "2"
-      },
-      "osm": {
-        "ref": "318"
+        "classifications": [
+          "2"
+        ]
       },
       "matching": {
         "sampleIntervalMeters": 5,
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
+      },
+      "entityType": "statutory-road",
+      "reference": {
+        "type": "osm-ref",
+        "ref": "318"
       }
     },
     {
@@ -94,10 +106,80 @@
         "環8"
       ],
       "n13": {
-        "classification": "2"
+        "classifications": [
+          "2"
+        ]
       },
-      "osm": {
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "entityType": "statutory-road",
+      "reference": {
+        "type": "osm-ref",
         "ref": "311"
+      }
+    },
+    {
+      "id": "tokyo-named-koshu-kaido",
+      "entityType": "named-road",
+      "displayName": "甲州街道",
+      "aliases": [
+        "甲州街道"
+      ],
+      "jurisdiction": "Tokyo",
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "甲州街道"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-inokashira-dori",
+      "entityType": "named-road",
+      "displayName": "井の頭通り",
+      "aliases": [
+        "井ノ頭通り",
+        "井の頭通り"
+      ],
+      "jurisdiction": "Tokyo",
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "井ノ頭通り",
+          "井の頭通り"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3"
+        ]
       },
       "matching": {
         "sampleIntervalMeters": 5,
@@ -131,35 +213,6 @@
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
-      }
-    }
-  ],
-  "pendingRoads": [
-    {
-      "id": "tokyo-common-inokashira-dori",
-      "displayName": "井ノ頭通り",
-      "roadClass": "common-road-name",
-      "jurisdiction": "Tokyo",
-      "aliases": [
-        "井の頭通り",
-        "井ノ頭通り"
-      ],
-      "status": "pending-matcher-support",
-      "reason": "井ノ頭通り is a common road name spanning multiple statutory road identities, including Tokyo Metropolitan Roads 413 and 7 and a ward-road section. The current matcher assumes one OSM ref and one N13 road classification, so treating it as a single current 'roads' entry would produce incomplete geometry.",
-      "futureMatching": {
-        "osmNames": [
-          "井ノ頭通り",
-          "井の頭通り"
-        ],
-        "osmRefs": [
-          "413",
-          "7",
-          "14"
-        ],
-        "n13Classifications": [
-          "2",
-          "3"
-        ]
       }
     }
   ]

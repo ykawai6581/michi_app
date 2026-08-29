@@ -11,7 +11,9 @@ from urllib.request import Request, urlopen
 
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import LineString, MultiLineString, Point, mapping
+import pandas as pd
+from shapely.geometry import LineString, MultiLineString, Point, box, mapping
+from shapely.ops import unary_union
 
 REGISTRY = Path("data/roads/registry.json")
 SOURCE_CONFIG = Path("data/roads/sources.json")
@@ -20,6 +22,7 @@ SEARCH_INDEX = Path("public/search/roads.json")
 METRIC_CRS = "EPSG:6677"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 DEFAULT_ENDPOINT_SNAP_METERS = 2.0
+OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
 
 def _line_parts(geometries) -> list[LineString]:
@@ -147,15 +150,30 @@ def load_road(registry_path: Path, road_id: str) -> dict:
     roads = registry["roads"]
     try:
         road = next(road for road in roads if road["id"] == road_id)
-        return {**road, "display": {**registry.get("display", {}), **road.get("display", {})}}
+        road = {**road, "display": {**registry.get("display", {}), **road.get("display", {})}}
+        # A narrow compatibility shim for registries produced before entityType/reference.
+        road.setdefault("entityType", "statutory-road")
+        if "reference" not in road and "osm" in road:
+            road["reference"] = {"type": "osm-ref", **road["osm"]}
+        n13 = road.setdefault("n13", {})
+        if "classifications" not in n13 and "classification" in n13:
+            n13["classifications"] = [n13["classification"]]
+        return road
     except StopIteration as error:
         raise RuntimeError(f"Unknown road id {road_id!r}; add it to {registry_path}") from error
 
 
 def osm_query(road: dict, bounds: list[float]) -> str:
     west, south, east, north = bounds
-    ref = road["osm"]["ref"].replace('"', '\\"')
-    network = road["osm"].get("network")
+    reference = road["reference"]
+    if reference["type"] == "osm-name":
+        filters = []
+        for tag in reference.get("tags", ["name", "name:ja", "alt_name"]):
+            for name in reference["names"]:
+                filters.append(f'way["highway"]["{tag}"="{name.replace(chr(34), r"\"")}"]({south},{west},{north},{east});')
+        return "[out:json][timeout:180];\n(" + "\n".join(filters) + "\n);\nout tags geom;"
+    ref = reference["ref"].replace('"', '\\"')
+    network = reference.get("network")
     network_filter = f'["network"="{network}"]' if network else ""
     return f'''[out:json][timeout:180];
 relation["type"="route"]["route"="road"]["ref"="{ref}"]{network_filter}({south},{west},{north},{east})->.r;
@@ -173,7 +191,7 @@ def download_reference(road: dict, output: Path, endpoint: str, bounds: list[flo
         payload = json.load(response)
     features = [{
         "type": "Feature",
-        "properties": {"osm_way_id": item["id"], "ref": item.get("tags", {}).get("ref")},
+        "properties": {"osm_way_id": item["id"], **item.get("tags", {})},
         "geometry": {"type": "LineString", "coordinates": [[p["lon"], p["lat"]] for p in item["geometry"]]},
     } for item in payload["elements"] if len(item.get("geometry", [])) > 1]
     if not features:
@@ -188,70 +206,239 @@ def load_source_config(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_n13_manifest(source: Path) -> tuple[Path, dict]:
+    """Return the normalized cache root and its source-coverage manifest."""
+    root = source.with_suffix("") if source.suffix.lower() in (".parquet", ".geoparquet") else source
+    manifest_path = root / "manifest.json"
+    if not manifest_path.exists():
+        raise RuntimeError(f"N13 coverage metadata not found: {manifest_path}; rerun preprocess-n13.py")
+    manifest = json.loads(manifest_path.read_text())
+    bounds = manifest.get("boundsWgs84")
+    if not isinstance(bounds, list) or len(bounds) != 4:
+        raise RuntimeError(f"N13 manifest has invalid boundsWgs84: {manifest_path}")
+    return root, manifest
+
+
+def _bounds_cover(outer: list[float], inner: list[float]) -> bool:
+    return (outer[0] <= inner[0] + OSM_CACHE_BOUNDS_EPSILON
+            and outer[1] <= inner[1] + OSM_CACHE_BOUNDS_EPSILON
+            and outer[2] >= inner[2] - OSM_CACHE_BOUNDS_EPSILON
+            and outer[3] >= inner[3] - OSM_CACHE_BOUNDS_EPSILON)
+
+
+def clip_osm_to_bounds(frame: gpd.GeoDataFrame, bounds: list[float]) -> gpd.GeoDataFrame:
+    """Clip any OSM provider result to the N13 source coverage."""
+    if frame.crs is None:
+        frame = frame.set_crs("EPSG:4326")
+    original_crs = frame.crs
+    wgs84 = frame.to_crs("EPSG:4326")
+    clipped = wgs84.copy()
+    clipped.geometry = clipped.geometry.intersection(box(*bounds))
+    clipped = clipped[~clipped.geometry.is_empty & clipped.geometry.notna()].copy()
+    return clipped.to_crs(original_crs)
+
+
 def _local_osm_reference(road: dict, source: Path) -> gpd.GeoDataFrame:
     """Read matching ways from a regional GIS source; PBF requires GDAL OSM support."""
-    ref = str(road["osm"]["ref"])
     try:
         frame = gpd.read_file(source, layer="lines") if source.suffix == ".pbf" else gpd.read_file(source)
     except Exception as error:
         raise RuntimeError(f"Cannot read local OSM source {source}: {error}") from error
-    if "ref" not in frame:
-        raise RuntimeError(f"Local OSM source {source} has no ref field")
-    refs = frame["ref"].fillna("").astype(str).str.split(";")
-    frame = frame[refs.apply(lambda values: ref in [value.strip() for value in values])].copy()
+    reference = road["reference"]
+    if reference["type"] == "osm-ref":
+        if "ref" not in frame:
+            raise RuntimeError(f"Local OSM source {source} has no ref field")
+        ref = str(reference["ref"])
+        refs = frame["ref"].fillna("").astype(str).str.split(";")
+        frame = frame[refs.apply(lambda values: ref in [value.strip() for value in values])].copy()
+    else:
+        names, tags = set(reference["names"]), reference.get("tags", ["name", "name:ja", "alt_name"])
+        masks = [(frame[tag].fillna("").astype(str).str.split(";").apply(
+            lambda values: bool(names.intersection(value.strip() for value in values))))
+                 for tag in tags if tag in frame]
+        if not masks:
+            raise RuntimeError(f"Local OSM source {source} has none of the configured name fields")
+        mask = masks[0]
+        for extra in masks[1:]:
+            mask |= extra
+        frame = frame[mask].copy()
+    include = set(map(str, reference.get("includeIds", [])))
+    exclude = set(map(str, reference.get("excludeIds", [])))
+    if include and "osm_way_id" in frame:
+        frame = frame[frame["osm_way_id"].astype(str).isin(include)]
+    if exclude and "osm_way_id" in frame:
+        frame = frame[~frame["osm_way_id"].astype(str).isin(exclude)]
     if frame.empty:
         raise RuntimeError(f"Local OSM source {source} contains no ways for {road['id']}")
     return frame
 
 
-def build_osm_reference(road: dict, source_config: dict, refresh: bool = False,
-                        endpoint_override: str | None = None) -> tuple[gpd.GeoDataFrame, dict]:
+def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[float] | None = None,
+                        refresh: bool = False, endpoint_override: str | None = None) -> tuple[gpd.GeoDataFrame, dict]:
     """Resolve a reference from cache, regional source, or configured Overpass fallback."""
     config = source_config["osm"]
     cache = Path(config["cacheDirectory"]) / f"{road['id']}-osm.geojson"
+    metadata = cache.with_suffix(".meta.json")
+    if coverage_bounds is None:
+        coverage_bounds = config.get("overpass", {}).get("boundsByJurisdiction", {}).get(road.get("jurisdiction"))
+        if not coverage_bounds:
+            raise RuntimeError("N13 coverage bounds are required (legacy jurisdiction fallback is unavailable)")
     if cache.exists() and not refresh:
-        return gpd.read_file(cache), {"provider": "cache", "path": str(cache)}
+        cached = json.loads(metadata.read_text()) if metadata.exists() else {}
+        cached_bounds = cached.get("coverageBoundsWgs84")
+        if cached_bounds and _bounds_cover(cached_bounds, coverage_bounds):
+            frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
+            return frame, {"provider": "cache", "path": str(cache),
+                           "cachedCoverageBoundsWgs84": cached_bounds, "workingBoundsWgs84": coverage_bounds}
     provider = config.get("provider", "auto")
     local = Path(config.get("local", {}).get("path", ""))
     if provider in ("auto", "local") and local.is_file():
         try:
             frame = _local_osm_reference(road, local)
+            frame = clip_osm_to_bounds(frame, coverage_bounds)
+            if frame.empty:
+                raise RuntimeError(f"Local OSM source contains no reference inside N13 coverage for {road['id']}")
             cache.parent.mkdir(parents=True, exist_ok=True)
             frame.to_file(cache, driver="GeoJSON")
-            return frame, {"provider": "local", "path": str(local), "cache": str(cache)}
+            metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds}, indent=2) + "\n")
+            return frame, {"provider": "local", "path": str(local), "cache": str(cache),
+                           "workingBoundsWgs84": coverage_bounds}
         except RuntimeError:
             if provider == "local":
                 raise
     if provider == "local":
         raise RuntimeError(f"Configured local OSM source does not exist: {local}")
     overpass = config["overpass"]
-    bounds = overpass["boundsByJurisdiction"].get(road["jurisdiction"])
-    if not bounds:
-        raise RuntimeError(f"No OSM source bounds configured for jurisdiction {road['jurisdiction']!r}")
-    download_reference(road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), bounds)
-    return gpd.read_file(cache), {"provider": "overpass", "bounds": bounds, "cache": str(cache)}
+    download_reference(road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), coverage_bounds)
+    metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds}, indent=2) + "\n")
+    frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
+    return frame, {"provider": "overpass", "bounds": coverage_bounds, "cache": str(cache),
+                   "workingBoundsWgs84": coverage_bounds}
 
 
-def load_n13_candidates(road: dict, source: Path) -> gpd.GeoDataFrame:
-    """Load a prefiltered regional N13 cache without applying matcher geography bounds."""
+def build_reference(entity: dict, osm_source: gpd.GeoDataFrame) -> tuple[object, dict]:
+    """Build a shared matcher reference and report disconnected OSM ambiguity."""
+    config = entity["reference"]
+    source = osm_source.copy()
+    if config["type"] == "osm-name":
+        names = set(config["names"])
+        masks = [source[tag].fillna("").astype(str).str.split(";").apply(
+            lambda values: bool(names.intersection(value.strip() for value in values)))
+                 for tag in config.get("tags", ["name", "name:ja", "alt_name"]) if tag in source]
+        if not masks:
+            raise RuntimeError("OSM source has none of the configured exact-name fields")
+        mask = masks[0]
+        for extra in masks[1:]:
+            mask |= extra
+        source = source[mask].copy()
+    elif "ref" in source:
+        wanted = str(config["ref"])
+        source = source[source["ref"].fillna("").astype(str).str.split(";").apply(
+            lambda values: wanted in (value.strip() for value in values))].copy()
+    else:
+        raise RuntimeError("OSM source has no ref field for statutory-road reference")
+    identifier = "osm_way_id" if "osm_way_id" in source else None
+    if identifier:
+        include = set(map(str, config.get("includeIds", [])))
+        exclude = set(map(str, config.get("excludeIds", [])))
+        if include:
+            source = source[source[identifier].astype(str).isin(include)]
+        if exclude:
+            source = source[~source[identifier].astype(str).isin(exclude)]
+    if source.empty:
+        raise RuntimeError(f"OSM source contains no exact reference geometry for {entity['id']}")
+    if source.crs is None:
+        source = source.set_crs("EPSG:4326")
+    metric = source.to_crs(METRIC_CRS)
+    geometries = list(metric.geometry.dropna())
+    reference = unary_union(geometries)
+    parts = _line_parts([reference])
+    # Connectivity is diagnostic only: never add synthetic lines between components.
+    groups: list[list[LineString]] = []
+    for part in parts:
+        touching = [group for group in groups if any(part.distance(other) <= .01 for other in group)]
+        if not touching:
+            groups.append([part])
+        else:
+            merged = [part]
+            for group in touching:
+                merged.extend(group); groups.remove(group)
+            groups.append(merged)
+    component_lengths = sorted((sum(part.length for part in group) for group in groups), reverse=True)
+    return reference, {
+        "type": config["type"], "wayCount": len(source),
+        "connectedComponentCount": len(groups),
+        "componentLengthsMeters": [round(length, 1) for length in component_lengths],
+        "ambiguousDisconnectedReference": len(groups) > 1,
+        "syntheticBridgesAdded": 0,
+    }
+
+
+def load_n13_candidates(road: dict, source: Path, reference=None) -> gpd.GeoDataFrame:
+    """Read requested partitions, using their bbox columns before residual testing."""
     legacy_root = source.with_suffix("") if source.suffix.lower() in (".parquet", ".geoparquet") else source
     if legacy_root != source and legacy_root.is_dir():
         source = legacy_root
     if not source.exists():
         raise RuntimeError(f"N13 cache not found: {source}; run preprocess-n13.py first")
-    road_class = str(road["n13"]["classification"])
-    partition = source / f"class={road_class}" / "roads.parquet" if source.is_dir() else source
-    if not partition.exists():
-        raise RuntimeError(f"N13 class {road_class} cache not found: {partition}; rebuild it with --classes {road_class}")
-    n13 = gpd.read_parquet(partition) if partition.suffix.lower() in (".parquet", ".geoparquet") else gpd.read_file(partition)
-    if n13.crs is None:
-        n13 = n13.set_crs("EPSG:6668")
-    candidates = n13[n13["N13_003"].astype(str) == road_class].copy()
-    return candidates.to_crs(METRIC_CRS)
+    road_classes = [str(value) for value in road["n13"]["classifications"]]
+    frames = []
+    diagnostics = {}
+    corridor = None
+    filter_bounds = None
+    if reference is not None:
+        corridor_meters = float(road.get("matching", {}).get("spatialShortlistMeters", 50))
+        corridor = reference.buffer(corridor_meters)
+        filter_bounds = gpd.GeoSeries([corridor], crs=METRIC_CRS).to_crs("EPSG:4326").total_bounds
+    for road_class in road_classes:
+        partition = source / f"class={road_class}" / "roads.parquet" if source.is_dir() else source
+        if not partition.exists():
+            raise RuntimeError(f"N13 class {road_class} cache not found: {partition}; rebuild it with --classes {road_class}")
+        partition_count = None
+        filters = None
+        if filter_bounds is not None:
+            west, south, east, north = filter_bounds
+            filters = [("bbox_east", ">=", west), ("bbox_north", ">=", south),
+                       ("bbox_west", "<=", east), ("bbox_south", "<=", north)]
+        if partition.suffix.lower() in (".parquet", ".geoparquet"):
+            try:
+                import pyarrow.parquet as pq
+                parquet = pq.ParquetFile(partition)
+                partition_count = parquet.metadata.num_rows
+                has_bbox_columns = {"bbox_west", "bbox_south", "bbox_east", "bbox_north"}.issubset(
+                    parquet.schema_arrow.names)
+                frame = gpd.read_parquet(partition, filters=filters) if filters and has_bbox_columns else gpd.read_parquet(partition)
+            except (ImportError, KeyError, TypeError):
+                # Legacy Task A caches have no bbox columns; remain readable but should be regenerated.
+                frame = gpd.read_parquet(partition)
+        else:
+            frame = gpd.read_file(partition)
+            partition_count = len(frame)
+        if frame.crs is None:
+            frame = frame.set_crs("EPSG:6668")
+        frame = frame[frame["N13_003"].astype(str) == road_class].copy().to_crs(METRIC_CRS)
+        pushdown_count = len(frame)
+        if corridor is not None and not frame.empty:
+            frame = frame[frame.geometry.intersects(corridor)].copy()
+        diagnostics[road_class] = {
+            "partitionFeatureCount": partition_count if partition_count is not None else pushdown_count,
+            "bboxReadCount": pushdown_count,
+            "spatiallyShortlistedCount": len(frame),
+            "residualTestedCount": len(frame),
+        }
+        frames.append(frame)
+    result = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=METRIC_CRS)
+    result.attrs["classDiagnostics"] = diagnostics
+    return result
 
 
 def match_n13(candidates: gpd.GeoDataFrame, reference, road: dict):
     match = road["matching"]
+    if candidates.empty:
+        empty = candidates.copy()
+        for field in ("match_min_m", "match_median_m", "match_p90_m"):
+            empty[field] = pd.Series(dtype=float)
+        return empty, empty
     diagnostics = []
     for geometry in candidates.geometry:
         sampled = distances(geometry, reference, match["sampleIntervalMeters"])
@@ -289,11 +476,12 @@ def rebuild_search_index(registry_path: Path) -> None:
     roads = json.loads(registry_path.read_text())["roads"]
     entries = [{
         "id": road["id"], "name": road["displayName"], "aliases": road["aliases"],
-        "type": "road", "sources": {
+        "type": "road", "entityType": road.get("entityType", "statutory-road"), "sources": {
             "n13": f"data/roads/{road['id']}-n13.geojson",
             "osm": f"data/roads/{road['id']}-osm.geojson",
         },
-    } for road in roads if all((PUBLIC_ROADS / f"{road['id']}-{source}.geojson").exists() for source in ("n13", "osm"))]
+    } for road in roads if all((PUBLIC_ROADS / f"{road['id']}-{source}.geojson").exists()
+                               for source in ("n13", "osm"))]
     SEARCH_INDEX.parent.mkdir(parents=True, exist_ok=True)
     SEARCH_INDEX.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n")
 
@@ -309,15 +497,20 @@ def main() -> None:
     args = parser.parse_args()
     road = load_road(args.registry, args.road_id)
     source_config = load_source_config(args.sources)
-    osm, osm_provenance = build_osm_reference(road, source_config, args.refresh_osm, args.overpass_url)
-    candidates = load_n13_candidates(road, args.n13 or Path(source_config["n13"]["cache"]))
-    if osm.crs is None:
-        osm = osm.set_crs("EPSG:4326")
-    reference = osm.to_crs(METRIC_CRS).geometry.union_all()
+    n13_source = args.n13 or Path(source_config["n13"]["cache"])
+    _, n13_manifest = load_n13_manifest(n13_source)
+    coverage_bounds = n13_manifest["boundsWgs84"]
+    osm, osm_provenance = build_osm_reference(
+        road, source_config, coverage_bounds, args.refresh_osm, args.overpass_url)
+    reference, reference_diagnostics = build_reference(road, osm)
+    candidates = load_n13_candidates(road, n13_source, reference)
+    class_diagnostics = candidates.attrs.get("classDiagnostics", {})
     match = road["matching"]
     selected, candidates = match_n13(candidates, reference, road)
     if selected.empty:
         raise RuntimeError(f"No plausible N13 features selected for {road['id']}")
+    for road_class, values in class_diagnostics.items():
+        values["selectedFeatureCount"] = int((selected["N13_003"].astype(str) == road_class).sum())
     coverage, unresolved = reference_coverage(
         reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"]
     )
@@ -326,8 +519,11 @@ def main() -> None:
     display_wgs84 = gpd.GeoSeries([display_geometry], crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0]
     common_properties = {
         "id": road["id"], "name": road["displayName"], "aliases": road["aliases"], "type": "road",
-        "roadClass": road["roadClass"], "routeNumber": road["routeNumber"], "jurisdiction": road["jurisdiction"],
+        "entityType": road["entityType"], "jurisdiction": road["jurisdiction"],
     }
+    for optional in ("roadClass", "routeNumber"):
+        if optional in road:
+            common_properties[optional] = road[optional]
     n13_feature = {
         "type": "Feature",
         "properties": {
@@ -347,7 +543,7 @@ def main() -> None:
             "license": "ODbL 1.0", "confidence": "high",
             "note": "OSM reference geometry used to identify and validate the canonical road.",
             "provenance": osm_provenance,
-        }, "geometry": mapping(osm.to_crs("EPSG:4326").geometry.union_all()),
+        }, "geometry": mapping(gpd.GeoSeries([reference], crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0]),
     }
     n13_output = PUBLIC_ROADS / f"{road['id']}-n13.geojson"
     osm_output = PUBLIC_ROADS / f"{road['id']}-osm.geojson"
@@ -368,8 +564,15 @@ def main() -> None:
             for field in ("match_min_m", "match_median_m", "match_p90_m")
         },
         "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
-        "matchingThresholds": match, "unresolvedSections": unresolved, "osmReference": osm_provenance,
-        "n13Source": str(args.n13 or Path(source_config["n13"]["cache"])),
+        "matchingThresholds": match, "unresolvedSections": unresolved,
+        "osmReference": {**osm_provenance, **reference_diagnostics},
+        "selectedN13Classifications": dict(Counter(selected["N13_003"].astype(str))),
+        "statutoryComposition": {
+            "routeRefs": dict(Counter(osm.get("ref", pd.Series(dtype=str)).dropna().astype(str))),
+            "n13Classifications": dict(Counter(selected["N13_003"].astype(str))),
+        },
+        "n13Source": str(n13_source), "n13Coverage": n13_manifest,
+        "n13ClassDiagnostics": class_diagnostics,
         "geometryProcessing": {**stitching, "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
         "outputBytes": {"n13BeforeStitching": unstitched_bytes, "n13AfterStitching": n13_output.stat().st_size,
                         "n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},

@@ -26,8 +26,9 @@ class AddRoadTests(unittest.TestCase):
 
     def test_builds_tokyo_ring_road_entry_and_aliases(self):
         entry = ADD_ROAD.build_entry("tokyo-prefectural-318", "東京都道318号環状七号線")
-        self.assertEqual(entry["n13"], {"classification": "2"})
-        self.assertEqual(entry["osm"], {"ref": "318"})
+        self.assertEqual(entry["entityType"], "statutory-road")
+        self.assertEqual(entry["n13"], {"classifications": ["2"]})
+        self.assertEqual(entry["reference"], {"type": "osm-ref", "ref": "318"})
         self.assertEqual(entry["aliases"], [
             "都道318号", "東京都道318号", "環状七号線", "環七通り", "環七", "環7",
         ])
@@ -35,7 +36,7 @@ class AddRoadTests(unittest.TestCase):
     def test_builds_national_road_entry(self):
         entry = ADD_ROAD.build_entry("jp-national-20", "国道20号")
         self.assertEqual(entry["jurisdiction"], "JP")
-        self.assertEqual(entry["osm"], {"ref": "20", "network": "JP:national"})
+        self.assertEqual(entry["reference"], {"type": "osm-ref", "ref": "20", "network": "JP:national"})
         self.assertEqual(entry["aliases"], ["国道20", "20号"])
 
     def test_builds_shared_prefecture_road_entry(self):

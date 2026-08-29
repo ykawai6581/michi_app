@@ -113,10 +113,11 @@ def build_entry(road_id: str, title: str) -> dict:
     if config.get("osmNetwork"):
         osm["network"] = config["osmNetwork"]
     return {
-        "id": road_id, "displayName": title, "roadClass": config["roadClass"],
+        "id": road_id, "entityType": "statutory-road", "displayName": title, "roadClass": config["roadClass"],
         "routeNumber": number, "jurisdiction": config["jurisdiction"],
         "aliases": aliases_for(title, config, number),
-        "n13": {"classification": config["n13Classification"]}, "osm": osm,
+        "n13": {"classifications": [config["n13Classification"]]},
+        "reference": {"type": "osm-ref", **osm},
         "matching": MATCHING_DEFAULTS.copy(),
     }
 

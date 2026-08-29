@@ -113,6 +113,11 @@ rebuilding or combining the major-road partitions:
 python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads --classes 3
 ```
 
+Preprocessing also writes `data/cache/n13/roads/manifest.json` with the raw source path, feature count, CRS,
+natural WGS84 bounds, available classes, and partition counts. Each partition includes per-feature WGS84 bbox
+columns so the matcher can use Parquet predicate pushdown before exact corridor and residual tests. A later
+`--classes 3` run merges its partition metadata without forgetting existing class 1/2 partitions.
+
 The preprocessor reads the source in chunks, and `match-road.py` reads GeoParquet without a Shinjuku spatial
 filter. Both `data/raw/` and `data/cache/` are gitignored; only small canonical outputs in `public/data/roads/`
 are web assets.
@@ -120,7 +125,9 @@ are web assets.
 OSM reference acquisition is configured in `data/roads/sources.json`. In `auto` mode it reuses a cached reference,
 then tries the configured regional source (`data/raw/osm/kanto-latest.osm.pbf`), and finally uses Overpass. Local
 PBF reading is optional and depends on the installed GDAL OSM driver. Overpass bounds are source configuration
-keyed by jurisdiction rather than matcher constants. Build one road with:
+only as a legacy fallback: normal matching reads the N13 manifest bounds, uses those bounds for Overpass, and clips
+cache/local/Overpass results to the same working extent. OSM cache sidecars record their coverage; a cache covering
+a larger extent is clipped safely, while one from a smaller extent is rebuilt automatically. Build one road with:
 
 ```bash
 python scripts/preprocess/match-road.py jp-national-20
@@ -129,6 +136,15 @@ python scripts/preprocess/match-road.py jp-national-20
 The old `public/data/modern/shinjuku-osm.geojson` and `scripts/download/download-shinjuku-osm.mjs` remain only for
 the separate current-road/station UI prototype described above; canonical matching does not read them. The old
 `data/fixtures/n13-shinjuku.geojson` input is no longer created or referenced by the canonical pipeline.
+
+Registry entries distinguish `statutory-road` identities from `named-road` identities. Statutory roads configure
+an `osm-ref` reference (route relation/ref and optional network), while named roads configure an `osm-name`
+reference with explicit accepted values and tag fields. Both use `n13.classifications`, which may contain multiple
+classes. Adding 青梅街道 or 明治通り therefore requires only another `named-road` registry entry with its exact OSM
+names, N13 classes, jurisdiction, aliases, and matching thresholds, followed by `match-road.py ROAD_ID`; no React
+change is required. The matcher reports disconnected same-name OSM components rather than bridging gaps, retains
+parallel carriageways, and records selected N13 classes and statutory-ref provenance. Historical alignments are
+intentionally outside this current-road registry domain.
 
 路線 ID から日本語版 Wikipedia を検索し、正式名、基本 alias、N13 区分、OSM ref、既定の matching 設定を `data/roads/registry.json` に追加できます。
 

@@ -1,5 +1,6 @@
 """Tests for regional N13 cache preprocessing."""
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,6 +26,13 @@ class PreprocessN13Tests(unittest.TestCase):
             self.assertFalse((output / "class=3").exists())
             self.assertEqual(set(gpd.read_parquet(output / "class=1/roads.parquet")["N13_003"]), {"1"})
             self.assertEqual(report["sourceFeatureCount"], 4)
+            manifest = json.loads((output / "manifest.json").read_text())
+            self.assertEqual(manifest["boundsWgs84"], [0.0, 0.0, 3.0, 1.0])
+            self.assertEqual(manifest["sourceFeatureCount"], 4)
+            self.assertEqual(manifest["sourceCrs"], "EPSG:4326")
+            self.assertEqual(manifest["availableClasses"], ["1", "2"])
+            self.assertTrue({"bbox_west", "bbox_south", "bbox_east", "bbox_north"}.issubset(
+                gpd.read_parquet(output / "class=1/roads.parquet").columns))
 
     def test_class_three_can_be_built_separately(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -32,6 +40,15 @@ class PreprocessN13Tests(unittest.TestCase):
             report = MODULE.preprocess_n13(source, output, classes={"3"}, chunk_size=2)
             self.assertEqual(report["classes"], ["3"])
             self.assertEqual(set(gpd.read_parquet(output / "class=3/roads.parquet")["N13_003"]), {"3"})
+
+    def test_later_class_three_run_preserves_existing_partition_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, output = self.make_source(directory), Path(directory) / "roads"
+            MODULE.preprocess_n13(source, output, classes={"1", "2"}, chunk_size=2)
+            MODULE.preprocess_n13(source, output, classes={"3"}, chunk_size=2)
+            manifest = json.loads((output / "manifest.json").read_text())
+            self.assertEqual(manifest["availableClasses"], ["1", "2", "3"])
+            self.assertEqual(set(manifest["partitions"]), {"1", "2", "3"})
 
     def test_legacy_parquet_output_name_is_normalized_to_partition_root(self):
         with tempfile.TemporaryDirectory() as directory:

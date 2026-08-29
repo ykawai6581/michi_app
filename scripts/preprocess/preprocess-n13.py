@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import geopandas as gpd
@@ -27,12 +28,20 @@ def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
         raise ValueError(f"classes must be a non-empty subset of {sorted(AVAILABLE_ROAD_CLASSES)}")
     retained = {road_class: [] for road_class in classes}
     read_count = 0
+    source_crs = None
+    bounds = None
     start = 0
     while True:
         chunk = gpd.read_file(source, rows=slice(start, start + chunk_size))
         if chunk.empty:
             break
         read_count += len(chunk)
+        source_crs = source_crs or chunk.crs
+        chunk_bounds = chunk.to_crs("EPSG:4326").total_bounds
+        bounds = chunk_bounds if bounds is None else [
+            min(bounds[0], chunk_bounds[0]), min(bounds[1], chunk_bounds[1]),
+            max(bounds[2], chunk_bounds[2]), max(bounds[3], chunk_bounds[3]),
+        ]
         if "N13_003" not in chunk:
             raise RuntimeError(f"{source} has no N13_003 road-class field")
         road_classes = chunk["N13_003"].astype(str)
@@ -51,6 +60,8 @@ def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
             continue
         roads = pd.concat(retained[road_class], ignore_index=True)
         roads = gpd.GeoDataFrame(roads, geometry="geometry", crs=retained[road_class][0].crs)
+        feature_bounds = roads.to_crs("EPSG:4326").geometry.bounds
+        roads[["bbox_west", "bbox_south", "bbox_east", "bbox_north"]] = feature_bounds.to_numpy()
         partition = root / f"class={road_class}" / "roads.parquet"
         partition.parent.mkdir(parents=True, exist_ok=True)
         roads.to_parquet(partition, index=False)
@@ -58,8 +69,23 @@ def preprocess_n13(source: Path, output: Path, classes=DEFAULT_ROAD_CLASSES,
         retained_count += len(roads)
     if not outputs:
         raise RuntimeError(f"{source} contains none of the requested N13 road classes {sorted(classes)}")
+    manifest_path = root / "manifest.json"
+    previous = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    available = sorted(set(previous.get("availableClasses", [])) | set(outputs))
+    manifest = {
+        "source": str(source), "sourceFeatureCount": read_count,
+        "sourceCrs": source_crs.to_string() if source_crs else None,
+        "boundsWgs84": [round(float(value), 9) for value in bounds],
+        "availableClasses": available,
+        "partitions": {**previous.get("partitions", {}), **{
+            road_class: {"path": outputs[road_class], "featureCount": sum(len(frame) for frame in retained[road_class])}
+            for road_class in outputs}},
+    }
+    root.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     return {"sourceFeatureCount": read_count, "retainedFeatureCount": retained_count,
-            "classes": sorted(classes), "requestedOutput": str(output), "cacheRoot": str(root), "outputs": outputs}
+            "classes": sorted(classes), "requestedOutput": str(output), "cacheRoot": str(root),
+            "manifest": str(manifest_path), "boundsWgs84": manifest["boundsWgs84"], "outputs": outputs}
 
 
 def main() -> None:
