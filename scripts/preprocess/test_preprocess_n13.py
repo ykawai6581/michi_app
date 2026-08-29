@@ -1,9 +1,11 @@
 """Tests for regional N13 cache preprocessing."""
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import geopandas as gpd
 from shapely.geometry import LineString
 
@@ -14,8 +16,8 @@ SPEC.loader.exec_module(MODULE)
 class PreprocessN13Tests(unittest.TestCase):
     def make_source(self, directory):
         source = Path(directory) / "source.geojson"
-        gpd.GeoDataFrame({"N13_003": ["1", "2", "3", "4"], "geometry": [
-            LineString([(i, 0), (i, 1)]) for i in range(4)]}, crs="EPSG:4326").to_file(source, driver="GeoJSON")
+        gpd.GeoDataFrame({"N13_003": ["1", "2", "3", "4", "5", "6"], "geometry": [
+            LineString([(i, 0), (i, 1)]) for i in range(6)]}, crs="EPSG:4326").to_file(source, driver="GeoJSON")
         return source
 
     def test_default_cache_partitions_major_road_classes_only(self):
@@ -25,10 +27,10 @@ class PreprocessN13Tests(unittest.TestCase):
             self.assertEqual(set(report["outputs"]), {"1", "2"})
             self.assertFalse((output / "class=3").exists())
             self.assertEqual(set(gpd.read_parquet(output / "class=1/roads.parquet")["N13_003"]), {"1"})
-            self.assertEqual(report["sourceFeatureCount"], 4)
+            self.assertEqual(report["sourceFeatureCount"], 6)
             manifest = json.loads((output / "manifest.json").read_text())
-            self.assertEqual(manifest["boundsWgs84"], [0.0, 0.0, 3.0, 1.0])
-            self.assertEqual(manifest["sourceFeatureCount"], 4)
+            self.assertEqual(manifest["boundsWgs84"], [0.0, 0.0, 5.0, 1.0])
+            self.assertEqual(manifest["sourceFeatureCount"], 6)
             self.assertEqual(manifest["sourceCrs"], "EPSG:4326")
             self.assertEqual(manifest["availableClasses"], ["1", "2"])
             self.assertTrue({"bbox_west", "bbox_south", "bbox_east", "bbox_north"}.issubset(
@@ -40,6 +42,24 @@ class PreprocessN13Tests(unittest.TestCase):
             report = MODULE.preprocess_n13(source, output, classes={"3"}, chunk_size=2)
             self.assertEqual(report["classes"], ["3"])
             self.assertEqual(set(gpd.read_parquet(output / "class=3/roads.parquet")["N13_003"]), {"3"})
+
+    def test_classes_cli_can_build_class_five_separately(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, output = self.make_source(directory), Path(directory) / "roads"
+            argv = ["preprocess-n13.py", str(source), "--output", str(output),
+                    "--classes", "5", "--chunk-size", "2"]
+            with patch.object(sys, "argv", argv), patch("builtins.print") as output_print:
+                MODULE.main()
+            self.assertIn("'classes': ['5']", str(output_print.call_args))
+            self.assertEqual(set(gpd.read_parquet(output / "class=5/roads.parquet")["N13_003"]), {"5"})
+
+    def test_supported_vocabulary_and_defaults_are_distinct(self):
+        self.assertEqual(MODULE.AVAILABLE_ROAD_CLASSES, {"1", "2", "3", "4", "5", "6"})
+        self.assertEqual(MODULE.DEFAULT_ROAD_CLASSES, {"1", "2"})
+        with tempfile.TemporaryDirectory() as directory:
+            source = self.make_source(directory)
+            with self.assertRaisesRegex(ValueError, "non-empty subset"):
+                MODULE.preprocess_n13(source, Path(directory) / "roads", classes={"7"})
 
     def test_later_class_three_run_preserves_existing_partition_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

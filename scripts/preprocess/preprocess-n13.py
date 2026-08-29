@@ -10,7 +10,9 @@ import geopandas as gpd
 import pandas as pd
 
 
-AVAILABLE_ROAD_CLASSES = {"1", "2", "3"}
+# N13_003's published source vocabulary.  This describes what the cache can
+# contain; it is deliberately broader than the inexpensive default selection.
+AVAILABLE_ROAD_CLASSES = {"1", "2", "3", "4", "5", "6"}
 DEFAULT_ROAD_CLASSES = {"1", "2"}
 
 

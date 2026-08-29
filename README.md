@@ -106,8 +106,8 @@ For compatibility with the earlier command, `--output data/cache/n13/roads.parqu
 normalized to the partition root `data/cache/n13/roads`. An existing old `roads.parquet` file is left untouched.
 
 The cache is partitioned as `class=1/roads.parquet` and `class=2/roads.parquet`, so matching reads only the required
-class. Municipal/ward class 3 is intentionally separate for future named-road work and can be added without
-rebuilding or combining the major-road partitions:
+class. The preprocessor supports the complete N13 source vocabulary (classes 1 through 6), but unusual classes are
+intentionally opt-in for named-road work and can be added without rebuilding or combining the major-road partitions:
 
 ```bash
 python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads --classes 3
@@ -190,6 +190,20 @@ python scripts/preprocess/add-road.py tokyo-prefectural-319
 python scripts/preprocess/add-road.py tokyo-named-shinjuku-dori \
   --display-name "新宿通り" --osm-name "新宿通り" --n13-classes 1 2 3
 ```
+
+OSM で法定上の路線 identity が分かっていても、通称道路に対応する N13 feature が同じ区分とは限りません。
+たとえば羽田周辺の環八通りは N13_003 の区分 5 を含むため、必要な partition だけを追加し、この道路が
+実際に選択する区分を明示します。
+
+```bash
+python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson \
+  --output data/cache/n13/roads --classes 5
+python scripts/preprocess/add-road.py tokyo-named-kanpachi-dori \
+  --display-name "環八通り" --osm-name "環八通り" --n13-classes 2 3 5
+```
+
+利用可能な N13 区分と各 canonical road が選択する区分は別です。通称道路を全区分検索にはせず、検証した
+`--n13-classes` だけを登録してください。引数を省略した通常の preprocessing は引き続き区分 1 と 2 のみです。
 
 書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せず、修正方法を含む短いエラーを表示します。追加後の形状生成は別工程なので、N13 road cache を用意して `scripts/preprocess/match-road.py` を実行してください。
 
