@@ -21,6 +21,137 @@ def stitch(lines, reference=None, tolerance=2):
     return MATCH_ROAD.build_display_chains(lines, reference, {"endpointSnapMeters": tolerance})
 
 
+def select(lines, reference, classes=None, **settings):
+    classes = classes or ["2"] * len(lines)
+    frame = gpd.GeoDataFrame({
+        "N13_003": classes,
+        "match_min_m": [line.distance(reference) for line in lines],
+        "match_median_m": [line.distance(reference) for line in lines],
+        "match_p90_m": [line.distance(reference) for line in lines],
+        "geometry": lines,
+    }, crs=MATCH_ROAD.METRIC_CRS)
+    return MATCH_ROAD.select_reference_network(frame, reference, settings)
+
+
+class NetworkSelectionTests(unittest.TestCase):
+    def test_straight_road_rejects_short_t_spur(self):
+        accepted, diagnostic, _ = select([
+            LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
+            LineString([(50, 0), (50, 20)])], LineString([(0, 0), (100, 0)]))
+        self.assertEqual(len(accepted), 2)
+        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-spur")
+
+    def test_straight_road_rejects_diagonal_spur(self):
+        accepted, diagnostic, _ = select([
+            LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
+            LineString([(50, 0), (65, 12)])], LineString([(0, 0), (100, 0)]))
+        self.assertEqual(len(accepted), 2)
+        self.assertTrue(diagnostic.iloc[2].selectionStatus.startswith("rejected-"))
+
+    def test_triangular_excursion_is_rejected_as_redundant_detour(self):
+        lines = [LineString([(0, 0), (25, 0)]), LineString([(25, 0), (50, 0)]),
+                 LineString([(50, 0), (75, 0)]), LineString([(75, 0), (100, 0)]),
+                 LineString([(25, 0), (50, 12)]), LineString([(50, 12), (75, 0)])]
+        accepted, diagnostic, _ = select(lines, LineString([(0, 0), (100, 0)]))
+        self.assertAlmostEqual(accepted.geometry.length.sum(), 100)
+        self.assertTrue(all(value.startswith("rejected-") for value in diagnostic.iloc[4:].selectionStatus))
+
+    def test_large_rejoining_loop_loses_to_direct_alignment(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (80, 0)]),
+                 LineString([(0, 0), (20, 25), (60, 25), (80, 0)])]
+        accepted, diagnostic, _ = select(lines, LineString([(0, 0), (80, 0)]))
+        self.assertAlmostEqual(accepted.geometry.length.sum(), 80)
+        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-detour")
+
+    def test_curved_legitimate_road_is_retained(self):
+        reference = LineString([(0, 0), (30, 5), (60, 20), (90, 45)])
+        accepted, _, _ = select([LineString([(0, 0), (30, 5)]), LineString([(30, 5), (60, 20), (90, 45)])], reference)
+        self.assertEqual(len(accepted), 2)
+
+    def test_long_divided_carriageway_retains_parallel_chain(self):
+        reference = MultiLineString([[(0, 0), (300, 0)], [(0, 4), (300, 4)]])
+        lines = [LineString([(0, 0), (150, 0)]), LineString([(150, 0), (300, 0)]),
+                 LineString([(0, 4), (150, 4)]), LineString([(150, 4), (300, 4)])]
+        accepted, diagnostic, report = select(lines, reference)
+        self.assertEqual(len(accepted), 4)
+        self.assertEqual(report["parallelSelectedCount"], 2)
+        self.assertIn("accepted-parallel-osm-supported", set(diagnostic.selectionStatus))
+
+    def test_multiple_oblique_stems_with_progress_are_rejected(self):
+        reference = LineString([(0, 0), (150, 0), (300, 10)])
+        road = [LineString([(0, 0), (100, 0)]), LineString([(100, 0), (200, 3)]),
+                LineString([(200, 3), (300, 10)])]
+        stems = [LineString([(40, 0), (65, 16)]), LineString([(130, .9), (165, 22)]),
+                 LineString([(240, 5.8), (280, 28)])]
+        accepted, diagnostic, _ = select(road + stems, reference)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertTrue(all(status == "rejected-spur" for status in diagnostic.iloc[3:].selectionStatus))
+
+    def test_long_connected_false_parallel_has_no_osm_support(self):
+        reference = LineString([(0, 0), (400, 0)])
+        road = [LineString([(0, 0), (200, 0)]), LineString([(200, 0), (400, 0)])]
+        false_parallel = [LineString([(50, 0), (65, 14), (200, 14)]),
+                          LineString([(200, 14), (335, 14), (350, 0)])]
+        accepted, diagnostic, report = select(road + false_parallel, reference)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1})
+        self.assertEqual(report["parallelSelectedCount"], 0)
+        self.assertTrue(all(status in {"rejected-detour", "rejected-redundant-parallel"}
+                            for status in diagnostic.iloc[2:].selectionStatus))
+
+    def test_awkward_connector_is_available_to_ordered_path(self):
+        reference = LineString([(0, 0), (200, 0)])
+        lines = [LineString([(0, 0), (100, 0)]),
+                 LineString([(100, 0), (105, 22), (110, 0)]),
+                 LineString([(110, 0), (200, 0)])]
+        accepted, diagnostic, _ = select(lines, reference)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertTrue(diagnostic.iloc[1].gapRepairMembership)
+
+    def test_internal_gap_is_repaired_through_stage1_graph(self):
+        reference = LineString([(0, 0), (220, 0)])
+        lines = [LineString([(0, 0), (90, 0)]),
+                 LineString([(90, 0), (105, 28), (125, 28), (140, 0)]),
+                 LineString([(140, 0), (220, 0)])]
+        accepted, diagnostic, report = select(lines, reference, maximumSampleDistanceMeters=15)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertTrue(diagnostic.iloc[1].gapRepairMembership)
+        self.assertTrue(report["repairedGaps"] or diagnostic.iloc[1].selectionReason == "accepted-gap-repair")
+
+    def test_short_parallel_slip_detour_is_rejected(self):
+        reference = LineString([(0, 0), (200, 0)])
+        lines = [LineString([(0, 0), (100, 0)]), LineString([(100, 0), (200, 0)]),
+                 LineString([(60, 0), (80, 5), (110, 5), (130, 0)])]
+        accepted, diagnostic, _ = select(lines, reference)
+        self.assertEqual(len(accepted), 2)
+        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-detour")
+
+    def test_class_transition_does_not_break_backbone(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (70, 0)]), LineString([(70, 0), (100, 0)])]
+        accepted, _, _ = select(lines, LineString([(0, 0), (100, 0)]), ["2", "3", "2"])
+        self.assertEqual(list(accepted.N13_003), ["2", "3", "2"])
+
+    def test_tiny_endpoint_gap_uses_existing_snap_tolerance(self):
+        lines = [LineString([(0, 0), (50, 0)]), LineString([(51, 0), (100, 0)])]
+        accepted, _, _ = select(lines, LineString([(0, 0), (100, 0)]), endpointSnapMeters=2)
+        self.assertEqual(len(accepted), 2)
+        _, report = stitch(list(accepted.geometry), LineString([(0, 0), (100, 0)]), 2)
+        self.assertEqual(report["displayChainCount"], 1)
+
+    def test_disconnected_reference_components_are_not_bridged(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(1000, 0), (1100, 0)]])
+        lines = [LineString([(0, 0), (100, 0)]), LineString([(1000, 0), (1100, 0)])]
+        accepted, diagnostic, _ = select(lines, reference)
+        self.assertEqual(len(accepted), 2)
+        self.assertEqual(set(diagnostic.referencePart), {0, 1})
+
+    def test_source_boundary_terminal_is_not_pruned_as_spur(self):
+        reference = LineString([(0, 0), (150, 0)])
+        lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])]
+        accepted, diagnostic, _ = select(lines, reference)
+        self.assertEqual(len(accepted), 2)
+        self.assertTrue(all(diagnostic.selectionStatus == "accepted-backbone"))
+
+
 class DisplayChainTests(unittest.TestCase):
     def test_three_touching_collinear_segments_become_one(self):
         geometry, report = stitch([LineString([(0, 0), (10, 0)]), LineString([(10, 0), (20, 0)]), LineString([(20, 0), (30, 0)])])
