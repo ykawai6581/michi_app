@@ -103,6 +103,45 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 
 `dist/` は相対パスで生成されるため、GitHub Pages の repository site に配置できます。
 
+## Reusable rail and historical source caches
+
+These build-time sources do **not** create project bundles or change the production application:
+
+| Entity | Source → normalized cache |
+| --- | --- |
+| Modern railway tracks | OpenStreetMap → `data/cache/osm/rail/tracks.parquet` |
+| Modern passenger stations | OpenStreetMap → `data/cache/osm/rail/stations.parquet` |
+| Historical major roads | CODH Kaido data → `data/cache/codh/edo-roads/roads.parquet` |
+| Historical post stations (宿場) | CODH Kaido data → `data/cache/codh/edo-posts/posts.parquet` |
+
+Install `requirements-preprocess.txt`. Rail first uses the regional PBF configured in `data/roads/sources.json`, then
+falls back to the configured Overpass endpoint for the explicit Tokyo working extent:
+
+```bash
+python scripts/preprocess/preprocess-rail.py
+python scripts/preprocess/preprocess-rail.py --refresh-osm
+python scripts/preprocess/preprocess-rail.py --input data/raw/osm/tokyo-rail.geojson
+```
+
+Tracks retain distinct, unsimplified OSM ways. `rail`, `subway`, `light_rail`, and `tram` are included; all other
+`railway` values (including proposed, construction, disused, abandoned, and industrial-only categories) are excluded.
+Stations and halts form a separate point layer. Points remain unchanged; polygons use an area centroid and record the
+source geometry type. Only repeated copies of the same OSM element ID are removed—similar names never cause a merge.
+
+CODH metadata and raw paths are in `data/sources/codh.json`. The official Kaido landing page is treated as authoritative
+for current downloads and terms rather than inventing a stable file endpoint. Download its road and 宿場 GeoJSON under
+the configured, gitignored `data/raw/codh/` paths, then run:
+
+```bash
+python scripts/preprocess/preprocess-codh.py
+python scripts/preprocess/preprocess-codh.py --roads /path/to/roads.geojson --posts /path/to/posts.geojson
+```
+
+Both workflows write WGS84 GeoParquet, manifests, and small discovery indexes. Roads and posts retain CODH route IDs,
+so road `R003` links to `R003` 宿場 without name matching, and original properties remain available as JSON. Task C will
+later select small video-specific subsets. These reusable caches stay outside browser assets, and neither OSM rail nor
+CODH geometry passes through the OSM↔N13 canonical-road matcher.
+
 ## 画面構成
 
 左側の広い地図を動画素材のキャンバス、右側を制作パネルとして設計しています。検索、レイヤー、強調スタイル、保存画角の順に、制作時の操作手順が上から下へ流れます。モバイルでは「編集パネル」ボタンからサイドバーを開けます。

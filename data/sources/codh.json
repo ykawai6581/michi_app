@@ -1,0 +1,16 @@
+{
+  "provider": "Center for Open Data in the Humanities (CODH), ROIS-DS",
+  "datasetLandingPage": "https://geoshape.ex.nii.ac.jp/kaido/",
+  "roads": {
+    "sourceUrl": "https://geoshape.ex.nii.ac.jp/kaido/",
+    "rawPath": "data/raw/codh/edo-roads.geojson"
+  },
+  "posts": {
+    "sourceUrl": "https://geoshape.ex.nii.ac.jp/kaido/",
+    "rawPath": "data/raw/codh/edo-posts.geojson"
+  },
+  "license": "See the CODH Kaido dataset landing page and downloaded source metadata for current terms.",
+  "attribution": "Center for Open Data in the Humanities (CODH), ROIS-DS",
+  "sourceCrs": "EPSG:4326",
+  "normalizedCrs": "EPSG:4326"
+}
