@@ -133,6 +133,32 @@ a larger extent is clipped safely, while one from a smaller extent is rebuilt au
 python scripts/preprocess/match-road.py jp-national-20
 ```
 
+Matching is deliberately two-stage. The existing median/p90 residual limits produce a generous spatial shortlist;
+an endpoint graph then projects ordered N13 samples onto each disconnected OSM reference component and chooses the
+lowest-cost chainage-progressing path. Cost combines physical length, median residual, orientation mismatch,
+unproductive length, and backtracking. Short one-ended branches and redundant rejoining routes are rejected, while
+an additional connected chain is retained as a parallel carriageway only when it meets sustained configurable
+length, reference-coverage, progression, monotonicity, and orientation thresholds. Original N13 vertices remain the
+public geometry; only the existing display endpoint snap is applied afterward.
+
+Every build writes all residual-shortlisted candidates and their selection reasons to the gitignored diagnostic
+GeoJSON. To validate the two current named roads with a local cache (including N13 class 3), run:
+
+```bash
+python scripts/preprocess/match-road.py tokyo-named-inokashira-dori \
+  --n13 data/cache/n13/roads \
+  --diagnostics data/diagnostics/tokyo-named-inokashira-dori-selection.geojson
+python scripts/preprocess/match-road.py tokyo-named-koshu-kaido \
+  --n13 data/cache/n13/roads \
+  --diagnostics data/diagnostics/tokyo-named-koshu-kaido-selection.geojson
+```
+
+Per-road `networkSelection` registry values can override `progressSampleMeters`, `minimumProgressRatio`,
+`minimumChainageMonotonicity`, `maximumOrientationMismatchDegrees`, `minimumNewReferenceCoverageMeters`,
+`minimumParallelLengthMeters`, `minimumParallelReferenceCoverageMeters`,
+`maximumParallelOrientationMismatchDegrees`, `minimumParallelProgressRatio`, and
+`minimumParallelChainageMonotonicity`. These are generic matcher controls, not road-name exceptions.
+
 The old `public/data/modern/shinjuku-osm.geojson` and `scripts/download/download-shinjuku-osm.mjs` remain only for
 the separate current-road/station UI prototype described above; canonical matching does not read them. The old
 `data/fixtures/n13-shinjuku.geojson` input is no longer created or referenced by the canonical pipeline.

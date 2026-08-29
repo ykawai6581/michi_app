@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
+import math
 from collections import Counter
 from pathlib import Path
 from urllib.parse import urlencode
@@ -13,7 +15,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, MultiLineString, Point, box, mapping
-from shapely.ops import unary_union
+from shapely.ops import linemerge, unary_union
 
 REGISTRY = Path("data/roads/registry.json")
 SOURCE_CONFIG = Path("data/roads/sources.json")
@@ -22,6 +24,19 @@ SEARCH_INDEX = Path("public/search/roads.json")
 METRIC_CRS = "EPSG:6677"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 DEFAULT_ENDPOINT_SNAP_METERS = 2.0
+DEFAULT_NETWORK_SELECTION = {
+    "endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS,
+    "progressSampleMeters": 5.0,
+    "minimumProgressRatio": 0.35,
+    "minimumChainageMonotonicity": 0.7,
+    "maximumOrientationMismatchDegrees": 55.0,
+    "minimumNewReferenceCoverageMeters": 8.0,
+    "minimumParallelLengthMeters": 150.0,
+    "minimumParallelReferenceCoverageMeters": 120.0,
+    "maximumParallelOrientationMismatchDegrees": 30.0,
+    "minimumParallelProgressRatio": 0.65,
+    "minimumParallelChainageMonotonicity": 0.85,
+}
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
 
@@ -450,6 +465,187 @@ def match_n13(candidates: gpd.GeoDataFrame, reference, road: dict):
     return selected, candidates
 
 
+def _ordered_reference_parts(reference) -> list[LineString]:
+    """Return independent ordered reference components, without adding bridges."""
+    merged = linemerge(reference) if reference.geom_type == "MultiLineString" else reference
+    return _line_parts([merged])
+
+
+def _angle_difference(a: np.ndarray, b: np.ndarray) -> float:
+    denominator = np.linalg.norm(a) * np.linalg.norm(b)
+    if denominator <= 1e-9:
+        return 90.0
+    angle = math.degrees(math.acos(float(np.clip(abs(np.dot(a, b) / denominator), -1, 1))))
+    return min(angle, 180 - angle)
+
+
+def _progression_metrics(line: LineString, reference_parts: list[LineString], interval: float) -> dict:
+    """Project ordered N13 samples to the closest OSM part and measure route progress."""
+    offsets = np.unique(np.append(np.arange(0, line.length, interval), line.length))
+    samples = [line.interpolate(float(offset)) for offset in offsets]
+    middle = line.interpolate(line.length / 2)
+    part_index, part = min(enumerate(reference_parts), key=lambda item: item[1].distance(middle))
+    chainages = np.asarray([part.project(point) for point in samples])
+    deltas = np.diff(chainages)
+    positive = float(deltas[deltas > 0].sum()); negative = float(-deltas[deltas < 0].sum())
+    travelled = positive + negative
+    monotonicity = max(positive, negative) / travelled if travelled > 1e-9 else 0.0
+    progress = abs(float(chainages[-1] - chainages[0]))
+    span = float(chainages.max() - chainages.min())
+    orientation = []
+    for index in range(len(samples) - 1):
+        vector = np.asarray(samples[index + 1].coords[0]) - np.asarray(samples[index].coords[0])
+        chainage = (chainages[index] + chainages[index + 1]) / 2
+        epsilon = min(max(interval / 2, .5), max(part.length / 2, .5))
+        before = part.interpolate(max(0, chainage - epsilon)); after = part.interpolate(min(part.length, chainage + epsilon))
+        orientation.append(_angle_difference(vector, np.asarray(after.coords[0]) - np.asarray(before.coords[0])))
+    return {
+        "referencePart": part_index,
+        "referenceStartMeters": float(chainages[0]), "referenceEndMeters": float(chainages[-1]),
+        "referenceSpanMeters": span, "referenceProgressMeters": progress,
+        "progressRatio": progress / line.length if line.length else 0.0,
+        "chainageMonotonicity": monotonicity,
+        "orientationMismatchDegrees": float(np.median(orientation)) if orientation else 90.0,
+    }
+
+
+def _endpoint_nodes(lines: list[LineString], tolerance: float) -> tuple[list[tuple[int, int]], dict[int, list[int]]]:
+    """Cluster only genuinely nearby source endpoints; never construct graph edges."""
+    clusters: list[list[Point]] = []
+    nodes = []
+    for line in lines:
+        edge_nodes = []
+        for coordinate in (line.coords[0], line.coords[-1]):
+            point = Point(coordinate)
+            node = next((index for index, cluster in enumerate(clusters)
+                         if all(point.distance(other) <= tolerance for other in cluster)), None)
+            if node is None:
+                node = len(clusters); clusters.append([point])
+            else:
+                clusters[node].append(point)
+            edge_nodes.append(node)
+        nodes.append(tuple(edge_nodes))
+    adjacency: dict[int, list[int]] = {}
+    for edge, (start, end) in enumerate(nodes):
+        adjacency.setdefault(start, []).append(edge); adjacency.setdefault(end, []).append(edge)
+    return nodes, adjacency
+
+
+def _edge_cost(row) -> float:
+    """Cost physical distance, residual, turning mismatch, and unproductive travel."""
+    ratio = max(float(row.progressRatio), .05)
+    return float(row.geometry.length) * (1 + float(row.match_median_m) / 25
+                                         + float(row.orientationMismatchDegrees) / 90
+                                         + (1 / ratio - 1) * 1.5
+                                         + (1 - float(row.chainageMonotonicity)) * 2)
+
+
+def _best_component_path(edge_ids: set[int], frame, nodes, adjacency) -> list[int]:
+    endpoints = {node for edge in edge_ids for node in nodes[edge]}
+    node_chainage = {node: np.mean([value for edge in adjacency[node] if edge in edge_ids
+                                    for value in (frame.iloc[edge].referenceStartMeters,
+                                                  frame.iloc[edge].referenceEndMeters)]) for node in endpoints}
+    start, goal = min(endpoints, key=node_chainage.get), max(endpoints, key=node_chainage.get)
+    queue = [(0.0, start, [])]; best = {start: 0.0}
+    while queue:
+        cost, node, path = heapq.heappop(queue)
+        if node == goal:
+            return path
+        if cost > best.get(node, float("inf")):
+            continue
+        for edge in adjacency[node]:
+            if edge not in edge_ids:
+                continue
+            other = nodes[edge][1] if nodes[edge][0] == node else nodes[edge][0]
+            candidate = cost + _edge_cost(frame.iloc[edge])
+            if candidate < best.get(other, float("inf")):
+                best[other] = candidate
+                heapq.heappush(queue, (candidate, other, path + [edge]))
+    return []
+
+
+def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
+    """Select N13 paths that explain ordered OSM chainage, then sustained parallels."""
+    settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
+    if stage1.empty:
+        return stage1.copy(), stage1.copy(), {}
+    frame = stage1.explode(index_parts=False).reset_index().rename(columns={"index": "sourceFeatureIndex"})
+    parts = _ordered_reference_parts(reference)
+    metrics = [_progression_metrics(line, parts, float(settings["progressSampleMeters"])) for line in frame.geometry]
+    for key in metrics[0]:
+        frame[key] = [value[key] for value in metrics]
+    frame["selectionStatus"] = "rejected-low-progress"; frame["selectionReason"] = "rejected-low-progress"
+    frame["routeCost"] = [_edge_cost(row) for _, row in frame.iterrows()]
+    eligible = ((frame.progressRatio >= settings["minimumProgressRatio"])
+                & (frame.chainageMonotonicity >= settings["minimumChainageMonotonicity"])
+                & (frame.orientationMismatchDegrees <= settings["maximumOrientationMismatchDegrees"]))
+    frame.loc[frame.orientationMismatchDegrees > settings["maximumOrientationMismatchDegrees"], ["selectionStatus", "selectionReason"]] = "rejected-orientation"
+    nodes, adjacency = _endpoint_nodes(list(frame.geometry), float(settings["endpointSnapMeters"]))
+    chosen: set[int] = set()
+    for part_index in range(len(parts)):
+        remaining = set(frame.index[eligible & (frame.referencePart == part_index)])
+        components = []
+        while remaining:
+            seed = remaining.pop(); edges = {seed}; frontier = list(nodes[seed])
+            while frontier:
+                node = frontier.pop()
+                for edge in adjacency[node]:
+                    if edge in remaining and int(frame.iloc[edge].referencePart) == part_index:
+                        remaining.remove(edge); edges.add(edge); frontier.extend(nodes[edge])
+            path = _best_component_path(edges, frame, nodes, adjacency)
+            if path:
+                interval = (min(frame.iloc[path].referenceStartMeters.min(), frame.iloc[path].referenceEndMeters.min()),
+                            max(frame.iloc[path].referenceStartMeters.max(), frame.iloc[path].referenceEndMeters.max()))
+                components.append((sum(_edge_cost(frame.iloc[e]) for e in path) / max(interval[1] - interval[0], 1), path, interval))
+        covered: list[tuple[float, float]] = []
+        for _, path, interval in sorted(components):
+            new_coverage = interval[1] - interval[0] - sum(max(0, min(interval[1], b) - max(interval[0], a)) for a, b in covered)
+            if new_coverage >= min(float(settings["minimumNewReferenceCoverageMeters"]), interval[1] - interval[0]):
+                chosen.update(path); covered.append(interval)
+    frame.loc[list(chosen), ["selectionStatus", "selectionReason"]] = "accepted-backbone"
+
+    # Unselected connected chains may be a second carriageway only when their
+    # sustained length and reference coverage make a short slip/loop implausible.
+    unselected = set(frame.index[eligible]) - chosen
+    while unselected:
+        seed = unselected.pop(); chain = {seed}; frontier = list(nodes[seed])
+        while frontier:
+            for edge in adjacency[frontier.pop()]:
+                if edge in unselected:
+                    unselected.remove(edge); chain.add(edge); frontier.extend(nodes[edge])
+        rows = frame.iloc[list(chain)]
+        span = rows.referenceEndMeters.combine(rows.referenceStartMeters, max).max() - rows.referenceEndMeters.combine(rows.referenceStartMeters, min).min()
+        if (rows.geometry.length.sum() >= settings["minimumParallelLengthMeters"]
+                and span >= settings["minimumParallelReferenceCoverageMeters"]
+                and rows.progressRatio.median() >= settings["minimumParallelProgressRatio"]
+                and rows.chainageMonotonicity.median() >= settings["minimumParallelChainageMonotonicity"]
+                and rows.orientationMismatchDegrees.median() <= settings["maximumParallelOrientationMismatchDegrees"]):
+            frame.loc[list(chain), ["selectionStatus", "selectionReason"]] = "accepted-parallel"
+        else:
+            # One-ended graph branches are spurs; rejoining redundant paths are detours.
+            attachments = sum(any(edge in chosen for edge in adjacency[node]) for edge in chain for node in nodes[edge])
+            reason = "rejected-detour" if attachments >= 2 else "rejected-spur"
+            frame.loc[list(chain), ["selectionStatus", "selectionReason"]] = reason
+    accepted = frame[frame.selectionStatus.str.startswith("accepted-")].copy()
+    counts = Counter(frame.selectionReason)
+    report = {
+        "stage1CandidateCount": len(frame),
+        "backboneSelectedCount": int((frame.selectionStatus == "accepted-backbone").sum()),
+        "parallelSelectedCount": int((frame.selectionStatus == "accepted-parallel").sum()),
+        "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
+        "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
+        "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
+        "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
+        "parameters": settings,
+    }
+    return accepted, frame, report
+
+
+def write_selection_diagnostics(frame: gpd.GeoDataFrame, output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_crs("EPSG:4326").to_file(output, driver="GeoJSON")
+
+
 def distances(line, reference, interval: float) -> np.ndarray:
     parts = list(line.geoms) if line.geom_type == "MultiLineString" else [line]
     values = []
@@ -494,6 +690,8 @@ def main() -> None:
     parser.add_argument("--n13", type=Path, help="override the N13 cache path from source configuration")
     parser.add_argument("--refresh-osm", action="store_true")
     parser.add_argument("--overpass-url")
+    parser.add_argument("--diagnostics", type=Path,
+                        help="Stage-1 selection GeoJSON (default: data/diagnostics/<road-id>-selection.geojson)")
     args = parser.parse_args()
     road = load_road(args.registry, args.road_id)
     source_config = load_source_config(args.sources)
@@ -506,9 +704,16 @@ def main() -> None:
     candidates = load_n13_candidates(road, n13_source, reference)
     class_diagnostics = candidates.attrs.get("classDiagnostics", {})
     match = road["matching"]
-    selected, candidates = match_n13(candidates, reference, road)
-    if selected.empty:
+    stage1, candidates = match_n13(candidates, reference, road)
+    if stage1.empty:
         raise RuntimeError(f"No plausible N13 features selected for {road['id']}")
+    network_config = {**road.get("networkSelection", {}),
+                      "endpointSnapMeters": road.get("display", {}).get("endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS)}
+    selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
+    if selected.empty:
+        raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
+    diagnostic_output = args.diagnostics or Path("data/diagnostics") / f"{road['id']}-selection.geojson"
+    write_selection_diagnostics(selection_diagnostics, diagnostic_output)
     for road_class, values in class_diagnostics.items():
         values["selectedFeatureCount"] = int((selected["N13_003"].astype(str) == road_class).sum())
     coverage, unresolved = reference_coverage(
@@ -565,6 +770,7 @@ def main() -> None:
         },
         "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
         "matchingThresholds": match, "unresolvedSections": unresolved,
+        "networkSelection": network_report,
         "osmReference": {**osm_provenance, **reference_diagnostics},
         "selectedN13Classifications": dict(Counter(selected["N13_003"].astype(str))),
         "statutoryComposition": {
@@ -576,7 +782,7 @@ def main() -> None:
         "geometryProcessing": {**stitching, "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
         "outputBytes": {"n13BeforeStitching": unstitched_bytes, "n13AfterStitching": n13_output.stat().st_size,
                         "n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},
-        "outputs": {"n13": str(n13_output), "osm": str(osm_output)},
+        "outputs": {"n13": str(n13_output), "osm": str(osm_output), "selectionDiagnostics": str(diagnostic_output)},
     }
     (PUBLIC_ROADS / f"{road['id']}.report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))
