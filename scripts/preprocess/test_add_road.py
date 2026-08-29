@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -39,6 +40,38 @@ class AddRoadTests(unittest.TestCase):
         self.assertEqual(entry["reference"], {"type": "osm-ref", "ref": "20", "network": "JP:national"})
         self.assertEqual(entry["aliases"], ["国道20", "20号"])
 
+    def test_builds_named_road_with_one_name(self):
+        entry = ADD_ROAD.build_named_entry(
+            "tokyo-named-shinjuku-dori", "新宿通り", ["新宿通り"], [], ["1"])
+        self.assertEqual(entry["entityType"], "named-road")
+        self.assertEqual(entry["reference"], {
+            "type": "osm-name", "names": ["新宿通り"],
+            "tags": ["name", "name:ja", "alt_name"],
+        })
+        self.assertEqual(entry["n13"], {"classifications": ["1"]})
+
+    def test_named_road_deduplicates_names_aliases_and_multiple_classes(self):
+        entry = ADD_ROAD.build_named_entry(
+            "tokyo-named-inokashira-dori", "井の頭通り",
+            ["井ノ頭通り", "井の頭通り", "井ノ頭通り"],
+            ["井ノ頭通り", "井ノ頭通り"], ["2", "3", "2"])
+        self.assertEqual(entry["reference"]["names"], ["井ノ頭通り", "井の頭通り"])
+        self.assertEqual(entry["aliases"], ["井ノ頭通り"])
+        self.assertEqual(entry["n13"]["classifications"], ["2", "3"])
+
+    def test_named_road_defaults_osm_name_to_display_name(self):
+        entry = ADD_ROAD.build_named_entry(
+            "tokyo-named-shinjuku-dori", "新宿通り", [], [], ["1"])
+        self.assertEqual(entry["reference"]["names"], ["新宿通り"])
+
+    def test_named_road_requires_display_name_and_n13_classes(self):
+        with self.assertRaisesRegex(ValueError, "--display-name is required"):
+            ADD_ROAD.build_named_entry("tokyo-named-test", None, [], [], ["1"])
+        with self.assertRaisesRegex(ValueError, "--n13-classes is required"):
+            ADD_ROAD.build_named_entry("tokyo-named-test", "テスト通り", [], [], None)
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            ADD_ROAD.build_named_entry("tokyo-named-test", "テスト通り", [], [], ["4"])
+
     def test_builds_shared_prefecture_road_entry(self):
         entry = ADD_ROAD.build_entry("tokyo-prefectural-25", "東京都道・埼玉県道25号飯田橋石神井新座線")
         self.assertEqual(entry["displayName"], "東京都道・埼玉県道25号飯田橋石神井新座線")
@@ -72,6 +105,22 @@ class AddRoadTests(unittest.TestCase):
             self.assertEqual([road["id"] for road in payload["roads"]], ["existing", "jp-national-1"])
             with self.assertRaisesRegex(RuntimeError, "already present"):
                 ADD_ROAD.write_registry(registry, entry)
+
+    def test_dry_run_rejects_duplicates_and_does_not_edit_registry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = Path(directory) / "registry.json"
+            original = json.dumps({"roads": []})
+            registry.write_text(original, encoding="utf-8")
+            argv = ["add-road.py", "tokyo-named-test-dori", "--registry", str(registry),
+                    "--display-name", "テスト通り", "--osm-name", "テスト通り",
+                    "--n13-classes", "2", "3", "--dry-run"]
+            with patch.object(sys, "argv", argv), patch("builtins.print"):
+                ADD_ROAD.main()
+            self.assertEqual(registry.read_text(encoding="utf-8"), original)
+            registry.write_text(json.dumps({"roads": [{"id": "tokyo-named-test-dori"}]}))
+            with patch.object(sys, "argv", argv), self.assertRaises(SystemExit) as error:
+                ADD_ROAD.main()
+            self.assertEqual(error.exception.code, 1)
 
 
 if __name__ == "__main__":

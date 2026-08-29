@@ -30,6 +30,9 @@ ROAD_KINDS = {
         "shortPrefix": "都道", "n13Classification": "2",
     },
 }
+NAMED_ROAD_PATTERN = re.compile(r"tokyo-named-[a-z0-9]+(?:-[a-z0-9]+)*")
+OSM_NAME_TAGS = ["name", "name:ja", "alt_name"]
+SUPPORTED_N13_CLASSES = {"1", "2", "3"}
 
 
 def parse_road_id(road_id: str) -> tuple[dict, str]:
@@ -122,6 +125,39 @@ def build_entry(road_id: str, title: str) -> dict:
     }
 
 
+def build_named_entry(road_id: str, display_name: str, osm_names: list[str],
+                      aliases: list[str], n13_classes: list[str]) -> dict:
+    """Build an explicitly described Tokyo named-road registry entry."""
+    if not NAMED_ROAD_PATTERN.fullmatch(road_id):
+        raise ValueError(f"Unsupported named-road id {road_id!r}; expected tokyo-named-NAME")
+    if not display_name:
+        raise ValueError("--display-name is required for tokyo-named-* roads")
+    names = list(dict.fromkeys(osm_names or [display_name]))
+    if not n13_classes:
+        raise ValueError("--n13-classes is required for tokyo-named-* roads")
+    classifications = list(dict.fromkeys(str(value) for value in n13_classes))
+    unsupported = set(classifications) - SUPPORTED_N13_CLASSES
+    if unsupported:
+        raise ValueError(
+            f"N13 classes must be a non-empty subset of {sorted(SUPPORTED_N13_CLASSES)}; "
+            f"unsupported: {sorted(unsupported)}"
+        )
+    return {
+        "id": road_id, "entityType": "named-road", "displayName": display_name,
+        "aliases": list(dict.fromkeys(aliases)), "jurisdiction": "Tokyo",
+        "reference": {"type": "osm-name", "names": names, "tags": OSM_NAME_TAGS.copy()},
+        "n13": {"classifications": classifications},
+        "matching": MATCHING_DEFAULTS.copy(),
+    }
+
+
+def ensure_id_is_available(path: Path, road_id: str) -> None:
+    """Reject an id already in the registry, including during dry runs."""
+    registry = json.loads(path.read_text(encoding="utf-8"))
+    if any(road.get("id") == road_id for road in registry.get("roads", [])):
+        raise RuntimeError(f"Road {road_id!r} is already present in {path}")
+
+
 def write_registry(path: Path, entry: dict) -> None:
     registry = json.loads(path.read_text(encoding="utf-8"))
     if any(road["id"] == entry["id"] for road in registry["roads"]):
@@ -139,12 +175,22 @@ def main() -> None:
     parser.add_argument("road_id", help="canonical id, for example tokyo-prefectural-318")
     parser.add_argument("--registry", type=Path, default=REGISTRY)
     parser.add_argument("--wikipedia-api", default=WIKIPEDIA_API, help=argparse.SUPPRESS)
+    parser.add_argument("--display-name", help="display name for a tokyo-named-* road")
+    parser.add_argument("--osm-name", action="append", default=[], help="accepted OSM name (repeatable)")
+    parser.add_argument("--alias", action="append", default=[], help="search alias (repeatable)")
+    parser.add_argument("--n13-classes", nargs="+", metavar="CLASS",
+                        help="explicit N13 classifications for a named road")
     parser.add_argument("--dry-run", action="store_true", help="print the entry without changing the registry")
     args = parser.parse_args()
     try:
-        config, number = parse_road_id(args.road_id)
-        title = wikipedia_search(config["namePrefix"], number, args.wikipedia_api)
-        entry = build_entry(args.road_id, title)
+        ensure_id_is_available(args.registry, args.road_id)
+        if args.road_id.startswith("tokyo-named-"):
+            entry = build_named_entry(args.road_id, args.display_name, args.osm_name,
+                                      args.alias, args.n13_classes)
+        else:
+            config, number = parse_road_id(args.road_id)
+            title = wikipedia_search(config["namePrefix"], number, args.wikipedia_api)
+            entry = build_entry(args.road_id, title)
         if not args.dry_run:
             write_registry(args.registry, entry)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as error:

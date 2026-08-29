@@ -24,6 +24,13 @@ def commands_for(args: argparse.Namespace) -> list[list[str]]:
     """Build commands in execution order, skipping registration when unnecessary."""
     commands = []
     if not road_is_registered(args.registry, args.road_id):
+        if args.road_id.startswith("tokyo-named-"):
+            raise RuntimeError(
+                f"Named road {args.road_id!r} is not registered.\n"
+                "Register it first with:\n"
+                f"python scripts/preprocess/add-road.py {args.road_id} "
+                "--display-name NAME --osm-name NAME --n13-classes CLASS [CLASS ...]"
+            )
         commands.append([
             sys.executable, str(SCRIPT_DIRECTORY / "add-road.py"), args.road_id,
             "--registry", str(args.registry),
@@ -64,7 +71,7 @@ def main() -> None:
     args = parse_args()
     try:
         run_pipeline(args)
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, RuntimeError, json.JSONDecodeError) as error:
         raise SystemExit(f"build-road: error: {error}") from None
     except subprocess.CalledProcessError as error:
         script = Path(error.cmd[1]).name if len(error.cmd) > 1 else str(error.cmd[0])
