@@ -59,6 +59,11 @@ class AddRoadTests(unittest.TestCase):
         self.assertEqual(entry["aliases"], ["井ノ頭通り"])
         self.assertEqual(entry["n13"]["classifications"], ["2", "3"])
 
+    def test_named_road_accepts_explicit_class_five_selection(self):
+        entry = ADD_ROAD.build_named_entry(
+            "tokyo-named-kanpachi-dori", "環八通り", ["環八通り"], [], ["2", "3", "5"])
+        self.assertEqual(entry["n13"]["classifications"], ["2", "3", "5"])
+
     def test_named_road_defaults_osm_name_to_display_name(self):
         entry = ADD_ROAD.build_named_entry(
             "tokyo-named-shinjuku-dori", "新宿通り", [], [], ["1"])
@@ -70,7 +75,13 @@ class AddRoadTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "--n13-classes is required"):
             ADD_ROAD.build_named_entry("tokyo-named-test", "テスト通り", [], [], None)
         with self.assertRaisesRegex(ValueError, "unsupported"):
-            ADD_ROAD.build_named_entry("tokyo-named-test", "テスト通り", [], [], ["4"])
+            ADD_ROAD.build_named_entry("tokyo-named-test", "テスト通り", [], [], ["7"])
+
+    def test_statutory_road_n13_defaults_remain_unchanged(self):
+        national = ADD_ROAD.build_entry("jp-national-20", "国道20号")
+        prefectural = ADD_ROAD.build_entry("tokyo-prefectural-318", "東京都道318号環状七号線")
+        self.assertEqual(national["n13"]["classifications"], ["1"])
+        self.assertEqual(prefectural["n13"]["classifications"], ["2"])
 
     def test_builds_shared_prefecture_road_entry(self):
         entry = ADD_ROAD.build_entry("tokyo-prefectural-25", "東京都道・埼玉県道25号飯田橋石神井新座線")
@@ -113,9 +124,11 @@ class AddRoadTests(unittest.TestCase):
             registry.write_text(original, encoding="utf-8")
             argv = ["add-road.py", "tokyo-named-test-dori", "--registry", str(registry),
                     "--display-name", "テスト通り", "--osm-name", "テスト通り",
-                    "--n13-classes", "2", "3", "--dry-run"]
-            with patch.object(sys, "argv", argv), patch("builtins.print"):
+                    "--n13-classes", "2", "3", "5", "--dry-run"]
+            with patch.object(sys, "argv", argv), patch("builtins.print") as output_print:
                 ADD_ROAD.main()
+            rendered = json.loads(output_print.call_args.args[0])
+            self.assertEqual(rendered["n13"]["classifications"], ["2", "3", "5"])
             self.assertEqual(registry.read_text(encoding="utf-8"), original)
             registry.write_text(json.dumps({"roads": [{"id": "tokyo-named-test-dori"}]}))
             with patch.object(sys, "argv", argv), self.assertRaises(SystemExit) as error:

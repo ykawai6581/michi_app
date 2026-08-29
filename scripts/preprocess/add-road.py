@@ -32,7 +32,8 @@ ROAD_KINDS = {
 }
 NAMED_ROAD_PATTERN = re.compile(r"tokyo-named-[a-z0-9]+(?:-[a-z0-9]+)*")
 OSM_NAME_TAGS = ["name", "name:ja", "alt_name"]
-SUPPORTED_N13_CLASSES = {"1", "2", "3"}
+# Complete N13_003 source vocabulary, not the classes selected by any one road.
+SUPPORTED_N13_CLASSES = {"1", "2", "3", "4", "5", "6"}
 
 
 def parse_road_id(road_id: str) -> tuple[dict, str]:
