@@ -76,9 +76,87 @@
       "環6"
     ],
     "type": "road",
+    "entityType": "statutory-road",
     "sources": {
       "n13": "data/roads/tokyo-prefectural-317-n13.geojson",
       "osm": "data/roads/tokyo-prefectural-317-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-waseda-dori",
+    "name": "早稲田通り",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-waseda-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-waseda-dori-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-kagurazaka-dori",
+    "name": "神楽坂通り",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-kagurazaka-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-kagurazaka-dori-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-yamate-dori",
+    "name": "山手通り",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-yamate-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-yamate-dori-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-musashisakai-dori",
+    "name": "武蔵境通り",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-musashisakai-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-musashisakai-dori-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-itsukaichi-kaido",
+    "name": "五日市街道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-itsukaichi-kaido-n13.geojson",
+      "osm": "data/roads/tokyo-named-itsukaichi-kaido-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-kamakura-kaido",
+    "name": "鎌倉街道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-kamakura-kaido-n13.geojson",
+      "osm": "data/roads/tokyo-named-kamakura-kaido-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-hitomi-kaido",
+    "name": "人見街道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-hitomi-kaido-n13.geojson",
+      "osm": "data/roads/tokyo-named-hitomi-kaido-osm.geojson"
     }
   }
 ]
