@@ -3,6 +3,7 @@ import { entities } from '../data/sample'
 import { normalizeJapanese } from './normalizeJapanese'
 import { searchEntities } from './search'
 import roadIndex from '../../public/search/roads.json'
+import roadRegistry from '../../data/roads/registry.json'
 import type { EntityFeature } from '../types/geo'
 
 describe('Japanese search', () => {
@@ -15,9 +16,9 @@ describe('Japanese search', () => {
     expect(searchEntities([canonical], query).map((feature) => feature.properties.id)).toEqual(['jp-national-20'])
   })
   it('keeps the named Koshu Kaido entity separate from statutory Route 20', () => {
-    const entries = roadIndex.filter((entry) => ['jp-national-20', 'tokyo-named-koshu-kaido'].includes(entry.id))
+    const entries = roadRegistry.roads.filter((entry) => ['jp-national-20', 'tokyo-named-koshu-kaido'].includes(entry.id))
     const roads = entries.map((entry) => ({ type: 'Feature', properties: {
-      id: entry.id, name: entry.name, aliases: entry.aliases, type: 'road',
+      id: entry.id, name: entry.displayName, aliases: entry.aliases, type: 'road',
     }, geometry: { type: 'MultiLineString', coordinates: [] } })) as EntityFeature[]
     expect(searchEntities(roads, '国道20号').map((road) => road.properties.id)).toEqual(['jp-national-20'])
     expect(searchEntities(roads, '甲州街道').map((road) => road.properties.id)).toEqual(['tokyo-named-koshu-kaido'])

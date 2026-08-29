@@ -113,6 +113,11 @@ rebuilding or combining the major-road partitions:
 python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads --classes 3
 ```
 
+Preprocessing also writes `data/cache/n13/roads/manifest.json` with the raw source path, feature count, CRS,
+natural WGS84 bounds, available classes, and partition counts. Each partition includes per-feature WGS84 bbox
+columns so the matcher can use Parquet predicate pushdown before exact corridor and residual tests. A later
+`--classes 3` run merges its partition metadata without forgetting existing class 1/2 partitions.
+
 The preprocessor reads the source in chunks, and `match-road.py` reads GeoParquet without a Shinjuku spatial
 filter. Both `data/raw/` and `data/cache/` are gitignored; only small canonical outputs in `public/data/roads/`
 are web assets.
@@ -120,7 +125,9 @@ are web assets.
 OSM reference acquisition is configured in `data/roads/sources.json`. In `auto` mode it reuses a cached reference,
 then tries the configured regional source (`data/raw/osm/kanto-latest.osm.pbf`), and finally uses Overpass. Local
 PBF reading is optional and depends on the installed GDAL OSM driver. Overpass bounds are source configuration
-keyed by jurisdiction rather than matcher constants. Build one road with:
+only as a legacy fallback: normal matching reads the N13 manifest bounds, uses those bounds for Overpass, and clips
+cache/local/Overpass results to the same working extent. OSM cache sidecars record their coverage; a cache covering
+a larger extent is clipped safely, while one from a smaller extent is rebuilt automatically. Build one road with:
 
 ```bash
 python scripts/preprocess/match-road.py jp-national-20

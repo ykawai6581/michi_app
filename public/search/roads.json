@@ -63,32 +63,5 @@
       "n13": "data/roads/tokyo-prefectural-311-n13.geojson",
       "osm": "data/roads/tokyo-prefectural-311-osm.geojson"
     }
-  },
-  {
-    "id": "tokyo-named-koshu-kaido",
-    "name": "甲州街道",
-    "aliases": [
-      "甲州街道"
-    ],
-    "type": "road",
-    "entityType": "named-road",
-    "sources": {
-      "n13": "data/roads/tokyo-named-koshu-kaido-n13.geojson",
-      "osm": "data/roads/tokyo-named-koshu-kaido-osm.geojson"
-    }
-  },
-  {
-    "id": "tokyo-named-inokashira-dori",
-    "name": "井の頭通り",
-    "aliases": [
-      "井ノ頭通り",
-      "井の頭通り"
-    ],
-    "type": "road",
-    "entityType": "named-road",
-    "sources": {
-      "n13": "data/roads/tokyo-named-inokashira-dori-n13.geojson",
-      "osm": "data/roads/tokyo-named-inokashira-dori-osm.geojson"
-    }
   }
 ]
