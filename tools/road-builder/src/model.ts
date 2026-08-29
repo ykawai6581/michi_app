@@ -3,3 +3,10 @@ export const emptyRoad=():Road=>({id:'',displayName:'',entityType:'named-road',j
 export const uniqueAdd=(values:string[],value:string)=>value.trim()&&!values.includes(value.trim())?[...values,value.trim()]:values
 export const removeAt=(values:string[],index:number)=>values.filter((_,i)=>i!==index)
 export const toggle=(values:string[],value:string)=>values.includes(value)?values.filter(v=>v!==value):[...values,value]
+
+export const diagnosticLayerIds=['rejected','candidates','reference','selected'] as const
+export type DiagnosticLayerId=typeof diagnosticLayerIds[number]
+export type LayerVisibility=Record<DiagnosticLayerId,boolean>
+export const initialLayerVisibility=():LayerVisibility=>({reference:true,selected:true,candidates:false,rejected:false})
+export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
+export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
