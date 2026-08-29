@@ -11,6 +11,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import geopandas as gpd
+import numpy as np
+import pandas as pd
 from shapely.geometry import LineString
 
 import road_ui
@@ -64,6 +66,35 @@ class RoadBuilderTests(unittest.TestCase):
         result = road_ui.inspect_osm(ROAD)
         self.assertEqual(result["summary"]["wayCount"], 1)
         self.assertIn("Test Dori", result["discoveredNames"])
+
+    def test_geojson_preserves_and_serializes_pandas_and_numpy_scalars(self):
+        frame = gpd.GeoDataFrame({
+            "N13_001": [pd.Timestamp("2024-04-01T12:34:56")],
+            "featureCount": np.array([np.int64(7)]),
+            "residual": np.array([np.float64(3.25)]),
+            "geometry": [LineString([(139.0, 35.0), (139.1, 35.1)])],
+        }, crs="EPSG:4326")
+
+        geojson = road_ui._geojson(frame)
+        properties = geojson["features"][0]["properties"]
+        self.assertEqual(properties["N13_001"], "2024-04-01 12:34:56")
+        self.assertEqual(properties["featureCount"], 7)
+        self.assertEqual(properties["residual"], 3.25)
+        # Exercise the same outer encoding performed by server.Handler._send
+        # with every GeoJSON-bearing field in a complete preview response.
+        response = {
+            "reference": geojson,
+            "candidates": geojson,
+            "residualPass": geojson,
+            "selected": geojson,
+            "diagnostics": geojson,
+            "report": {"candidateCount": np.int64(1)},
+        }
+        # The GeoJSON portions themselves must pass strict standard encoding.
+        json.dumps({key: value for key, value in response.items() if key != "report"})
+        # The HTTP boundary also safely handles any numpy/date-like diagnostic
+        # scalar that an existing matcher report happens to expose.
+        json.dumps(response, default=str)
 
     @patch.object(road_ui, "_context")
     @patch.object(road_ui.MATCHER, "load_n13_candidates")

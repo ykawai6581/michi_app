@@ -56,7 +56,10 @@ def _context(draft: dict, sources: Path = SOURCES):
 
 def _geojson(frame) -> dict:
     if hasattr(frame, "to_crs"):
-        return json.loads(frame.to_crs("EPSG:4326").to_json(drop_id=True))
+        # N13 columns can contain pandas/numpy/date-like scalar values (notably
+        # pandas.Timestamp). Preserve those properties, stringifying only
+        # values the standard JSON encoder does not understand.
+        return json.loads(frame.to_crs("EPSG:4326").to_json(drop_id=True, default=str))
     geometry = gpd.GeoSeries([frame], crs=MATCHER.METRIC_CRS).to_crs("EPSG:4326").iloc[0]
     return {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {},
                                                            "geometry": mapping(geometry)}]}

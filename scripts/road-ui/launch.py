@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,8 +19,8 @@ def main():
     processes = [subprocess.Popen(command, cwd=ROOT) for command in commands]
     try:
         while all(process.poll() is None for process in processes):
-            processes[0].wait(timeout=.5)
-    except (KeyboardInterrupt, subprocess.TimeoutExpired):
+            time.sleep(.5)
+    except KeyboardInterrupt:
         pass
     finally:
         for process in processes:
