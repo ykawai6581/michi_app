@@ -45,6 +45,16 @@ class BuildRoadTests(unittest.TestCase):
         self.assertEqual(len(commands), 1)
         self.assertEqual(Path(commands[0][1]).name, "match-road.py")
 
+    def test_unregistered_named_road_has_registration_instructions(self):
+        directory, registry = self.make_registry([])
+        self.addCleanup(directory.cleanup)
+        args = arguments(registry, road_id="tokyo-named-shinjuku-dori")
+        with self.assertRaisesRegex(RuntimeError, "Named road.*is not registered") as error:
+            BUILD_ROAD.commands_for(args)
+        self.assertIn("--display-name", str(error.exception))
+        self.assertIn("--osm-name", str(error.exception))
+        self.assertIn("--n13-classes", str(error.exception))
+
     def test_match_options_are_forwarded_and_failures_stop_pipeline(self):
         directory, registry = self.make_registry([])
         self.addCleanup(directory.cleanup)

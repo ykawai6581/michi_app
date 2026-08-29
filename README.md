@@ -184,7 +184,14 @@ intentionally outside this current-road registry domain.
 python scripts/preprocess/add-road.py tokyo-prefectural-319
 ```
 
-現在サポートする ID は `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` です。都県境をまたぐ路線の Wikipedia 記事名（例: `東京都道・埼玉県道25号…`）も検索します。書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せず、修正方法を含む短いエラーを表示します。追加後の形状生成は別工程なので、N13 road cache を用意して `scripts/preprocess/match-road.py` を実行してください。
+法定道路では `tokyo-prefectural-NUMBER` と `jp-national-NUMBER` をサポートします。都県境をまたぐ路線の Wikipedia 記事名（例: `東京都道・埼玉県道25号…`）も検索します。`tokyo-named-*` の通称道路は、構成する法定路線を推測せず、表示名、OSM 名、N13 区分を明示して登録します。OSM 名と alias はオプションを繰り返して複数指定できます。
+
+```bash
+python scripts/preprocess/add-road.py tokyo-named-shinjuku-dori \
+  --display-name "新宿通り" --osm-name "新宿通り" --n13-classes 1 2 3
+```
+
+書き込み前に候補を確認する場合は `--dry-run` を付けてください。既存 ID、対応外の ID、または正式名として確認できない検索結果は registry を変更せず、修正方法を含む短いエラーを表示します。追加後の形状生成は別工程なので、N13 road cache を用意して `scripts/preprocess/match-road.py` を実行してください。
 
 登録と形状生成を同じ ID で続けて実行する場合は、まとめたコマンドを使用できます。
 
@@ -192,7 +199,7 @@ python scripts/preprocess/add-road.py tokyo-prefectural-319
 python scripts/preprocess/build-road.py tokyo-prefectural-319
 ```
 
-未登録なら `add-road.py` を実行した後に `match-road.py` を実行します。すでに登録済みなら追加処理を省略して matching だけを再実行します。`--n13 PATH`、`--registry PATH`、`--refresh-osm`、`--overpass-url URL` も指定でき、matching 処理へ引き継がれます。いずれかの処理が失敗した場合、後続処理は実行されません。
+未登録の法定道路なら `add-road.py` を実行した後に `match-road.py` を実行します。未登録の通称道路は必要なメタデータを示す登録コマンドとともに明確なエラーになります。すでに登録済みなら追加処理を省略して matching だけを再実行します。`--n13 PATH`、`--registry PATH`、`--refresh-osm`、`--overpass-url URL` も指定でき、matching 処理へ引き継がれます。いずれかの処理が失敗した場合、後続処理は実行されません。
 
 ### 検索 index
 
