@@ -103,6 +103,57 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 
 `dist/` は相対パスで生成されるため、GitHub Pages の repository site に配置できます。
 
+## Reusable rail and historical source caches
+
+These build-time sources do **not** create project bundles or change the production application:
+
+| Entity | Source → normalized cache |
+| --- | --- |
+| Modern railway tracks | OpenStreetMap → `data/cache/osm/rail/tracks.parquet` |
+| Modern passenger stations | OpenStreetMap → `data/cache/osm/rail/stations.parquet` |
+| Historical major roads | CODH Kaido data → `data/cache/codh/edo-roads/roads.parquet` |
+| Historical post stations (宿場) | CODH Kaido data → `data/cache/codh/edo-posts/posts.parquet` |
+
+Install `requirements-preprocess.txt`. Rail first inspects the regional PBF configured in `data/roads/sources.json`.
+The OSM GDAL driver layers `points`, `lines`, `multilinestrings`, `multipolygons`, and `other_relations` are read when
+present so both infrastructure and the different station representations are available. It falls back to the configured
+Overpass endpoint for the explicit Tokyo working extent only when the PBF is absent; `--refresh-osm` forces Overpass:
+
+```bash
+python scripts/preprocess/preprocess-rail.py
+python scripts/preprocess/preprocess-rail.py --refresh-osm
+python scripts/preprocess/preprocess-rail.py --input data/raw/osm/tokyo-rail.geojson
+```
+
+Tracks retain distinct, unsimplified OSM ways. `includedRailwayValues` and `stationRailwayValues` in
+`data/roads/sources.json` are the authoritative runtime policy. By default `rail`, `subway`, `light_rail`, and `tram`
+are included; unconfigured `railway` values such as proposed, construction, disused, and abandoned are excluded.
+Infrastructure tagged `service=yard`, `service=siding`, or `service=spur` remains included when its `railway` value is
+included, and both `service` and `usage` are preserved for later presentation filtering.
+Stations and halts form a separate point layer. Points remain unchanged; polygons use an area centroid and record the
+source geometry type. Only repeated copies of the same OSM element ID are removed—similar names and broad authority
+identifiers never cause a merge.
+
+CODH metadata, official download URLs, formats, and raw paths are in `data/sources/codh.json`. The normal command
+downloads the current official **江戸主要街道 version 4** ZIP and **江戸宿場 version 1** GeoJSON when absent,
+validates each response before atomically publishing it under the gitignored `data/raw/codh/` tree, and then normalizes
+the source. The road ZIP member `geopackage/edo-road-v4.gpkg` is extracted under `data/raw/codh/extracted/edo-road/`,
+validated as a GeoPackage, and its sole named layer is selected explicitly after inspection. The post source is direct
+GeoJSON and has no archive or GeoPackage step:
+
+```bash
+python scripts/preprocess/preprocess-codh.py
+python scripts/preprocess/preprocess-codh.py --refresh
+python scripts/preprocess/preprocess-codh.py --roads /path/to/roads.geojson --posts /path/to/posts.geojson
+```
+
+The source configuration records CODH/ROIS-DS attribution and the published Creative Commons Attribution 4.0
+International (CC BY 4.0) license separately for both datasets. Both workflows write WGS84 GeoParquet, manifests, and
+small discovery indexes. Roads and posts retain exact CODH route IDs, including branch IDs such as `R400-1`,
+so road `R003` links to `R003` 宿場 without name matching, and original properties remain available as JSON. Task C will
+later select small video-specific subsets; it is not implemented here. These reusable caches stay outside browser assets, and neither OSM rail nor
+CODH geometry passes through the OSM↔N13 canonical-road matcher.
+
 ## 画面構成
 
 左側の広い地図を動画素材のキャンバス、右側を制作パネルとして設計しています。検索、レイヤー、強調スタイル、保存画角の順に、制作時の操作手順が上から下へ流れます。モバイルでは「編集パネル」ボタンからサイドバーを開けます。
