@@ -105,6 +105,47 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 
 ## Reusable rail and historical source caches
 
+## Project materialization
+
+Reusable caches are large, build-time inputs and never browser assets. A project config selects a small subset and
+`build-project.py` writes the complete static bundle consumed by React/MapLibre. The initial Shinjuku project uses
+WGS84 bounds `[139.60, 35.64, 139.78, 35.73]`: western/central Tokyo from the Takaido area through Shinjuku and the
+start of the Kōshū route, without including all of Tokyo.
+
+Prepare sources, materialize the project, and start Vite:
+
+```bash
+python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads
+python scripts/preprocess/preprocess-rail.py
+python scripts/preprocess/preprocess-codh.py
+python scripts/build-project.py shinjuku
+npm run dev
+```
+
+`projects/<id>/project.json` contains an ID, display name, WGS84 bbox, canonical modern-road IDs, bbox-mode rail and
+station selectors, and exact CODH route IDs. A missing cache or canonical build fails with the preprocessing command
+needed to create it. Rail bbox reads use GeoParquet filtering and preserve every parallel source track; stations are
+selected spatially without further deduplication. CODH roads and posts are selected by exact `routeId` without
+matching, snapping, simplification, or name-based post deduplication.
+
+Generated, deployable files are tracked under:
+
+```text
+public/projects/<id>/
+├── project.json
+├── manifest.json
+├── data/
+│   ├── modern-roads.geojson
+│   ├── railways.geojson
+│   ├── stations.geojson
+│   ├── historical-roads.geojson
+│   └── historical-posts.geojson
+└── search/entities.json
+```
+
+The manifest records timestamp, bounds, inputs, outputs, layer families, and feature counts. The search index contains
+modern roads, stations, historical roads, and historical posts; track segments deliberately are not search entities.
+
 These build-time sources do **not** create project bundles or change the production application:
 
 | Entity | Source → normalized cache |

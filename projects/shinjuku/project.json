@@ -1,1 +1,12 @@
-{"title":"新宿は何が新しかったのか","version":1,"scenes":[{"id":"tokyo-overview","name":"東京・新宿 overview","camera":{"center":[139.704,35.69],"zoom":12.5,"bearing":0,"pitch":0},"visibleLayers":["base","roads","historicalRoads","places","chome"],"highlights":[]},{"id":"koshu-dochu","name":"甲州道中","camera":{"center":[139.704,35.69],"zoom":13.5,"bearing":0,"pitch":0},"visibleLayers":["base","historicalRoads","places"],"highlights":["R003-sample"]}]}
+{
+  "id": "shinjuku",
+  "displayName": "新宿",
+  "bounds": [139.60, 35.64, 139.78, 35.73],
+  "layers": {
+    "modernRoads": ["tokyo-named-koshu-kaido"],
+    "railways": {"mode": "bbox"},
+    "stations": {"mode": "bbox"},
+    "historicalRoads": ["R003"],
+    "historicalPosts": ["R003"]
+  }
+}

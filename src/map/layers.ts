@@ -1,14 +1,15 @@
 import type maplibregl from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
-import type { BasemapMode } from '../types/geo'
+import type { BasemapMode, LayerVisibility } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
+import type { ProjectData } from '../data/project'
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export function getPresentationLayerIds(map: maplibregl.Map): string[] {
   return map.getStyle().layers.map((layer) => layer.id)
 }
 
-export function addDataLayers(map: maplibregl.Map, data: FeatureCollection): void {
+export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.whiteBase, type: 'background', paint: { 'background-color': '#f4f2ec', 'background-opacity': 0 } })
   map.addLayer({ id: LAYER_IDS.darkVeil, type: 'background', paint: { 'background-color': '#06151d', 'background-opacity': 0 } })
   map.addSource(SOURCE_IDS.gsiBase, {
@@ -20,14 +21,18 @@ export function addDataLayers(map: maplibregl.Map, data: FeatureCollection): voi
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>',
   })
   map.addLayer({ id: LAYER_IDS.gsiBase, type: 'raster', source: SOURCE_IDS.gsiBase, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.72, 'raster-saturation': -0.75, 'raster-contrast': -0.12, 'raster-brightness-max': 0.96 } })
-  map.addSource(SOURCE_IDS.entities, { type: 'geojson', data })
+  map.addSource(SOURCE_IDS.historicalRoads, { type: 'geojson', data: project.collections['historical-roads'] })
+  map.addSource(SOURCE_IDS.railways, { type: 'geojson', data: project.collections.railways })
+  map.addSource(SOURCE_IDS.modernRoads, { type: 'geojson', data: project.collections['modern-roads'] })
+  map.addSource(SOURCE_IDS.historicalPosts, { type: 'geojson', data: project.collections['historical-posts'] })
+  map.addSource(SOURCE_IDS.stations, { type: 'geojson', data: project.collections.stations })
   map.addSource(SOURCE_IDS.highlight, { type: 'geojson', data: empty })
   map.addSource(SOURCE_IDS.highlightOsm, { type: 'geojson', data: empty })
-  map.addLayer({ id: LAYER_IDS.chomeFill, type: 'fill', source: SOURCE_IDS.entities, filter: ['==',['get','type'],'chome'], paint: { 'fill-color':'#749aa5','fill-opacity':0.16 } })
-  map.addLayer({ id: LAYER_IDS.chomeLine, type: 'line', source: SOURCE_IDS.entities, filter: ['==',['get','type'],'chome'], paint: { 'line-color':'#69828b','line-width':1.5,'line-dasharray':[3,2] } })
-  map.addLayer({ id: LAYER_IDS.roads, type: 'line', source: SOURCE_IDS.entities, filter: ['==',['get','type'],'road'], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#8b9498','line-width':5,'line-opacity':0.75 } })
-  map.addLayer({ id: LAYER_IDS.historicalRoads, type: 'line', source: SOURCE_IDS.entities, filter: ['==',['get','type'],'historical-road'], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#997c56','line-width':4,'line-opacity':0.9,'line-dasharray':[2,1] } })
-  map.addLayer({ id: LAYER_IDS.places, type: 'circle', source: SOURCE_IDS.entities, filter: ['in',['get','type'],['literal',['place','historical-place']]], paint: { 'circle-color':['match',['get','type'],'historical-place','#b06e3b','#42697b'],'circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':2 } })
+  map.addLayer({ id: LAYER_IDS.historicalRoads, type: 'line', source: SOURCE_IDS.historicalRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#a06d31','line-width':4,'line-opacity':0.9,'line-dasharray':[2,1] } })
+  map.addLayer({ id: LAYER_IDS.railways, type: 'line', source: SOURCE_IDS.railways, paint: { 'line-color':'#31383c','line-width':2,'line-opacity':0.8 } })
+  map.addLayer({ id: LAYER_IDS.modernRoads, type: 'line', source: SOURCE_IDS.modernRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#8b9498','line-width':5,'line-opacity':0.8 } })
+  map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'circle', source: SOURCE_IDS.historicalPosts, paint: { 'circle-color':'#b06e3b','circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':2 } })
+  map.addLayer({ id: LAYER_IDS.stations, type: 'circle', source: SOURCE_IDS.stations, paint: { 'circle-color':'#42697b','circle-radius':5,'circle-stroke-color':'#fff','circle-stroke-width':1.5 } })
   map.addLayer({ id: LAYER_IDS.highlightFill, type: 'fill', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Polygon'], paint: { 'fill-color':'#3264aa','fill-opacity':0.35 } })
   map.addLayer({ id: LAYER_IDS.highlightLineGlow, type: 'line', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['LineString','Polygon']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#fff','line-width':['+', ['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]], 7],'line-opacity':0.65,'line-blur':4 } })
   map.addLayer({ id: LAYER_IDS.highlightLine, type: 'line', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['LineString','Polygon']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':['match',['geometry-type'],'LineString','#ef6262','#3264aa'],'line-width':['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]],'line-opacity':1 } })
@@ -44,4 +49,9 @@ export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentat
   map.setLayoutProperty(LAYER_IDS.gsiBase, 'visibility', mode === 'gsi' ? 'visible' : 'none')
   map.setPaintProperty(LAYER_IDS.whiteBase, 'background-opacity', mode === 'white' || mode === 'gsi' ? 1 : 0)
   map.setPaintProperty(LAYER_IDS.darkVeil, 'background-opacity', mode === 'dark' ? 0.68 : 0)
+}
+
+export function setProjectLayerVisibility(map: maplibregl.Map, visibility: LayerVisibility): void {
+  const groups: [string, boolean][] = [[LAYER_IDS.modernRoads,visibility.modernRoads],[LAYER_IDS.railways,visibility.railways],[LAYER_IDS.stations,visibility.stations],[LAYER_IDS.historicalRoads,visibility.historicalRoads],[LAYER_IDS.historicalPosts,visibility.historicalPosts]]
+  groups.forEach(([id, enabled]) => map.setLayoutProperty(id, 'visibility', enabled ? 'visible' : 'none'))
 }
