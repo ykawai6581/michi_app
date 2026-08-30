@@ -1,0 +1,4 @@
+# Build-time GIS dependencies for GeoParquet caches and local regional PBF input.
+geopandas>=1.0
+pyarrow>=16
+pyogrio>=0.9

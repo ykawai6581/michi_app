@@ -11,7 +11,13 @@
         "JP": [122.00, 20.00, 154.00, 46.00]
       }
     },
-    "cacheDirectory": "data/cache/osm/references"
+    "cacheDirectory": "data/cache/osm/references",
+    "rail": {
+      "bounds": [138.90, 35.45, 140.00, 35.95],
+      "cacheDirectory": "data/cache/osm/rail",
+      "includedRailwayValues": ["rail", "subway", "light_rail", "tram"],
+      "stationRailwayValues": ["station", "halt"]
+    }
   },
   "n13": {
     "cache": "data/cache/n13/roads"
