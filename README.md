@@ -403,3 +403,7 @@ Repository の **Settings → Pages → Source** を **GitHub Actions** に設�
 - 地物編集、terrain、江戸水域、PMTiles protocol、scene animation は v0.2 以降です。
 
 次は公式データの最新仕様とライセンスを確認した上で、CODH 街道・宿場の再現可能な ingestion、search index 生成、PMTiles 化を追加します。
+
+Road Builder can also reset an existing canonical road with **Delete Road…**. The confirmation lists projects that
+still reference the road; those reproducible project configs are never changed automatically. Deletion atomically
+removes the registry entry and only exact road-specific generated/reference artifacts, never shared source caches.

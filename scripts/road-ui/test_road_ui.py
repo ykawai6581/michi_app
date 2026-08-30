@@ -171,8 +171,32 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertEqual([r["built"] for r in missing["modernRoads"]], [True, False])
         self.assertFalse(missing["availability"]["codh"]["ready"]); self.assertFalse(missing["availability"]["rail"]["ready"])
         index = root / "data/cache/codh/edo-roads/index.json"; index.parent.mkdir(parents=True)
-        index.write_text(json.dumps([{"routeId":"R003","name":"甲州道中","altName":"甲州街道"}]))
-        self.assertEqual(road_ui.project_catalog(root)["historicalRoutes"][0]["routeId"], "R003")
+        index.write_text(json.dumps([{"id":"R003","displayName":"甲州道中","altName":"甲州街道","start":"江戸","end":"下諏訪","featureCount":1}]))
+        route = road_ui.project_catalog(root)["historicalRoutes"][0]
+        self.assertEqual(route["routeId"], "R003"); self.assertEqual(route["name"], "甲州道中")
+        self.assertEqual(route["start"], "江戸"); self.assertEqual(route["featureCount"], 1)
+
+    def test_delete_road_removes_only_exact_artifacts_and_preserves_references(self):
+        root = Path(self.temp.name); registry = root / "data/roads/registry.json"
+        registry.parent.mkdir(parents=True, exist_ok=True)
+        other = {**copy.deepcopy(ROAD), "id":"tokyo-named-other", "displayName":"Other"}
+        registry.write_text(json.dumps({"display":{"keep":True},"roads":[ROAD,other]}))
+        project = root / "projects/demo/project.json"; project.parent.mkdir(parents=True)
+        project.write_text(json.dumps({"id":"demo","displayName":"Demo","layers":{"modernRoads":[ROAD["id"]]}}))
+        output = root / "public/data/roads"; output.mkdir(parents=True)
+        for name in (f'{ROAD["id"]}-n13.geojson',f'{ROAD["id"]}-osm.geojson',f'{ROAD["id"]}.report.json','tokyo-named-other-n13.geojson'):
+            (output/name).write_text("{}")
+        reference = root / f'data/cache/osm/references/{ROAD["id"]}-osm.geojson'; reference.parent.mkdir(parents=True); reference.write_text("{}")
+        for shared in ('data/cache/n13/roads/shared','data/cache/osm/rail/shared','data/cache/codh/shared'):
+            path=root/shared; path.parent.mkdir(parents=True,exist_ok=True); path.write_text("keep")
+        before_project=project.read_bytes(); result=road_ui.delete_road(ROAD["id"],registry,root)
+        self.assertEqual(result["referencedByProjects"],[{"id":"demo","displayName":"Demo"}])
+        self.assertEqual([item["id"] for item in road_ui.list_roads(registry)],[other["id"]])
+        self.assertEqual(project.read_bytes(),before_project)
+        self.assertFalse(reference.exists()); self.assertTrue((output/'tokyo-named-other-n13.geojson').exists())
+        self.assertTrue(all((root/shared).exists() for shared in ('data/cache/n13/roads/shared','data/cache/osm/rail/shared','data/cache/codh/shared')))
+        with self.assertRaises(KeyError): road_ui.delete_road(ROAD["id"],registry,root)
+        road_ui.save_road(registry,ROAD); self.assertEqual(len(road_ui.list_roads(registry)),2)
 
     @patch.object(road_ui, "ROOT")
     def test_project_build_reuses_materializer_and_preview_returns_layers(self, _):

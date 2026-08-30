@@ -1,10 +1,11 @@
 import type maplibregl from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
-import type { BasemapMode, LayerVisibility } from '../types/geo'
+import type { BasemapMode, LayerVisibility, PointOverlayStyle } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 import type { ProjectData } from '../data/project'
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
+export const SELECTED_POINT_RADIUS = 10
 export function getPresentationLayerIds(map: maplibregl.Map): string[] {
   return map.getStyle().layers.map((layer) => layer.id)
 }
@@ -31,14 +32,14 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.historicalRoads, type: 'line', source: SOURCE_IDS.historicalRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#a06d31','line-width':4,'line-opacity':0.9,'line-dasharray':[2,1] } })
   map.addLayer({ id: LAYER_IDS.railways, type: 'line', source: SOURCE_IDS.railways, paint: { 'line-color':'#31383c','line-width':2,'line-opacity':0.8 } })
   map.addLayer({ id: LAYER_IDS.modernRoads, type: 'line', source: SOURCE_IDS.modernRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#8b9498','line-width':5,'line-opacity':0.8 } })
-  map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'circle', source: SOURCE_IDS.historicalPosts, paint: { 'circle-color':'#b06e3b','circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':2 } })
-  map.addLayer({ id: LAYER_IDS.stations, type: 'circle', source: SOURCE_IDS.stations, paint: { 'circle-color':'#42697b','circle-radius':5,'circle-stroke-color':'#fff','circle-stroke-width':1.5 } })
+  map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'circle', source: SOURCE_IDS.historicalPosts, paint: { 'circle-color':'#b06e3b','circle-radius':2.5,'circle-stroke-color':'#fff','circle-stroke-width':0.5 } })
+  map.addLayer({ id: LAYER_IDS.stations, type: 'circle', source: SOURCE_IDS.stations, paint: { 'circle-color':'#42697b','circle-radius':2,'circle-stroke-color':'#fff','circle-stroke-width':0.5 } })
   map.addLayer({ id: LAYER_IDS.highlightFill, type: 'fill', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Polygon'], paint: { 'fill-color':'#3264aa','fill-opacity':0.35 } })
   map.addLayer({ id: LAYER_IDS.highlightLineGlow, type: 'line', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['LineString','Polygon']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#fff','line-width':['+', ['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]], 7],'line-opacity':0.65,'line-blur':4 } })
   map.addLayer({ id: LAYER_IDS.highlightLine, type: 'line', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['LineString','Polygon']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':['match',['geometry-type'],'LineString','#ef6262','#3264aa'],'line-width':['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]],'line-opacity':1 } })
   map.addLayer({ id: LAYER_IDS.highlightOsmLine, type: 'line', source: SOURCE_IDS.highlightOsm, filter: ['in',['geometry-type'],['literal',['LineString','MultiLineString']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#1769e0','line-width':3,'line-opacity':0.9,'line-dasharray':[2,1] } })
   map.addLayer({ id: LAYER_IDS.highlightPointGlow, type: 'circle', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Point'], paint: { 'circle-color':'#64c2f2','circle-radius':18,'circle-opacity':0.2 } })
-  map.addLayer({ id: LAYER_IDS.highlightPoint, type: 'circle', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Point'], paint: { 'circle-color':'#64c2f2','circle-radius':10,'circle-opacity':1,'circle-stroke-color':'#fff','circle-stroke-width':3 } })
+  map.addLayer({ id: LAYER_IDS.highlightPoint, type: 'circle', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Point'], paint: { 'circle-color':'#64c2f2','circle-radius':SELECTED_POINT_RADIUS,'circle-opacity':1,'circle-stroke-color':'#fff','circle-stroke-width':3 } })
   map.addLayer({ id: LAYER_IDS.highlightLineLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'LineString'], layout: { 'symbol-placement':'line','symbol-spacing':380,'text-field':['get','name'],'text-size':28,'text-font':['Noto Sans Regular'],'text-keep-upright':true }, paint: { 'text-color':'#ef6262','text-halo-color':'#fff','text-halo-width':3 } })
   map.addLayer({ id: LAYER_IDS.highlightLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['Point','Polygon']]], layout: { 'text-field':['get','name'],'text-size':28,'text-font':['Noto Sans Regular'],'text-offset':['case',['==',['geometry-type'],'Point'],['literal',[0,1.5]],['literal',[0,0]]],'text-anchor':['case',['==',['geometry-type'],'Point'],'top','center'] }, paint: { 'text-color':['match',['geometry-type'],'Polygon','#3264aa','#64c2f2'],'text-halo-color':'#fff','text-halo-width':3 } })
 }
@@ -54,4 +55,11 @@ export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentat
 export function setProjectLayerVisibility(map: maplibregl.Map, visibility: LayerVisibility): void {
   const groups: [string, boolean][] = [[LAYER_IDS.modernRoads,visibility.modernRoads],[LAYER_IDS.railways,visibility.railways],[LAYER_IDS.stations,visibility.stations],[LAYER_IDS.historicalRoads,visibility.historicalRoads],[LAYER_IDS.historicalPosts,visibility.historicalPosts]]
   groups.forEach(([id, enabled]) => map.setLayoutProperty(id, 'visibility', enabled ? 'visible' : 'none'))
+}
+
+export function updatePointOverlayStyle(map: maplibregl.Map, style: PointOverlayStyle): void {
+  map.setPaintProperty(LAYER_IDS.stations, 'circle-radius', style.stations.radius)
+  map.setPaintProperty(LAYER_IDS.stations, 'circle-color', style.stations.color)
+  map.setPaintProperty(LAYER_IDS.historicalPosts, 'circle-radius', style.historicalPosts.radius)
+  map.setPaintProperty(LAYER_IDS.historicalPosts, 'circle-color', style.historicalPosts.color)
 }

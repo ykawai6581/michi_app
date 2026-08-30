@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PREPROCESS = ROOT / "scripts/preprocess"
 sys.path.insert(0, str(PREPROCESS))
 from road_registry import (N13_CLASS_LABELS, SUPPORTED_N13_CLASSES, get_road,  # noqa: E402
-                           list_roads, save_road, validate_road)
+                           delete_road as delete_registry_road, list_roads, save_road, validate_road)
 
 
 def _module(name: str, filename: str):
@@ -107,7 +107,11 @@ def project_catalog(root: Path = ROOT) -> dict:
     historical = []
     if codh_index.is_file():
         try:
-            historical = [{key: item.get(key) for key in ("routeId", "name", "altName", "start", "end") if item.get(key) is not None}
+            historical = [{key: value for key, value in {
+                "routeId": item.get("id"), "name": item.get("displayName"),
+                "altName": item.get("altName"), "start": item.get("start"),
+                "end": item.get("end"), "featureCount": item.get("featureCount")}.items()
+                           if value is not None}
                           for item in json.loads(codh_index.read_text(encoding="utf-8"))]
         except (OSError, json.JSONDecodeError, TypeError):
             historical = []
@@ -137,6 +141,39 @@ def project_preview(project_id: str, root: Path = ROOT) -> dict:
     return {"manifest": json.loads(manifest_path.read_text(encoding="utf-8")),
             "layers": {family: json.loads((output / "data" / f"{name}.geojson").read_text(encoding="utf-8"))
                        for family, name in names.items()}}
+
+
+def project_references(road_id: str, root: Path = ROOT) -> list[dict]:
+    return [{"id": project["id"], "displayName": project.get("displayName", project["id"])}
+            for summary in list_projects(root)
+            for project in [load_project(summary["id"], root)]
+            if road_id in project.get("layers", {}).get("modernRoads", [])]
+
+
+def delete_road(road_id: str, registry: Path = REGISTRY, root: Path = ROOT) -> dict:
+    # Validation/existence and the atomic registry mutation live in the shared helper.
+    get_road(registry, road_id)
+    references = project_references(road_id, root)
+    report_path = root / "public/data/roads" / f"{road_id}.report.json"
+    candidates = [root / "public/data/roads" / f"{road_id}-n13.geojson",
+                  root / "public/data/roads" / f"{road_id}-osm.geojson", report_path,
+                  root / "data/cache/osm/references" / f"{road_id}-osm.geojson"]
+    if report_path.is_file():
+        try:
+            for value in json.loads(report_path.read_text(encoding="utf-8")).get("outputs", {}).values():
+                path = root / value
+                if path.resolve().is_relative_to(root.resolve()) and path.name in {
+                        f"{road_id}-n13.geojson", f"{road_id}-osm.geojson", f"{road_id}.report.json"}:
+                    candidates.append(path)
+        except (OSError, TypeError, json.JSONDecodeError):
+            pass
+    delete_registry_road(registry, road_id)
+    deleted = []
+    for path in dict.fromkeys(candidates):
+        if path.is_file():
+            path.unlink(); deleted.append(str(path.relative_to(root)))
+    return {"roadId": road_id, "deleted": True, "deletedPaths": deleted,
+            "referencedByProjects": references}
 
 
 def metadata(sources: Path = SOURCES) -> dict:

@@ -6,7 +6,7 @@ import unittest
 import geopandas as gpd
 from shapely.geometry import LineString, Point
 
-from project_builder import ProjectBuildError, load_project_config, materialize_project, resolve_project_bounds, select_bbox_features, select_modern_roads, select_routes
+from project_builder import ProjectBuildError, load_project_config, materialize_project, rail_group_properties, resolve_project_bounds, select_bbox_features, select_modern_roads, select_routes
 
 class ProjectBuilderTest(unittest.TestCase):
     def setUp(self):
@@ -17,7 +17,7 @@ class ProjectBuilderTest(unittest.TestCase):
         (self.root / "data/roads/registry.json").write_text(json.dumps({"roads":[{"id":"road-a","displayName":"Road A","aliases":["A"]},{"id":"road-b","displayName":"Road B","aliases":[]}]}))
         (self.root / "public/data/roads/road-a-n13.geojson").write_text(json.dumps({"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[[139.1,35.1],[139.2,35.2]]}}]}))
         (self.root / "public/data/roads/road-b-n13.geojson").write_text(json.dumps({"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[[139.7,35.4],[139.8,35.5]]}}]}))
-        self.write_parquet("data/cache/osm/rail/tracks.parquet", [{"osm_element_id":"1"},{"osm_element_id":"2"},{"osm_element_id":"3"}], [LineString([(139.1,35.1),(139.2,35.2)]),LineString([(139.1,35.11),(139.2,35.21)]),LineString([(141,37),(142,38)])])
+        self.write_parquet("data/cache/osm/rail/tracks.parquet", [{"osm_element_id":"1","name:ja":"中央本線","operator":"JR東日本"},{"osm_element_id":"2","name:ja":"中央本線","operator":"JR東日本"},{"osm_element_id":"3","name:ja":"別線","operator":"別会社"}], [LineString([(139.1,35.1),(139.2,35.2)]),LineString([(139.1,35.11),(139.2,35.21)]),LineString([(141,37),(142,38)])])
         self.write_parquet("data/cache/osm/rail/stations.parquet", [{"osm_element_id":"10","name":"Demo Station"},{"osm_element_id":"11","name":"Far"}], [Point(139.3,35.3),Point(141,37)])
         roads=[{"routeId":"R003","name":"甲州道中","altName":"甲州街道","start":"江戸","end":"下諏訪","entityType":"historical-road"},{"routeId":"R004","name":"Other","entityType":"historical-road"}]
         self.write_parquet("data/cache/codh/edo-roads/roads.parquet", roads, [LineString([(139.1,35.1),(139.5,35.5)]),LineString([(130,30),(131,31)])])
@@ -62,12 +62,20 @@ class ProjectBuilderTest(unittest.TestCase):
         (self.root/"public/data/roads/road-a-n13.geojson").write_text(json.dumps({"type":"FeatureCollection","features":[]}))
         with self.assertRaisesRegex(ProjectBuildError,"contains no geometry.*build-road.py"): select_modern_roads(self.root,["road-a"])
     def test_bbox_tracks_and_parallel_preserved(self): self.assertEqual(len(select_bbox_features(self.root/"data/cache/osm/rail/tracks.parquet",self.config["bounds"])),2)
+    def test_rail_grouping_is_exact_and_conservative(self):
+        first=rail_group_properties({"name:ja":"中央本線","operator":"JR東日本"})
+        self.assertEqual(first,rail_group_properties({"name:ja":"中央本線","operator":"JR東日本"}))
+        self.assertNotEqual(first,rail_group_properties({"name:ja":"中央本線","operator":"別会社"}))
+        self.assertIsNone(rail_group_properties({"railway":"rail"}))
+        self.assertTrue(rail_group_properties({"wikidata":"Q123"})["railGroupId"].endswith("Q123"))
     def test_bbox_stations(self): self.assertEqual(len(select_bbox_features(self.root/"data/cache/osm/rail/stations.parquet",self.config["bounds"])),1)
     def test_select_historical_road(self): self.assertEqual(len(select_routes(self.root/"data/cache/codh/edo-roads/roads.parquet",["R003"],"historicalRoads")),1)
     def test_select_distinct_posts_with_shared_place_id(self): self.assertEqual(len(select_routes(self.root/"data/cache/codh/edo-posts/posts.parquet",["R003"],"historicalPosts")),2)
     def test_search_and_manifest_counts(self):
         output=self.root/"output"; manifest=materialize_project(self.root,"demo",output)
-        entities=json.loads((output/"search/entities.json").read_text()); self.assertEqual({e["entityType"] for e in entities},{"modern-road","railway-station","historical-road","historical-post"})
+        entities=json.loads((output/"search/entities.json").read_text()); self.assertEqual({e["entityType"] for e in entities},{"modern-road","railway","railway-station","historical-road","historical-post"})
+        rail=[entity for entity in entities if entity["entityType"]=="railway"]
+        self.assertEqual(len(rail),1); self.assertEqual(rail[0]["displayName"],"中央本線")
         for key,path in manifest["outputs"].items():
             if key == "search": continue
             count=len(json.loads((output/path).read_text())["features"])

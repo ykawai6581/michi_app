@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadProject, PROJECT_FILES, resolveProjectId } from './project'
+import { loadProject, PROJECT_FILES, railwaySearchFeatures, resolveProjectId } from './project'
 
 describe('project loading', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -30,4 +30,11 @@ describe('project loading', () => {
     expect(resolveProjectId('?project=/absolute')).toBe('shinjuku')
   })
   it('rejects an unsafe explicit ID',async()=>{await expect(loadProject('../secret')).rejects.toThrow('Unsafe project ID')})
+  it('creates one searchable railway per exact group and excludes unnamed tracks',()=>{
+    const line=(id:string,group?:string,name='中央本線')=>({type:'Feature' as const,properties:{id,name,type:'railway',...(group?{railGroupId:group,railDisplayName:name}:{})},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})
+    const result=railwaySearchFeatures({type:'FeatureCollection',features:[line('1','rail:a'),line('2','rail:a'),line('3','rail:b','別線'),line('4')]})
+    expect(result.map(feature=>feature.properties.id)).toEqual(['rail:a','rail:b'])
+    expect(result[0].geometry.type).toBe('MultiLineString')
+    if(result[0].geometry.type==='MultiLineString')expect(result[0].geometry.coordinates).toHaveLength(2)
+  })
 })
