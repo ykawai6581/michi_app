@@ -15,9 +15,8 @@ import zipfile
 
 from source_normalization import load_features, normalize_wgs84, write_dataset, write_json
 
-ROUTE_KEYS = ("route_id", "routeId", "RouteID", "ROUTE_ID", "road_id", "roadId", "RoadID", "ROAD_ID", "route", "路線ID", "路線コード", "街道ID")
+ROUTE_KEYS = ("numbering", "road_id", "route_id", "routeId", "RouteID", "ROUTE_ID", "roadId", "RoadID", "ROAD_ID", "route", "路線ID", "路線コード", "街道ID")
 NAME_KEYS = ("name", "Name", "name_ja", "road_name", "ROAD_NAME", "路線名", "街道名", "名称", "宿場名")
-ID_KEYS = ("post_id", "postId", "PostID", "station_id", "id", "ID", "宿場ID")
 ROUTE_PATTERN = re.compile(r"^R\d{3}(?:-\d+)?$")
 FIVE_HIGHWAYS = {"R001", "R002", "R003", "R004", "R005"}
 
@@ -28,8 +27,8 @@ def first(properties: dict, keys) -> object | None:
 
 def route_id(properties: dict) -> str:
     value = first(properties, ROUTE_KEYS)
-    # The official road layer uses ID for its route identifier; on the post
-    # layer ID is the post identifier, so accept it only when it has route syntax.
+    # Compatibility with earlier exports that used ID for a route: the current
+    # post layer's id is a post identity, so accept ID only when it has route syntax.
     if value is None and ROUTE_PATTERN.fullmatch(str(properties.get("ID", "")).strip()):
         value = properties["ID"]
     if value is None:
@@ -46,19 +45,30 @@ def normalize_roads(features: list[dict], source_crs: str) -> list[dict]:
         if feature["geometry"]["type"] not in {"LineString", "MultiLineString"}:
             continue
         original = feature.get("properties", {}); rid = route_id(original)
-        properties = {"routeId": rid, "name": first(original, NAME_KEYS), "sourceFeatureId": feature.get("id") or first(original, ID_KEYS),
+        properties = {"routeId": rid, "name": original.get("name") or first(original, NAME_KEYS),
+                      "altName": original.get("alt_name"), "start": original.get("start"), "end": original.get("end"),
                       "sourceType": "codh", "entityType": "historical-road", "geometryType": feature["geometry"]["type"], "originalProperties": json.dumps(original, ensure_ascii=False, sort_keys=True)}
         result.append({"type": "Feature", "properties": {k: v for k, v in properties.items() if v is not None}, "geometry": feature["geometry"]})
     return result
 
 
 def normalize_posts(features: list[dict], source_crs: str) -> list[dict]:
-    result = []
+    result = []; seen = {}
     for feature in normalize_wgs84(features, source_crs):
         if feature["geometry"]["type"] != "Point":
             continue
         original = feature.get("properties", {}); rid = route_id(original)
-        properties = {"routeId": rid, "postId": feature.get("id") or first(original, ID_KEYS), "name": first(original, NAME_KEYS),
+        post_id = original.get("id")
+        if not post_id:
+            raise ValueError("CODH post feature has no source id")
+        signature = json.dumps({"properties": original, "geometry": feature["geometry"]}, ensure_ascii=False, sort_keys=True)
+        if post_id in seen:
+            if seen[post_id] != signature:
+                raise ValueError(f"conflicting CODH post features share source id {post_id!r}")
+            continue
+        seen[post_id] = signature
+        properties = {"routeId": rid, "postId": post_id, "name": original.get("name"),
+                      "historicalLabel": original.get("jk"), "historicalPlaceId": original.get("jk_id"),
                       "sourceType": "codh", "entityType": "historical-post", "geometryType": "Point", "originalProperties": json.dumps(original, ensure_ascii=False, sort_keys=True)}
         result.append({"type": "Feature", "properties": {k: v for k, v in properties.items() if v is not None}, "geometry": feature["geometry"]})
     return result
@@ -252,8 +262,13 @@ def run(roads_source: Path, posts_source: Path, roads_output: Path, posts_output
                 "attribution": config["attribution"], "acquiredAt": acquired_at}
     road_manifest = {**provenance(metadata["roads"], roads_source, roads_crs, road_info, source_details[0]), "featureCount": len(roads), "routeIdsPresent": sorted(road_groups), "routeStatistics": {rid: {"featureCount": len(fs), "lengthKm": round(sum(line_length_km(f["geometry"]) for f in fs), 3)} for rid, fs in sorted(road_groups.items())}, "outputs": {"roads": str(road_path), "index": str(roads_output / "index.json")}}
     post_manifest = {**provenance(metadata["posts"], posts_source, posts_crs, post_info, source_details[1]), "featureCount": len(posts), "routeIdsPresent": sorted(post_counts), "countsByRouteId": dict(sorted(post_counts.items())), "outputs": {"posts": str(post_path), "index": str(posts_output / "index.json")}}
-    road_index = [{"id": rid, "displayName": next((f["properties"].get("name") for f in fs if f["properties"].get("name")), rid), "entityType": "historical-road", "featureCount": len(fs)} for rid, fs in sorted(road_groups.items())]
-    post_index = [{"routeId": rid, "entityType": "historical-post", "count": count} for rid, count in sorted(post_counts.items())]
+    road_index = [{"id": rid, "displayName": next((f["properties"].get("name") for f in fs if f["properties"].get("name")), rid),
+                   "altName": next((f["properties"].get("altName") for f in fs if f["properties"].get("altName")), None),
+                   "start": next((f["properties"].get("start") for f in fs if f["properties"].get("start")), None),
+                   "end": next((f["properties"].get("end") for f in fs if f["properties"].get("end")), None),
+                   "entityType": "historical-road", "featureCount": len(fs)} for rid, fs in sorted(road_groups.items())]
+    post_index = [{key: post["properties"].get(key) for key in ("postId", "routeId", "name", "historicalLabel", "historicalPlaceId")}
+                  for post in posts]
     write_json(roads_output / "manifest.json", road_manifest); write_json(roads_output / "index.json", road_index)
     write_json(posts_output / "manifest.json", post_manifest); write_json(posts_output / "index.json", post_index)
     return road_manifest, post_manifest

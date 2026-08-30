@@ -10,6 +10,7 @@
     "payloadFormat": "geopackage",
     "archiveMember": "geopackage/edo-road-v4.gpkg",
     "extractedDirectory": "data/raw/codh/extracted/edo-road",
+    "layer": "road_codh_260731",
     "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "attribution": "Center for Open Data in the Humanities (CODH), ROIS-DS"
