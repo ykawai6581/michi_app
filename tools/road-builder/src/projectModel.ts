@@ -19,3 +19,11 @@ export function selectHistoricalRoute(project:ProjectConfig,routeId:string):Proj
   return next
 }
 export const serializeProject=(project:ProjectConfig)=>JSON.parse(JSON.stringify(project)) as ProjectConfig
+
+export type ProjectSavePlan={existing:boolean;method:'POST'|'PUT';path:string;saveLabel:string;buildLabel:string}
+export function projectSavePlan(projectId:string,existingIds:string[]):ProjectSavePlan{
+  const existing=existingIds.includes(projectId)
+  return existing
+    ?{existing,method:'PUT',path:`/api/projects/${projectId}`,saveLabel:'Update Project',buildLabel:'Update & Build'}
+    :{existing,method:'POST',path:'/api/projects',saveLabel:'Save Project',buildLabel:'Save & Build'}
+}

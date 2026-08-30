@@ -90,6 +90,13 @@ class ProjectBuilderTest(unittest.TestCase):
         self.assertEqual(manifest["featureCounts"]["railwayTracks"],2)
         # Route selectors remain complete and are not clipped to the derived bbox.
         self.assertEqual(manifest["featureCounts"]["historicalRoadFeatures"],1); self.assertEqual(manifest["featureCounts"]["historicalPosts"],2)
+    def test_rebuild_replaces_removed_layer_with_empty_browser_data(self):
+        output=self.root/"replace-output"; materialize_project(self.root,"demo",output)
+        self.assertEqual(len(json.loads((output/"data/railways.geojson").read_text())["features"]),2)
+        updated={**self.config,"layers":{key:value for key,value in self.config["layers"].items() if key!="railways"}}
+        self.write_config(updated); manifest=materialize_project(self.root,"demo",output)
+        self.assertEqual(json.loads((output/"data/railways.geojson").read_text())["features"],[])
+        self.assertEqual(manifest["featureCounts"]["railwayTracks"],0)
     def test_unsupported_family(self):
         self.write_config({**self.config,"layers":{**self.config["layers"],"coastline":[]}})
         with self.assertRaisesRegex(ProjectBuildError,"Unsupported layer family"): load_project_config(self.root,"demo")

@@ -84,6 +84,8 @@ def save_project(project: dict, existing_id: str | None = None, root: Path = ROO
     target = directory / "project.json"
     if existing_id is None and target.exists():
         raise RuntimeError(f"Project {project['id']!r} already exists")
+    if existing_id is not None and not target.is_file():
+        raise FileNotFoundError(f"Project {existing_id!r} does not exist and cannot be updated")
     directory.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=".project-", suffix=".json", dir=directory)
     try:

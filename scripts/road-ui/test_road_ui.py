@@ -155,8 +155,24 @@ class RoadBuilderTests(unittest.TestCase):
             self.assertEqual(road_ui.load_project("demo", root)["id"], "demo")
             project["displayName"] = "Updated"; road_ui.save_project(project, "demo", root)
             self.assertEqual(road_ui.load_project("demo", root)["displayName"], "Updated")
+            self.assertEqual(road_ui.list_projects(root), [{"id":"demo","displayName":"Updated"}])
             build.assert_not_called()
         self.assertEqual(registry.read_bytes(), before)
+        self.assertFalse(list((root / "projects/demo").glob(".project-*")))
+
+    def test_project_create_and_update_have_distinct_http_semantics(self):
+        root = Path(self.temp.name); (root / "projects").mkdir()
+        original = {"id":"demo","displayName":"Demo","bounds":[139,35,140,36],"layers":{"modernRoads":["one"]}}
+        road_ui.save_project(original, root=root)
+        with self.assertRaisesRegex(RuntimeError, "already exists"):
+            road_ui.save_project(original, root=root)
+        updated = {**original,"displayName":"Updated","layers":{"modernRoads":["two"],"stations":{"mode":"bbox"}}}
+        road_ui.save_project(updated, "demo", root)
+        self.assertEqual(road_ui.load_project("demo",root), updated)
+        with self.assertRaisesRegex(FileNotFoundError, "does not exist"):
+            road_ui.save_project({**updated,"id":"missing"}, "missing", root)
+        with self.assertRaisesRegex(ValueError, "cannot be changed"):
+            road_ui.save_project({**updated,"id":"renamed"}, "demo", root)
         self.assertFalse(list((root / "projects/demo").glob(".project-*")))
 
     def test_rejects_unsafe_project_ids(self):
