@@ -75,16 +75,73 @@ def line_length_km(geometry: dict) -> float:
     return total
 
 
-def download(path: Path, url: str, refresh: bool, opener=urllib.request.urlopen) -> bool:
-    """Atomically cache a configured official download; return whether downloaded."""
+def inspect_geopackage(path: Path, pyogrio_module=None) -> list[str]:
+    """Open a GeoPackage and return its named layers."""
+    if pyogrio_module is None:
+        try:
+            import pyogrio as pyogrio_module
+        except ImportError as error:
+            raise RuntimeError("Pyogrio is required to validate the CODH GeoPackage") from error
+    layers = [str(row[0]) for row in pyogrio_module.list_layers(path)]
+    if not layers:
+        raise ValueError("GeoPackage contains no readable layers")
+    return layers
+
+
+def validate_download(path: Path, config: dict, content_type: str | None, gpkg_inspector=inspect_geopackage) -> list[str]:
+    """Validate bytes against the configured format before publishing the raw cache."""
+    expected = config["format"]
+    with path.open("rb") as source:
+        prefix = source.read(512).lstrip().lower()
+    if prefix.startswith((b"<!doctype html", b"<html")) or "text/html" in (content_type or "").lower():
+        raise ValueError("response is an HTML document, not source data")
+    if expected == "geojson":
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(f"response is not valid JSON: {error}") from error
+        if document.get("type") != "FeatureCollection" or not isinstance(document.get("features"), list):
+            raise ValueError("JSON is not a GeoJSON FeatureCollection")
+        return []
+    if expected == "geopackage":
+        if not prefix.startswith(b"sqlite format 3\x00"):
+            raise ValueError("response does not have a GeoPackage/SQLite header")
+        return gpkg_inspector(path)
+    if expected == "zip-geopackage":
+        if not zipfile.is_zipfile(path):
+            raise ValueError("response is not a ZIP archive")
+        return []
+    raise ValueError(f"unsupported configured source format {expected!r}")
+
+
+def download(config: dict, refresh: bool, opener=urllib.request.urlopen, gpkg_inspector=inspect_geopackage) -> dict:
+    """Atomically download and validate one configured official dataset."""
+    path, url = Path(config["rawPath"]), config["downloadUrl"]
     if path.exists() and not refresh:
-        return False
+        layers = validate_download(path, config, None, gpkg_inspector)
+        return {"downloaded": False, "finalResponseUrl": None, "responseStatus": None,
+                "responseContentType": None, "sourceLayers": layers}
     path.parent.mkdir(parents=True, exist_ok=True); temporary = path.with_suffix(path.suffix + ".part")
     request = urllib.request.Request(url, headers={"User-Agent": "michi-app-source-preprocessor/1.0"})
-    with opener(request, timeout=360) as response, temporary.open("wb") as target:
-        shutil.copyfileobj(response, target)
-    temporary.replace(path)
-    return True
+    try:
+        with opener(request, timeout=360) as response, temporary.open("wb") as target:
+            status = getattr(response, "status", None) or getattr(response, "getcode", lambda: None)()
+            content_type = response.headers.get("Content-Type") if getattr(response, "headers", None) else None
+            final_url = getattr(response, "geturl", lambda: url)()
+            shutil.copyfileobj(response, target)
+        layers = validate_download(temporary, config, content_type, gpkg_inspector)
+        temporary.replace(path)
+        return {"downloaded": True, "finalResponseUrl": final_url, "responseStatus": status,
+                "responseContentType": content_type, "sourceLayers": layers}
+    except Exception as error:
+        temporary.unlink(missing_ok=True)
+        failure_status = getattr(error, "code", locals().get("status"))
+        failure_headers = getattr(error, "headers", None)
+        failure_content_type = (failure_headers.get("Content-Type") if failure_headers else None) or locals().get("content_type")
+        raise RuntimeError(
+            f"Failed to acquire {config['datasetName']} from {url}: expected {config['format']}; "
+            f"status={failure_status!r}, content-type={failure_content_type!r}: {error}"
+        ) from error
 
 
 def extract_configured_archive(archive: Path, output: Path, member: str) -> Path:
@@ -100,17 +157,31 @@ def extract_configured_archive(archive: Path, output: Path, member: str) -> Path
     return target
 
 
-def prepare_source(config: dict, refresh: bool, override: Path | None = None, opener=urllib.request.urlopen) -> tuple[Path, str | None, dict]:
+def prepare_source(config: dict, refresh: bool, override: Path | None = None, opener=urllib.request.urlopen,
+                   gpkg_inspector=inspect_geopackage) -> tuple[Path, str | None, dict]:
     """Download/cache and deterministically prepare one configured dataset."""
     raw = Path(override) if override else Path(config["rawPath"])
-    if not override:
-        download(raw, config["downloadUrl"], refresh, opener)
-    if raw.suffix.lower() == ".zip":
+    effective_format = config["format"]
+    if override:
+        effective_format = {".json": "geojson", ".geojson": "geojson", ".gpkg": "geopackage", ".zip": "zip-geopackage"}.get(raw.suffix.lower(), effective_format)
+    effective_config = {**config, "format": effective_format, "rawPath": str(raw)}
+    response = ({"sourceLayers": validate_download(raw, effective_config, None, gpkg_inspector)}
+                if override else download(config, refresh, opener, gpkg_inspector))
+    if effective_format == "zip-geopackage":
         extracted = raw.parent / "extracted" / raw.stem
         source = extract_configured_archive(raw, extracted, config["archiveMember"])
     else:
         source = raw
-    return source, config.get("layer"), {"rawPath": str(raw), "sourceFormat": raw.suffix.lstrip(".").upper(), "archiveMember": config.get("archiveMember")}
+    layers = response.get("sourceLayers", [])
+    layer = config.get("layer")
+    if effective_format == "geopackage" and not layer:
+        layers = layers or gpkg_inspector(source)
+        if len(layers) != 1:
+            raise RuntimeError(f"{config['datasetName']} GeoPackage has {layers}; configure the intended layer explicitly")
+        layer = layers[0]
+    return source, layer, {"rawPath": str(raw), "sourceFormat": effective_format,
+                           "archiveMember": config.get("archiveMember"), "finalResponseUrl": response.get("finalResponseUrl"),
+                           "responseStatus": response.get("responseStatus"), "responseContentType": response.get("responseContentType")}
 
 
 def run(roads_source: Path, posts_source: Path, roads_output: Path, posts_output: Path, metadata: dict,
@@ -131,6 +202,8 @@ def run(roads_source: Path, posts_source: Path, roads_output: Path, posts_output
     def provenance(config, source, crs, info, details):
         return {"datasetName": config["datasetName"], "provider": metadata["provider"], "landingPage": config["landingPage"],
                 "downloadUrl": config["downloadUrl"], "sourceUrl": config["downloadUrl"], "sourcePath": str(source),
+                "finalResponseUrl": details.get("finalResponseUrl"), "responseStatus": details.get("responseStatus"),
+                "responseContentType": details.get("responseContentType"),
                 "rawPath": details.get("rawPath", str(source)), "sourceFormat": details.get("sourceFormat", info["sourceFormat"]),
                 "sourceLayers": info["sourceLayers"], "archiveMember": details.get("archiveMember"), "sourceCrs": crs,
                 "normalizedCrs": metadata["normalizedCrs"], "license": config["license"], "licenseUrl": config["licenseUrl"],

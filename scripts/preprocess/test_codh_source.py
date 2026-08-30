@@ -6,10 +6,9 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-import zipfile
 
 sys.path.insert(0, str(Path(__file__).parent))
-from codh_source import download, extract_configured_archive, normalize_posts, normalize_roads, route_id, run
+from codh_source import download, normalize_posts, normalize_roads, prepare_source, route_id, run
 
 
 def road(rid, name, y=35):
@@ -22,6 +21,11 @@ def metadata():
 
 
 class Response(io.BytesIO):
+    status = 200
+    def __init__(self, value, content_type="application/octet-stream", final_url="https://cdn.example.test/final"):
+        super().__init__(value); self.headers = {"Content-Type": content_type}; self.final_url = final_url
+    def geturl(self): return self.final_url
+    def getcode(self): return self.status
     def __enter__(self): return self
     def __exit__(self, *args): self.close()
 
@@ -58,18 +62,35 @@ class CodhSourceTests(unittest.TestCase):
             self.assertEqual(rm["license"], "Creative Commons Attribution 4.0 International (CC BY 4.0)")
             self.assertEqual(rm["normalizedCrs"], "EPSG:4326"); self.assertEqual(rm["downloadUrl"], "https://example.test/data.zip")
 
-    def test_automatic_download_and_deterministic_archive_member(self):
+    def test_direct_geojson_download_validates_and_records_redirect(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=Path(temporary); archive=root/"source.zip"
-            calls=[]
-            def opener(request, timeout): calls.append(request.full_url); return Response(b"download")
-            self.assertTrue(download(archive, "https://example.test/source.zip", False, opener))
-            self.assertEqual(archive.read_bytes(), b"download"); self.assertEqual(calls, ["https://example.test/source.zip"])
-            with zipfile.ZipFile(archive, "w") as target:
-                target.writestr("nested/roads.gpkg", b"gpkg"); target.writestr("other.gpkg", b"wrong")
-            extracted = extract_configured_archive(archive, root/"extracted", "roads.gpkg")
-            self.assertEqual(extracted.read_bytes(), b"gpkg")
-            with self.assertRaises(RuntimeError): extract_configured_archive(archive, root/"bad", "missing.gpkg")
+            path=Path(temporary)/"posts.geojson"; payload=json.dumps({"type":"FeatureCollection","features":[]}).encode()
+            config={"datasetName":"posts","downloadUrl":"https://example.test/posts","rawPath":str(path),"format":"geojson"}
+            result=download(config, False, lambda request, timeout: Response(payload, "application/geo+json"))
+            self.assertEqual(json.loads(path.read_text())["type"], "FeatureCollection")
+            self.assertEqual(result["finalResponseUrl"], "https://cdn.example.test/final")
+            self.assertEqual(result["responseContentType"], "application/geo+json")
+
+    def test_geopackage_download_is_opened_and_layer_selected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)/"roads.gpkg"; body=b"SQLite format 3\x00" + b"fixture"
+            config={"datasetName":"roads","downloadUrl":"https://example.test/roads","rawPath":str(path),"format":"geopackage"}
+            inspected=[]
+            def inspector(candidate): inspected.append(candidate.read_bytes()); return ["official_roads"]
+            source, layer, details=prepare_source(config, True, opener=lambda request, timeout: Response(body, "application/geopackage+sqlite3"), gpkg_inspector=inspector)
+            self.assertEqual(source, path); self.assertEqual(layer, "official_roads")
+            self.assertEqual(inspected, [body]); self.assertEqual(details["sourceFormat"], "geopackage")
+
+    def test_html_and_invalid_zip_are_rejected_and_temporary_removed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            for expected, body, content_type in [("geojson", b"<html>404</html>", "text/html"), ("zip-geopackage", b"not zip", "application/zip")]:
+                path=root/f"source-{expected}.dat"; path.write_bytes(b"existing-valid-cache")
+                config={"datasetName":f"fixture {expected}","downloadUrl":"https://example.test/bad","rawPath":str(path),"format":expected}
+                with self.subTest(expected=expected), self.assertRaisesRegex(RuntimeError, f"fixture {expected}.*expected {expected}"):
+                    download(config, True, lambda request, timeout, b=body, c=content_type: Response(b, c))
+                self.assertEqual(path.read_bytes(), b"existing-valid-cache")
+                self.assertFalse(path.with_suffix(path.suffix+".part").exists())
 
 
 if __name__ == "__main__": unittest.main()

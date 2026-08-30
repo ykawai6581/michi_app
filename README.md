@@ -134,9 +134,11 @@ Stations and halts form a separate point layer. Points remain unchanged; polygon
 source geometry type. Only repeated copies of the same OSM element ID are removed—similar names and broad authority
 identifiers never cause a merge.
 
-CODH metadata, official download URLs, archive members/layers, and raw paths are in `data/sources/codh.json`. The normal
-command downloads the official 江戸主要街道 and 江戸宿場 archives when absent, keeps the ZIP files under the gitignored
-`data/raw/codh/` tree, deterministically extracts the configured GeoPackage member, and reads the configured layer:
+CODH metadata, official download URLs, formats, and raw paths are in `data/sources/codh.json`. The normal command
+downloads the current official **江戸主要街道 version 4** GeoPackage and **江戸宿場 version 1** GeoJSON when absent,
+validates each response before atomically publishing it under the gitignored `data/raw/codh/` tree, and then normalizes
+the source. The road GeoPackage's sole named layer is selected explicitly after inspection; the post source is direct
+GeoJSON, not a fabricated ZIP or GeoPackage:
 
 ```bash
 python scripts/preprocess/preprocess-codh.py
