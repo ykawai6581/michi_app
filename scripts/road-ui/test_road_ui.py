@@ -143,6 +143,51 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertEqual(Path(command[1]).name, "build-road.py")
         self.assertNotIsInstance(command, str)
 
+    def test_project_crud_is_atomic_and_does_not_build_or_touch_registry(self):
+        root = Path(self.temp.name); (root / "projects").mkdir()
+        registry = root / "data/roads/registry.json"; registry.parent.mkdir(parents=True)
+        registry.write_text('{"roads": []}')
+        project = {"id":"demo", "displayName":"Demo", "bounds":[139,35,140,36], "layers":{}}
+        before = registry.read_bytes()
+        with patch.object(road_ui, "build_project") as build:
+            road_ui.save_project(project, root=root)
+            self.assertEqual(road_ui.list_projects(root), [{"id":"demo","displayName":"Demo"}])
+            self.assertEqual(road_ui.load_project("demo", root)["id"], "demo")
+            project["displayName"] = "Updated"; road_ui.save_project(project, "demo", root)
+            self.assertEqual(road_ui.load_project("demo", root)["displayName"], "Updated")
+            build.assert_not_called()
+        self.assertEqual(registry.read_bytes(), before)
+        self.assertFalse(list((root / "projects/demo").glob(".project-*")))
+
+    def test_rejects_unsafe_project_ids(self):
+        for value in ("../bad", "/bad", "bad/name", "Bad"):
+            with self.assertRaises(ValueError): road_ui.validate_project_id(value)
+
+    def test_project_catalog_status_and_routes_are_resilient(self):
+        root = Path(self.temp.name); (root / "data/roads").mkdir(parents=True)
+        (root / "data/roads/registry.json").write_text(json.dumps({"roads":[{"id":"built","displayName":"Built"},{"id":"missing","displayName":"Missing"}]}))
+        (root / "public/data/roads").mkdir(parents=True); (root / "public/data/roads/built-n13.geojson").write_text("{}")
+        missing = road_ui.project_catalog(root)
+        self.assertEqual([r["built"] for r in missing["modernRoads"]], [True, False])
+        self.assertFalse(missing["availability"]["codh"]["ready"]); self.assertFalse(missing["availability"]["rail"]["ready"])
+        index = root / "data/cache/codh/edo-roads/index.json"; index.parent.mkdir(parents=True)
+        index.write_text(json.dumps([{"routeId":"R003","name":"甲州道中","altName":"甲州街道"}]))
+        self.assertEqual(road_ui.project_catalog(root)["historicalRoutes"][0]["routeId"], "R003")
+
+    @patch.object(road_ui, "ROOT")
+    def test_project_build_reuses_materializer_and_preview_returns_layers(self, _):
+        root = Path(self.temp.name); (root / "scripts").mkdir()
+        manifest = {"featureCounts":{"modernRoads":1},"bounds":[139,35,140,36]}
+        fake = Mock(); fake.materialize_project.return_value = manifest
+        with patch.dict("sys.modules", {"project_builder":fake}):
+            result = road_ui.build_project("demo", root)
+        fake.materialize_project.assert_called_once_with(root, "demo"); self.assertEqual(result["counts"]["modernRoads"], 1)
+        output = root / "public/projects/demo/data"; output.mkdir(parents=True)
+        (output.parent / "manifest.json").write_text(json.dumps(manifest))
+        for name in ("modern-roads","railways","stations","historical-roads","historical-posts"):
+            (output / f"{name}.geojson").write_text('{"type":"FeatureCollection","features":[]}')
+        self.assertEqual(road_ui.project_preview("demo", root)["manifest"]["bounds"], [139,35,140,36])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadProject, PROJECT_FILES } from './project'
+import { loadProject, PROJECT_FILES, resolveProjectId } from './project'
 
 describe('project loading', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -18,4 +18,16 @@ describe('project loading', () => {
     const project = await loadProject()
     expect(project.searchable.map((feature) => feature.properties.type)).toEqual(['road','station','historical-road','historical-place'])
   })
+  it('loads an explicit project ID consistently', async () => {
+    const fetchMock = vi.fn(async () => ({ ok:true, json:async()=>({type:'FeatureCollection',features:[]}) }))
+    vi.stubGlobal('fetch',fetchMock);await loadProject('koshu-video')
+    expect(fetchMock.mock.calls.every((call)=>String((call as unknown[])[0]).includes('/projects/koshu-video/'))).toBe(true)
+  })
+  it('resolves safe URL IDs and defaults unsafe or missing IDs',()=>{
+    expect(resolveProjectId('?project=foo')).toBe('foo')
+    expect(resolveProjectId('')).toBe('shinjuku')
+    expect(resolveProjectId('?project=../secret')).toBe('shinjuku')
+    expect(resolveProjectId('?project=/absolute')).toBe('shinjuku')
+  })
+  it('rejects an unsafe explicit ID',async()=>{await expect(loadProject('../secret')).rejects.toThrow('Unsafe project ID')})
 })

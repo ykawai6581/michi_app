@@ -53,6 +53,23 @@ Python API and the separate Road Builder Vite application with:
 npm run road-builder
 ```
 
+Road Builder is the preferred local authoring interface for both canonical roads and reproducible map/video
+projects. Use the **Roads / Projects** tabs without changing the existing road-matching workflow. The normal project
+workflow is: **Projects → New project → choose modern roads → choose railways/stations → choose historical routes
+and 宿場 → Save & Build → preview**. The project editor writes an atomic `projects/<id>/project.json`; ordinary Save
+does not materialize output, while Save & Build calls the canonical `project_builder.materialize_project()` pipeline
+and previews the browser-ready files from `public/projects/<id>/`.
+
+Missing rail or CODH caches are reported in the catalog without preventing road editing. Run the preprocessing
+command shown in the editor when those layers are needed. The production viewer accepts `?project=<id>` (and safely
+defaults to `shinjuku`), so a built project can be opened at `http://localhost:5173/?project=my-project`.
+
+Project configurations remain the reproducible source of truth and the CLI remains supported:
+
+```bash
+python scripts/build-project.py shinjuku
+```
+
 Open **http://127.0.0.1:5174**. The API listens only on `http://127.0.0.1:8765`; the development Vite server proxies
 `/api` to it. The intended workflow is **New Road → Inspect OSM → Analyze N13 → Preview Match → Save & Build**.
 

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import geopandas as gpd
@@ -30,6 +33,110 @@ MATCHER = _module("road_builder_matcher", "match-road.py")
 PREPROCESSOR = _module("road_builder_preprocessor", "preprocess-n13.py")
 REGISTRY = ROOT / "data/roads/registry.json"
 SOURCES = ROOT / "data/roads/sources.json"
+PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def validate_project_id(project_id: str) -> str:
+    if not isinstance(project_id, str) or not PROJECT_ID.fullmatch(project_id):
+        raise ValueError("Project ID must match ^[a-z0-9][a-z0-9-]*$")
+    return project_id
+
+
+def list_projects(root: Path = ROOT) -> list[dict]:
+    result = []
+    for path in sorted((root / "projects").glob("*/project.json")):
+        try:
+            project = json.loads(path.read_text(encoding="utf-8"))
+            project_id = validate_project_id(project.get("id"))
+            if path.parent.name == project_id:
+                result.append({"id": project_id, "displayName": project.get("displayName", project_id)})
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            continue
+    return result
+
+
+def load_project(project_id: str, root: Path = ROOT) -> dict:
+    validate_project_id(project_id)
+    return json.loads((root / "projects" / project_id / "project.json").read_text(encoding="utf-8"))
+
+
+def _validate_project(project: dict, expected_id: str | None = None) -> dict:
+    if not isinstance(project, dict):
+        raise ValueError("Project must be an object")
+    project_id = validate_project_id(project.get("id"))
+    if expected_id is not None and project_id != expected_id:
+        raise ValueError("Project ID cannot be changed while editing")
+    if not isinstance(project.get("displayName"), str) or not project["displayName"].strip():
+        raise ValueError("Display name is required")
+    layers = project.get("layers")
+    if not isinstance(layers, dict):
+        raise ValueError("Project layers must be an object")
+    # Reuse canonical validation after writing by using its public loader; the
+    # structural checks below keep Save independent from materialization.
+    if set(layers) - {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}:
+        raise ValueError("Project contains an unsupported layer")
+    return project
+
+
+def save_project(project: dict, existing_id: str | None = None, root: Path = ROOT) -> dict:
+    project = _validate_project(project, existing_id)
+    directory = root / "projects" / project["id"]
+    target = directory / "project.json"
+    if existing_id is None and target.exists():
+        raise RuntimeError(f"Project {project['id']!r} already exists")
+    directory.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=".project-", suffix=".json", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            json.dump(project, output, ensure_ascii=False, indent=2)
+            output.write("\n"); output.flush(); os.fsync(output.fileno())
+        os.replace(temporary, target)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    return project
+
+
+def project_catalog(root: Path = ROOT) -> dict:
+    registry = json.loads((root / "data/roads/registry.json").read_text(encoding="utf-8"))
+    roads = [{"id": road["id"], "displayName": road.get("displayName", road["id"]),
+              "aliases": road.get("aliases", []),
+              "built": (root / "public/data/roads" / f"{road['id']}-n13.geojson").is_file()}
+             for road in registry.get("roads", [])]
+    codh_index = root / "data/cache/codh/edo-roads/index.json"
+    rail_paths = [root / "data/cache/osm/rail/tracks.parquet", root / "data/cache/osm/rail/stations.parquet"]
+    historical = []
+    if codh_index.is_file():
+        try:
+            historical = [{key: item.get(key) for key in ("routeId", "name", "altName", "start", "end") if item.get(key) is not None}
+                          for item in json.loads(codh_index.read_text(encoding="utf-8"))]
+        except (OSError, json.JSONDecodeError, TypeError):
+            historical = []
+    return {"modernRoads": roads, "historicalRoutes": historical,
+            "availability": {
+                "codh": {"ready": codh_index.is_file(), "command": "python scripts/preprocess/preprocess-codh.py"},
+                "rail": {"ready": all(path.is_file() for path in rail_paths), "command": "python scripts/preprocess/preprocess-rail.py"},
+            }}
+
+
+def build_project(project_id: str, root: Path = ROOT) -> dict:
+    validate_project_id(project_id)
+    sys.path.insert(0, str(root / "scripts"))
+    import project_builder
+    manifest = project_builder.materialize_project(root, project_id)
+    return {"manifest": manifest, "counts": manifest.get("featureCounts", {})}
+
+
+def project_preview(project_id: str, root: Path = ROOT) -> dict:
+    validate_project_id(project_id)
+    output = root / "public/projects" / project_id
+    manifest_path = output / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"Built project preview missing for {project_id!r}; use Save & Build")
+    names = {"modernRoads":"modern-roads", "railways":"railways", "stations":"stations",
+             "historicalRoads":"historical-roads", "historicalPosts":"historical-posts"}
+    return {"manifest": json.loads(manifest_path.read_text(encoding="utf-8")),
+            "layers": {family: json.loads((output / "data" / f"{name}.geojson").read_text(encoding="utf-8"))
+                       for family, name in names.items()}}
 
 
 def metadata(sources: Path = SOURCES) -> dict:
