@@ -1,0 +1,50 @@
+{
+  "acquiredAt": "2026-08-30T09:31:20.121232+00:00",
+  "acquisitionMethod": "overpass",
+  "crs": "EPSG:4326",
+  "datasetName": "Tokyo OpenStreetMap rail",
+  "featureCounts": {
+    "stations": 1238,
+    "tracks": 17556
+  },
+  "outputs": {
+    "index": "data/cache/osm/rail/index.json",
+    "stations": "data/cache/osm/rail/stations.parquet",
+    "tracks": "data/cache/osm/rail/tracks.parquet"
+  },
+  "provenance": {
+    "license": "ODbL 1.0",
+    "provider": "OpenStreetMap contributors",
+    "source": "data/raw/osm/tokyo-rail-overpass.json",
+    "url": "https://www.openstreetmap.org/copyright"
+  },
+  "selection": {
+    "includedStationRailwayValues": [
+      "station",
+      "halt"
+    ],
+    "includedTrackRailwayValues": [
+      "rail",
+      "subway",
+      "light_rail",
+      "tram"
+    ],
+    "policy": "Selection is based on configured railway values. Included infrastructure is retained regardless of service/usage; yard, siding and spur tracks are not removed. Unconfigured values such as proposed, construction, abandoned and disused are excluded."
+  },
+  "sourceDate": null,
+  "sourceFormat": "Overpass JSON",
+  "sourceLayersRead": [],
+  "sourceType": "openstreetmap",
+  "trackCountsByRailway": {
+    "light_rail": 160,
+    "rail": 15498,
+    "subway": 1845,
+    "tram": 53
+  },
+  "workingBoundsWgs84": [
+    138.9,
+    35.45,
+    140.0,
+    35.95
+  ]
+}

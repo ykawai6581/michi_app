@@ -1,0 +1,9142 @@
+[
+  {
+    "name": "16番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "17番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "18番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "19番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "20番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "21番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "22番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "23番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "24番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "25番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "26番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "27番線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "JR中央・総武緩行線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR中央線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR京浜東北線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR京葉線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR京葉線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR京葉線 (JR Keiyō Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR京葉線;葛西臨海公園;1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR京葉線;葛西臨海公園;2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR内房線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線 (Nambu Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線;府中本町;1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線;府中本町;4番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線;稲城長沼;1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線;稲城長沼;2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線;稲城長沼;3番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR南武線;稲城長沼;4番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR埼京線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR埼京線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR埼京線 (JR Saikyo Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR東北本線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR東北本線 (JR Tohoku Mainline)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR東北本線 (貨物線)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR東北本線 (貨物線)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR東北本線（貨物線）",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR東北線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR東北線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR東海道新幹線",
+    "network": null,
+    "operator": "東海旅客鉄道"
+  },
+  {
+    "name": "JR横浜線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR横浜線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR横浜線 (JR Yokohama Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR横浜線;橋本;1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR横浜線;橋本;2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR横浜線;橋本;3番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR横須賀線 (JR Yokosuka Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR武蔵野線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR武蔵野線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR武蔵野線 (JR Musashino Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR武蔵野線 (JR Musashino Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR武蔵野線;百村トンネル",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR湘南新宿ライン",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR相模線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR相模線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR相模線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR相模線 (JR Sagami line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR相模線;橋本;4番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR相模線;橋本;5番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR総武線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR青梅短絡線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR青梅線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR青梅線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "JR高崎線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR高崎線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR高崎線 (JR Takasaki line)",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR鶴見線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR鶴見線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR鶴見線 大川支線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "JR鶴見線 大川支線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "JR鶴見線 海芝浦支線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "Keihin Kyuuko Line (京浜急行線)",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "Keihin-Kyuuko-Line (京浜急行線);京浜急行電鉄本線",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "MC線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "Y線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "あざみ野",
+    "network": "東急田園都市線",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "あざみ野",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "お台場海浜公園",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "お花茶屋",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "かしわ台",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "くぬぎ山",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "こどもの国",
+    "network": "こどもの国線",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "さいたま新都心",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "さがみ野",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "すずかけ台",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "せんげん台",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "たまプラーザ",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "つきみ野",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "つくし野",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "つくばエクスプレス",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "つつじヶ丘",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "とうきょうスカイツリー",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "ときわ台",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "はくぶつかんきた",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "はくぶつかんちゅうおう",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "はるひ野",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "ひばりヶ丘",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "ふじみ野",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "みずほ台",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "みなとみらい",
+    "network": null,
+    "operator": "横浜高速鉄道"
+  },
+  {
+    "name": "みのり台",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "めじろ台",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "ゆりかもめ",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "ゆりかもめ",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "ゆりかもめ (Yurikamome)",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "ゆりかもめ (Yurikamome)",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "アメリカンウォーターフロント・ステーション",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "ウエスタンリバー鉄道",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "コンテナ10番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ12番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ13番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ14番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ15番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ16番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ16番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ17番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ18番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ18番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ21番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ3番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ5番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ6番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ8番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ9番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "コンテナ9番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "コンテナ荷役10番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "コンテナ荷役11番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "コンテナ荷役14番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "コンテナ荷役15番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "コンテナ荷役16番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "センター北",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "センター南",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "センター線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "ダム上 山頂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "ダム下 山麓",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "テレコムセンター",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "ブルーライン",
+    "network": null,
+    "operator": "横浜市"
+  },
+  {
+    "name": "ベイサイド・ステーション",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "ポートディスカバリー・ステーション",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "モノレール浜松町",
+    "network": "東京モノレール",
+    "operator": "モノレール浜松町"
+  },
+  {
+    "name": "リゾートゲートウェイ・ステーション",
+    "network": "ディズニーリゾートライン",
+    "operator": "舞浜リゾートライン"
+  },
+  {
+    "name": "一之江",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "一本松",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "一橋学園",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "七里",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "万願寺",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "三ツ境",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "三ツ沢上町",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "三ツ沢下町",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "三ノ輪",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "三ノ輪橋",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "三河島",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "三田",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "三越前",
+    "network": "Tokyo Metro Ginza Line",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "三越前",
+    "network": "東京メトロ半蔵門線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "三軒茶屋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "三軒茶屋",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "三郷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "三郷中央",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "三鷹",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "三鷹台",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "上り15番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り引上線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上り引上線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り機引上線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上り機待機1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り機待機2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り機待機3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "上り着発1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上下着発2番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上下着発3番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上中里",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "上井草",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上北台",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "上北沢",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上大月",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "上星川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "上本郷",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "上板橋",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "上溝",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "上町",
+    "network": "東急世田谷線",
+    "operator": "東急"
+  },
+  {
+    "name": "上石神井",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "上福岡",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "上越新幹線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "上野",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "上野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "上野原",
+    "network": null,
+    "operator": "JR東日本"
+  },
+  {
+    "name": "上野広小路",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "上野御徒町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "上野毛",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "下り10番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り9番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り到着線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "下り到着線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り引上線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "下り機待1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "下り機待1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り機待2番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "下り機待2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "下り着発4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "下丸子",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "下井草",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "下北沢",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "下北沢",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "下山口",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "下板橋",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "下溝",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "下神明",
+    "network": "東急電鉄",
+    "operator": null
+  },
+  {
+    "name": "下総中山",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "下落合",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "下赤塚",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "下高井戸",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "不動前",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "与野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "与野本町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "世田谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "世田谷代田",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "両国",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "両国",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "中井",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "中井",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "中央・総武緩行線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中央大学・明星大学",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "中央本線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中央林間",
+    "network": "小田急江ノ島線",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "中央林間",
+    "network": "東急田園都市線",
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "中央線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中央緩行線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中山",
+    "network": "JR横浜線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中山",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "中川",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "中延",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "中延",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "中村橋",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "中板橋",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "中河原",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "中浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中目黒",
+    "network": null,
+    "operator": "東京急行電鉄;東京地下鉄"
+  },
+  {
+    "name": "中神",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "中野",
+    "network": null,
+    "operator": "東日本旅客鉄道;東京地下鉄"
+  },
+  {
+    "name": "中野坂上",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "中野坂上",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "中野富士見町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "中野島",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "中野新橋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "乃木坂",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "久が原",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "久地",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "久我山",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "久米川",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "九品仏",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "九段下",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "九段下",
+    "network": "都営地下鉄新宿線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "亀戸",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "亀戸",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "亀戸水神",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "亀有",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "二俣尾",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "二俣川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "二俣新町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "二子新地",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "二子玉川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "二重橋前〈丸の内〉",
+    "network": "千代田線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "五反田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "五反田",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "五反田",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "五反野",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "五日市線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "五日市線 (Itsukaichi Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "五月台",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "五香",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "井の頭公園",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "井荻",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "京急川崎",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京急新子安",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京急東神奈川",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京急蒲田",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京急鶴見",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京成上野",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成中山",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成八幡",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成小岩",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成曳舟",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成本線",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成本線",
+    "network": null,
+    "operator": "京成電鉄 (Keisei Electric Railway)"
+  },
+  {
+    "name": "京成松戸線",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成立石",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成船橋",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成西船",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成金町",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成金町線",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成関屋",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成電鉄押上線",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成電鉄押上線",
+    "network": "京成電鉄",
+    "operator": "京成電鉄株式会社"
+  },
+  {
+    "name": "京成電鉄本線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京成電鉄本線",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成電鉄本線 (Keisei Main Line)",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京成電鉄本線 (Keisei Main Line)",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "京成電鉄本線 (Keisei Main Line)",
+    "network": null,
+    "operator": "京成電鉄 (Keisei Electric Railway)"
+  },
+  {
+    "name": "京成電鉄金町線 (Keisei Kanamachi Line)",
+    "network": null,
+    "operator": "京成電鉄 (Keisei Electric Railway)"
+  },
+  {
+    "name": "京成高砂",
+    "network": "京成;北総",
+    "operator": "京成電鉄;北総鉄道"
+  },
+  {
+    "name": "京橋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "京浜急行線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京浜急行線",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京浜急行線",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "京浜急行電鉄大師線",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京浜急行電鉄大師線",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "京浜急行電鉄大師線 (Keikyū Daishi Line)",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "京浜急行電鉄本線",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京浜急行電鉄本線 (Keikyū Main Line)",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京浜急行電鉄空港線",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "京浜東北線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "京浜東北線 (Keihin-Tohoku Line)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "京浜東北線 (Keihin-tōhoku-sen)",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京浜東北線;佐久間架道橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "京王よみうりランド",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王八王子",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王堀之内",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王多摩センター",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王多摩川",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王新線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王新線;笹塚;2番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王新線;笹塚;3番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王永山",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王片倉",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王相模原線;京王多摩センター;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王相模原線;京王多摩センター;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王相模原線;京王多摩センター;3番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王相模原線;京王多摩センター;4番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王稲田堤",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄井の頭線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄井の頭線 (Keio railway Inokashira line)",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄井の頭線;三鷹台1号踏切",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄井の頭線;三鷹台;1番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄井の頭線;三鷹台;2番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線 (Keio Railway Keio Line)",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線 (Keio Railway Keio Line)",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;つつじヶ丘;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;つつじヶ丘;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;つつじヶ丘;3番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;つつじヶ丘;4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;下高井戸;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;下高井戸;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;八幡山;0番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;八幡山;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;八幡山;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;八幡山;3番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;北野;2番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;北野;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;北野;3番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;北野;4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;多磨霊園;1番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;多磨霊園;2番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;府中;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;府中;2番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;府中;3番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;府中;4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;東府中;2番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;東府中;3番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;東府中;4番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;桜上水;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;桜上水;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;桜上水;3番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;桜上水;4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;笹塚;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;笹塚;4番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;飛田給;1番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;飛田給;2番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;飛田給;3番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄京王線;高幡不動;2番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;高幡不動;3番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄京王線;高幡不動;4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄京王線;高幡不動;5番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄動物園線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄動物園線;高幡不動;1番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄相模原線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線 (Keio Railway Sagamihara Line)",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;京王よみうりランド;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;京王よみうりランド;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;京王多摩川;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;京王多摩川;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;橋本;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;橋本;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;稲城;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;若葉台;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄相模原線;若葉台;2番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;若葉台;3番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京王電鉄相模原線;若葉台;4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄競馬場線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄競馬場線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄競馬場線;府中競馬正門前;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄競馬場線;府中競馬正門前;2番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄競馬場線;東府中;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄高尾線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄高尾線;北野;1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "京王電鉄高尾線;北野;1番線",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "京王電鉄高尾線;北野;1番線",
+    "network": null,
+    "operator": "京王電鉄 (Keio railway)"
+  },
+  {
+    "name": "京葉臨海鉄道臨海本線 京葉久保田支線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "人形町",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "人形町",
+    "network": "都営地下鉄",
+    "operator": null
+  },
+  {
+    "name": "仏子",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "仕業1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕業1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "仕業2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕業2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "仕訳10番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳11番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳12番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳13番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳14番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳15番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仕訳9番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "仙川",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "代々木",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "代々木",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "代々木上原",
+    "network": "小田急線;千代田線",
+    "operator": "小田急電鉄;東京地下鉄"
+  },
+  {
+    "name": "代々木八幡",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "代々木公園",
+    "network": "千代田線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "代官山",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "代田橋",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "仲御徒町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "仲町台",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "伊勢崎線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "伊勢崎線",
+    "network": null,
+    "operator": "東武鉄道 (Tobu Railway)"
+  },
+  {
+    "name": "住吉",
+    "network": null,
+    "operator": "東京地下鉄;東京都交通局"
+  },
+  {
+    "name": "保谷",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "信濃町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "修繕線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "元住吉",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "元加治",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "元山",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "光が丘",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "入場線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "入曽",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "入谷",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "入谷",
+    "network": "相模線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "入間市",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "八丁堀",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "八丁堀",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "八丁畷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "八丁畷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "八坂",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "八幡山",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "八広",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "八柱",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "八潮",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "八王子",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "八王子みなみ野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "八高線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "公園入口駅",
+    "network": null,
+    "operator": "東京都北区"
+  },
+  {
+    "name": "六実",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "六本木",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "六本木",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "六本木一丁目",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "六町",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "六郷土手",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "内幸町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "出場線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "出発1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "出発2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "分倍河原",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "分倍河原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "初台",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "初石",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "到着1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着7番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "到着機回線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着機待1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "到着留置線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "加茂宮",
+    "network": null,
+    "operator": "埼玉新都市交通"
+  },
+  {
+    "name": "勝どき",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "北与野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北八王子",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "北初富",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "北千住",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "北千住",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北千住",
+    "network": null,
+    "operator": "東武鉄道;東京地下鉄"
+  },
+  {
+    "name": "北千住",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "北千束",
+    "network": "東急電鉄",
+    "operator": null
+  },
+  {
+    "name": "北参道",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "北品川",
+    "network": "Keikyu Main Line",
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "北国分",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "北大宮",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "北小金",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北小金支線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北小金支線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "北山田",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "北府中",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北戸田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北新横浜",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "北朝霞",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北松戸",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北柏",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北池袋",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "北浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北綾瀬",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "北総線",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "北総線・京成成田空港線",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "北総鉄道",
+    "network": null,
+    "operator": "北総鉄道 (Hokusō Railway)"
+  },
+  {
+    "name": "北総鉄道 (Hokusō Railway)",
+    "network": null,
+    "operator": "北総鉄道 (Hokusō Railway)"
+  },
+  {
+    "name": "北赤羽",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "北越谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "北野",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "十日市場",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "十条",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "千住大橋",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "千川",
+    "network": null,
+    "operator": "東京メトロ"
+  },
+  {
+    "name": "千歳烏山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "千歳船橋",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "千石",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "千駄ケ谷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "千駄木",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "千鳥町",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "千鳥町",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "半蔵門",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "南万騎が原",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "南与野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南千住",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "南千住",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南千住",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "南古谷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南多摩",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南大塚",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "南大沢",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "南平",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "南新宿",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "南林間",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "南柏",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南橋本",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南流山",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南流山",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "南浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南町田グランベリーパーク",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "南砂町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "南船橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南行徳",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "南越谷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "南阿佐ケ谷",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "南鳩ヶ谷",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "原宿",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "原当麻",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "原木中山",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "参宮橋",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "反町",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "収納線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "古淵",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "古里",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "台場",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "吉川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "吉川美南",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "吉祥寺",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "吉祥寺",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "向ヶ丘遊園",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "向原",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "向河原",
+    "network": "南武線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "吾野",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "和光市",
+    "network": "東京メトロ副都心線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "和光市",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "和泉多摩川",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "和田町",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "品川",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "品川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "品川",
+    "network": "東海道新幹線",
+    "operator": "JR東海"
+  },
+  {
+    "name": "品川シーサイド",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "唐木田",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "喜多見",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "四ツ木",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "四ツ谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "四ツ谷",
+    "network": "ロ丸ノ内線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "四方津",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "四谷三丁目",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "国会議事堂前",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "国会議事堂前",
+    "network": "千代田線, 丸ノ内線, 銀座線, 南北線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "国分寺",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "国分寺",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "国府台",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "国立",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "国立競技場",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "国道",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "国際展示場",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "国領",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "土呂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "地下鉄成増",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "地下鉄赤塚",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "埼玉新都市交通伊奈線",
+    "network": null,
+    "operator": "埼玉新都市交通"
+  },
+  {
+    "name": "埼玉高速鉄道線",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "堀切",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "堀切菖蒲園",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "塚田",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "増尾",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "外苑前",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "多摩センター",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "多摩動物公園",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "多摩動物公園",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "多摩境",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "多摩川",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "多摩湖",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "多磨",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "多磨霊園",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "大久保",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大井町",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "大井町",
+    "network": "京浜東北線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大井町",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "大井競馬場前",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "大倉山",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "大口",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大和",
+    "network": "小田急江ノ島線",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "大和",
+    "network": "相鉄本線",
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "大和田",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "大塚",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大塚・帝京大学",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "大塚駅前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "大宮",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大宮",
+    "network": "東北新幹線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大宮",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "大宮公園",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "大山",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "大岡山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "大島",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "大崎",
+    "network": "りんかい線",
+    "operator": "東日本旅客鉄道;東京臨海高速鉄道"
+  },
+  {
+    "name": "大崎広小路",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "大崎支線（蛇窪支線）",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大崎支線（蛇窪支線）",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "大川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大師前",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "大師橋",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "大手町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "大手町",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "大手町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "大月",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "大月",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大森",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "大森海岸",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "大森町",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "大泉学園",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "大田",
+    "network": null,
+    "operator": "東日本旅客鉄道株式会社"
+  },
+  {
+    "name": "大町",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "大神宮下",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "大袋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "大門",
+    "network": "大江戸線",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "大門",
+    "network": "浅草線",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "大鳥居",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "天王洲アイル",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "天王洲アイル",
+    "network": "東京モノレール",
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "天王町",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "天空橋",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "天空橋",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "奥多摩",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "奥沢",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "妙典",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "妙蓮寺",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "子安",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "学習院下",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "学芸大学",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "安善",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "宝町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "宮の坂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "宮ノ前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "宮ノ平",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "宮前平",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "宮原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "宮崎台",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "宿河原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "富士急行線",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "富士見ヶ丘",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "富士見台",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "寺務所",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "小伝馬町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "小作",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "小台",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "小宮",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "小岩",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "小島新田",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "小川",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "小川町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "小平",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "小手指",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "小机",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "小村井",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "小田急多摩センター",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急小田原線",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急永山",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急相模原",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急電鉄 小田原線",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急電鉄多摩線",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急電鉄多摩線",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄多摩線 (Odakyu Electric Railway Tama Line)",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄多摩線 (Odakyu Electric Railway Tama line)",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄小田原線",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急電鉄小田原線",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄小田原線 (Odakyu Electric Railway Odawara Line",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄小田原線 (Odakyu Electric Railway Odawara Line)",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄小田原線(緩行線)",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田急電鉄小田原線(緩行線)",
+    "network": null,
+    "operator": "小田急電鉄 (Odakyu Electric Railway)"
+  },
+  {
+    "name": "小田急電鉄江ノ島線",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "小田栄",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "小竹向原",
+    "network": null,
+    "operator": "西武鉄道;東京地下鉄"
+  },
+  {
+    "name": "小菅",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "小金城趾",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "尻手",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "尻手短絡線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "尾久",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "尾山台",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "山下",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "山手線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "山手線;佐久間架道橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "山手線;新宿大ガード",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "山手貨物線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "山梨リニア実験線",
+    "network": null,
+    "operator": "東海旅客鉄道株式会社"
+  },
+  {
+    "name": "山梨リニア実験線",
+    "network": "JR",
+    "operator": "東海旅客鉄道株式会社"
+  },
+  {
+    "name": "山田",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "山頂駅",
+    "network": null,
+    "operator": "東京都北区"
+  },
+  {
+    "name": "岩本町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "岸根公園",
+    "network": null,
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "川井",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "川口",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "川口元郷",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "川和町",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "川崎",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "川崎大師",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "川崎新町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "川崎貨物",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "川角",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "川越",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "川越",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "川越市",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "川越線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "川越線 (貨物線)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "巣鴨",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "巣鴨",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "巣鴨新田",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "市が尾",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "市ケ谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "市ケ谷",
+    "network": "東京メトロ南北線",
+    "operator": "東京メト"
+  },
+  {
+    "name": "市ケ谷",
+    "network": "東京メトロ有楽町線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "市ケ谷",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "市場前",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "市川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "市川塩浜",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "市川大野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "市川真間",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "布田",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "希望ヶ丘",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "常盤平",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "常磐快速線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "常磐快速線 (Joban Line Rapid Service)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "常磐線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "常磐線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "常磐緩行線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "幡ヶ谷",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "平井",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "平和台",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "平和台",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "平和島",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "平山城址公園",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "平沼橋",
+    "network": null,
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "平間",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "幸谷",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "広尾",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "庚申塚",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "府中",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "府中本町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "府中競馬正門前",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "座間",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "弁天橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "引上1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "引上2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "後楽園",
+    "network": "東京メトロ丸ノ内線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "後楽園",
+    "network": "東京メトロ南北線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "御岳山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "御嶽",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "御嶽山",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "御徒町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "御成門",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "御茶ノ水",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "御茶ノ水",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "志木",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "志村三丁目",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "志村坂上",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "志茂",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "志茂田",
+    "network": null,
+    "operator": "東日本旅客鉄道株式会社"
+  },
+  {
+    "name": "恋ヶ窪",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "恩田",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "恵比寿",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "恵比寿",
+    "network": "日比谷線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "成城学園前",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "成増",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "成瀬",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "成田エクスプレス",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "戸塚安行",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "戸田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "戸田公園",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "戸越",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "戸越公園",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "戸越銀座",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "戸部",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "所沢",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "扇大橋",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "扇町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "押上〈スカイツリー前〉",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "押上〈スカイツリー前〉",
+    "network": null,
+    "operator": "京成電鉄;東京都交通局"
+  },
+  {
+    "name": "拝島",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "拝島",
+    "network": "西武拝島線",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "指扇",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "整備場",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "新三河島",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "新三郷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新中野",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新丸子",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "新井宿",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "新井薬師前",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "新京成線",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "新京成線 (Shin-Keisei Line)",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "新代田",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "新八柱",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新大久保",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新大塚",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新子安",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新宿",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "新宿",
+    "network": "JR成田エクスプレス",
+    "operator": "東日本旅客鉄道;JR東日本"
+  },
+  {
+    "name": "新宿",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "新宿",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新宿",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新宿三丁目",
+    "network": "丸ノ内線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新宿三丁目",
+    "network": "副都心線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新宿三丁目",
+    "network": "新宿線",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新宿御苑前",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新宿西口",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新富町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新小岩",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新小平",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新小金井",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "新川崎",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新庚申塚",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新座",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新御徒町",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "新御徒町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新御茶ノ水",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新所沢",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "新整備場",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "新日本橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新木場",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新木場",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "新木場",
+    "network": "JR京葉線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新松戸",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新板橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新柏",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "新柴又",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "新桜台",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "新横浜",
+    "network": "JR横浜線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新横浜",
+    "network": "東海道新幹線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新横浜",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "新橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新橋",
+    "network": "ゆりかもめ東京臨海新交通臨海線",
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "新橋",
+    "network": "ロ銀座線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新江古田",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "新河岸",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "新浦安",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新狭山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "新田",
+    "network": "東武スカイツリーライン",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "新百合ヶ丘",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "新秋津",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新綱島",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "新線新宿",
+    "network": "都営地下鉄",
+    "operator": null
+  },
+  {
+    "name": "新羽",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "新船橋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "新芝浦",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新豊洲",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "新越谷",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "新金貨物線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "新金貨物線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "新鎌ヶ谷",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "新鎌ヶ谷",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "新鎌ヶ谷",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "新馬場",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "新高円寺",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "新高島",
+    "network": null,
+    "operator": "横浜高速鉄道"
+  },
+  {
+    "name": "新高島平",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "新高島平",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "方南町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "旗の台",
+    "network": "東急電鉄",
+    "operator": null
+  },
+  {
+    "name": "日の出",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "日吉",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "日吉",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "日吉本町",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "日向和田",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "日暮里",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "日暮里",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "日暮里",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "日暮里・舎人ライナー",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "日暮里・舎人ライナー (Nippori-Toneri Liner)",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "日本橋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "日本橋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "日本橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "日比谷",
+    "network": "日比谷線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "日比谷",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄;東京都交通局"
+  },
+  {
+    "name": "日比谷",
+    "network": "都営地下鉄",
+    "operator": "東京地下鉄;東京都交通局"
+  },
+  {
+    "name": "日進",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "日野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "早稲田",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "早稲田",
+    "network": "東京メトロ東西線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "明大前",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "明治神宮前〈原宿〉",
+    "network": "副都心線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "明治神宮前〈原宿〉",
+    "network": "千代田線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "星川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "春日",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "昭和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "昭和島",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "昭島",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "是政",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "曙橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "曳舟",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "月島",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "月島",
+    "network": "都営大江戸線",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "月検査線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "有明",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "有明テニスの森",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "有楽町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "有楽町",
+    "network": "東京メトロ有楽町線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "朝霞",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "朝霞台",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "木場",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "末広町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "本八幡",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "本八幡",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "本堂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "本川越",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "本所吾妻橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "本蓮沼",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "本郷三丁目",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "本郷三丁目",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "本駒込",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "材料線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "材料線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東あずま",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東中山",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "東中神",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東中野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東中野",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東久留米",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "東京",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東京",
+    "network": null,
+    "operator": "東海旅客鉄道"
+  },
+  {
+    "name": "東京",
+    "network": "京葉線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東京",
+    "network": "東京メトロ丸ノ内線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京テレポート",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "東京ディズニーシー・ステーション",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東京ディズニーランド・ステーション",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東京ビッグサイト",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "東京メトロ",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ丸ノ内線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ丸ノ内線;新宿御苑前;1番線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ丸ノ内線;新宿御苑前;2番線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ副都心線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東京メトロ副都心線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ千代田線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ千代田線 (Tokyo Metro Chiyoda Line)",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ半蔵門線",
+    "network": null,
+    "operator": "operator"
+  },
+  {
+    "name": "東京メトロ半蔵門線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ南北線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ南北線",
+    "network": null,
+    "operator": "東京地下鉄;東京都交通局"
+  },
+  {
+    "name": "東京メトロ南北線;四ツ谷;3番線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ南北線;四ツ谷;4番線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ日比谷線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ日比谷線",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄株式会社"
+  },
+  {
+    "name": "東京メトロ有楽町線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東京メトロ有楽町線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ有楽町線;有楽町;1番線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ有楽町線;有楽町;2番線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ東西線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京メトロ東西線",
+    "network": null,
+    "operator": "東京地下鉄 (Tōkyō Metoro)"
+  },
+  {
+    "name": "東京メトロ銀座線",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東京国際クルーズターミナル",
+    "network": "ゆりかもめ東京臨海新交通臨海線",
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "東京急行電鉄世田谷線",
+    "network": null,
+    "operator": "東京急行電鉄 (Tokyu)"
+  },
+  {
+    "name": "東京急行電鉄田園都市線",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "東京臨海高速鉄道りんかい線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東京臨海高速鉄道りんかい線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "東京貨物ターミナル",
+    "network": null,
+    "operator": "JR貨物"
+  },
+  {
+    "name": "東伏見",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "東北新幹線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東北本線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東北本線 (貨物線)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東北本線 (貨物線)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "東北本線（埼京線）",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東北沢",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "東十条",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東向島",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東吾野",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東大前",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東大和市",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東大宮",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東大島",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東宮原",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東小金井",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東尾久三丁目",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東山田",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "東川口",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "東川口",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東府中",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "東急こどもの国線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急多摩川線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急大井町線",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "東急大井町線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急新横浜線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東急東横線",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "東急東横線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急池上線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急田園都市線",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "東急田園都市線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急目黒線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急電鉄世田谷線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急電鉄世田谷線;下高井戸",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東急電鉄田園都市線",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "東所沢",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東新宿",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東新宿",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東日本橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東村山",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "東松原",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "東松戸",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "東松戸",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東林間",
+    "network": "江ノ島線",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "東武亀戸線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武伊勢崎線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武大師線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武大師線",
+    "network": null,
+    "operator": "東武鉄道 (Tobu Railway)"
+  },
+  {
+    "name": "東武東上線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武東上線",
+    "network": null,
+    "operator": "東武鉄道 (Tobu Railway)"
+  },
+  {
+    "name": "東武練馬",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武越生線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武野田線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東武野田線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東武鉄道大師線",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東毛呂",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "東池袋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東池袋四丁目",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東海神",
+    "network": "東葉高速線",
+    "operator": "東葉高速鉄道"
+  },
+  {
+    "name": "東海道新幹線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東海道新幹線",
+    "network": null,
+    "operator": "東海旅客鉄道"
+  },
+  {
+    "name": "東海道新幹線",
+    "network": null,
+    "operator": "東海旅客鉄道 (JR Central)"
+  },
+  {
+    "name": "東海道本線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東海道本線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "東海道本線",
+    "network": null,
+    "operator": "東海旅客鉄道"
+  },
+  {
+    "name": "東海道本線 (貨物線)",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東海道本線（品鶴線）",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東海道本線（横須賀線）",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東海道貨物線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東海道貨物線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東白楽",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "東神奈川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東福生",
+    "network": "JR八高線(八王子～高麗川)",
+    "operator": "East Japan Railway"
+  },
+  {
+    "name": "東秋留",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東芝試験線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東葉高速線",
+    "network": null,
+    "operator": "東葉高速鉄道"
+  },
+  {
+    "name": "東銀座",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東銀座",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "東長崎",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "東門前",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "東陽町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "東雲",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "東青梅",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "東飯能",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "東飯能",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "東高円寺",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "松が谷",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "松原",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "松戸",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "松戸",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "松戸新田",
+    "network": null,
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "松陰神社前",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "松飛台",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "板橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "板橋区役所前",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "板橋本町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "柏",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "柏",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "柏たなか",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "柏の葉キャンパス",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "柳瀬川",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "柴又",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "柴崎",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "柴崎体育館",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "柿生",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "栄町",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "栗平",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "根岸線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "根津",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "桜ヶ丘",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "桜上水",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "桜台",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "桜新町",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "桜木町",
+    "network": "根岸線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "桜田門",
+    "network": "東京メトロ有楽町線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "桜街道",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "梁川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "梅ヶ丘",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "梅屋敷",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "梅島",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "梅郷",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "梶が谷",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "梶原",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "森下",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "椎名町",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "検修10番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "検修1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修2番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "検修2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修3番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "検修3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修4番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "検修4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修5番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "検修5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修9番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検修引上線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "検修引上線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "検車線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "横浜",
+    "network": "みなとみらい線;東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "横浜",
+    "network": "京浜急行電鉄本線",
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "横浜",
+    "network": "京浜東北線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "横浜",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "横浜",
+    "network": "相鉄線",
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "横浜市営3号線",
+    "network": null,
+    "operator": "横浜市"
+  },
+  {
+    "name": "横浜市営3号線",
+    "network": null,
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "横浜市営地下鉄 ブルーライン",
+    "network": null,
+    "operator": "横浜市"
+  },
+  {
+    "name": "横浜市営地下鉄グリーンライン",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "横浜市営地下鉄グリーンライン",
+    "network": null,
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "横浜市営地下鉄４号線",
+    "network": null,
+    "operator": "横浜市"
+  },
+  {
+    "name": "横浜高速鉄道みなとみらい21線",
+    "network": null,
+    "operator": "横浜高速鉄道"
+  },
+  {
+    "name": "横田基地引込線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "橋本",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "橋本",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機回り9番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "機回線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機引上線1区",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機引上線2区",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機待1番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "機待1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機待2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機待3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留10番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留11番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留12番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留13番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留14番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留15番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留3番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留4番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留5番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留6番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留7番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機留8番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機留9番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "機走線1区",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機走線2区",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区入出線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "機関区引上線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "正丸",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武州長瀬",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "武蔵中原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵五日市",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵境",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵境",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "武蔵増戸",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武蔵大和",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "武蔵小山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武蔵小杉",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "武蔵小杉",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵小金井",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵引田",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武蔵新城",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵新田",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武蔵横手",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武蔵浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵溝ノ口",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵白石",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵砂川",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "武蔵藤沢",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "武蔵野台",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "武蔵野線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "武蔵関",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "武蔵高萩",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "武里",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "毛呂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "水天宮前",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "水道橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "水道橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "氷川台",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "永田町",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "永田町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "永福町",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "汐留",
+    "network": "ゆりかもめ東京臨海新交通臨海線",
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "汐留",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "江北",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "江古田",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "江戸川",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "江戸川台",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "江戸川橋",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "江田",
+    "network": null,
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "池ノ上",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "池上",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "池尻大橋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "池袋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "池袋",
+    "network": null,
+    "operator": "Tojoouter"
+  },
+  {
+    "name": "池袋",
+    "network": null,
+    "operator": "東京メトロ"
+  },
+  {
+    "name": "池袋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "池袋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "池袋",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "沢井",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "河辺",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "沼袋",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "沼部",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "泉体育館",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "泉岳寺",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "泉岳寺",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "洗浄線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "洗足",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "洗足池",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "津田山",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "流山",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "流山おおたかの森",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "流山おおたかの森",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "流山セントラルパーク",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "流通センター",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "流鉄流山線",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "浅草",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "浅草",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "浅草",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "浅草",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "浅草橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "浅草橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "浅野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "浜川崎",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "浜松町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "浜田山",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "浜町",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "浦和美園",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "浦安",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "浮島町",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "浮間舟渡",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "海神",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "海老名",
+    "network": "小田急小田原線",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "海老名",
+    "network": "相模線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "海老名",
+    "network": "相鉄線",
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "海芝浦",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "淡路町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "淵野辺",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "清滝",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "清澄白河",
+    "network": "都営地下鉄;東京メトロ",
+    "operator": "東京地下鉄;東京都交通局"
+  },
+  {
+    "name": "清瀬",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "渋谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "渋谷",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "渋谷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "渋谷",
+    "network": "東急電鉄;東京地下鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "渋谷",
+    "network": "銀座線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "港町",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "湘南新宿ライン",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "湘南新宿ライン;新宿大ガード",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "湯島",
+    "network": "東京メトロ千代田線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "溜池山王",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "溝の口",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "滝本",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "滝野川一丁目",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "潮見",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "瀬谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "熊川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "熊野前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "片倉",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "片倉町",
+    "network": null,
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "牛浜",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "牛田",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "牛込柳町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "牛込神楽坂",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "特入線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "狛江",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "狭山ヶ丘",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "狭山市",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "狭間",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "猿橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "獨協大学前〈草加松原〉",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "玉川上水",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "玉川上水",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "玉川学園前",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "王子",
+    "network": null,
+    "operator": "東京メトロ"
+  },
+  {
+    "name": "王子",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "王子神谷",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "王子駅前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "瑞江",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "生産技術研究所 千葉試験線2.0",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "生田",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "生麦",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "用賀",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "田原町",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "田園調布",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "田奈",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "田無",
+    "network": null,
+    "operator": "西武鉄道株式会社"
+  },
+  {
+    "name": "田町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "田端",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "田野倉",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "甲州街道",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "町屋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "町屋",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "町屋二丁目",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "町屋駅前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "町田",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "町田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "留置12番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "留置13番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "留置17番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "留置18番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "留置1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "留置2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置2番線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "留置3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置3番線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "留置4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置4番線",
+    "network": null,
+    "operator": "東京臨海高速鉄道"
+  },
+  {
+    "name": "留置5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "留置8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "番田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "発送車5番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "発送車6番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "発送車8番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "登戸",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "登戸",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "白丸",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "白山",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "白楽",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "白糸台",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "白金台",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "白金高輪",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "白金高輪",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "百合ヶ丘",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "百草園",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "的場",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "目白",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "目黒",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "目黒",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "相原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "相模原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "相模大塚",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "相模大野",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "相模湖",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "相模鉄道厚木線",
+    "network": null,
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "相模鉄道本線",
+    "network": null,
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "相武台下",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "相武台前",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "相鉄いずみ野線",
+    "network": null,
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "相鉄・JR直通線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "相鉄・JR直通線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "相鉄新横浜線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "相鉄新横浜線",
+    "network": null,
+    "operator": "相模鉄道"
+  },
+  {
+    "name": "着発10番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発1番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "着発2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "着発3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "着発9番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "矢切",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "矢口渡",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "矢向",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "矢川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "矢部",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "矢野口",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "石川台",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "石油支線",
+    "network": null,
+    "operator": "日本貨物鉄道(株)"
+  },
+  {
+    "name": "石神井公園",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "石神前",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "砂川七番",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "祐天寺",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "祖師ヶ谷大蔵",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "神保町",
+    "network": "東京メトロ半蔵門線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "神保町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "神奈川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "神奈川新町",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "神奈川臨海鉄道千鳥東線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "神奈川臨海鉄道千鳥線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "神奈川臨海鉄道浮島線",
+    "network": null,
+    "operator": "神奈川臨海鉄道"
+  },
+  {
+    "name": "神楽坂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "神泉",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "神田",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "神田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "神谷町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "福生",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "禾生",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "秋山",
+    "network": null,
+    "operator": "北総鉄道"
+  },
+  {
+    "name": "秋川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "秋津",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "秋葉原",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "秋葉原",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "秋葉原",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "程久保",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "稲城",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "稲城長沼",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "稲田堤",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "稲荷山公園",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "稲荷町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "穴守稲荷",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "立会川",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "立川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "立川北",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "立川南",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "立飛",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "競艇場前",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "竹ノ塚",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "竹橋",
+    "network": "東京メトロ東西線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "竹芝",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "笠幡",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "笹塚",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "等々力",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "箱根ヶ崎",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "箱根ヶ崎架道橋",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "築地",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "築地市場",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "篠崎",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "米軍専用線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "米陸軍相模補給廠専用線跡",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "糀谷",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "経堂",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "綱島",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "綾瀬",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "総武本線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "総武緩行線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "緑が丘",
+    "network": "東急電鉄",
+    "operator": null
+  },
+  {
+    "name": "練馬",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "練馬",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "練馬春日町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "練馬高野台",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "羽村",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "羽沢横浜国大",
+    "network": null,
+    "operator": "相模鉄道;東日本旅客鉄道"
+  },
+  {
+    "name": "羽田空港アクセス線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "羽田空港第1ターミナル",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "羽田空港第1・第2ターミナル",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "羽田空港第2ターミナル",
+    "network": null,
+    "operator": "東京モノレール"
+  },
+  {
+    "name": "羽田空港第3ターミナル",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "羽田空港第3ターミナル",
+    "network": "東京モノレール",
+    "operator": "東京モノレール株式会社"
+  },
+  {
+    "name": "聖蹟桜ヶ丘",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "自動車5番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "自由が丘",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "舎人",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "舎人公園",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "舞浜",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "航空公園",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "船堀",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "船橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "船橋",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "船橋法典",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "船橋競馬場",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "芝公園",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "芝浦ふ頭",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "芦花公園",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "花小金井",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "花月総持寺",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "若松河田",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "若林",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "若葉",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "若葉台",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "茅場町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "茗荷谷",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "草加",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "荏原中延",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "荏原町",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "荏原線（訓練線）",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "荒川一中前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "荒川七丁目",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "荒川二丁目",
+    "network": "東京都電車",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "荒川区役所前",
+    "network": "都電荒川線",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "荒川車庫前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "荒川遊園地前",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "荷役20番線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "荻窪",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "荻窪",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "菅野",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "菊名",
+    "network": "JR横浜線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "菊名",
+    "network": "東急東横線",
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "菊川",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "萩山",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "落合",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "落合南長崎",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "葛西",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "葛西臨海公園",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "蒲生",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "蒲田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "蒲田",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "蓮根",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "蓮沼",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "蔵前",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "蕨",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "藤が丘",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "藤野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "虎ノ門",
+    "network": "ロ銀座線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "虎ノ門ヒルズ",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "行徳",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "表参道",
+    "network": "銀座線;千代田線;半蔵門線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "西ケ原",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "西ヶ原四丁目",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西八王子",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西台",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西吾野",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西国分寺",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西国立",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西大井",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西大宮",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西大家",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "西大島",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西太子堂",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西小山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西川口",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西川越",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西巣鴨",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西府",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西所沢",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西新井",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "西新井大師西",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西新宿",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "西新宿五丁目",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西日暮里",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西日暮里",
+    "network": "東京メトロ",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "西日暮里",
+    "network": "東京近郊区間",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西早稲田",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "西横浜",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西機待線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "西武国分寺線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西武国分寺線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武園",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武園ゆうえんち",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西武園線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武多摩川線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西武多摩川線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武多摩湖線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武山口線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武拝島線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武新宿",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武新宿線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西武新宿線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武新宿線",
+    "network": "西武",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武新宿線",
+    "network": "西武",
+    "operator": "西武鉄道株式会社"
+  },
+  {
+    "name": "西武有楽町線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武柳沢",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武池袋線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武池袋線",
+    "network": null,
+    "operator": "西武鉄道 (Seibu Railway)"
+  },
+  {
+    "name": "西武池袋線 (Seibu Ikebukuro Line)",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武池袋線 (Seibu Ikebukuro Line)",
+    "network": null,
+    "operator": "西武鉄道 (Seibu Railway)"
+  },
+  {
+    "name": "西武池袋線霞川橋梁",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武狭山線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武狭山線",
+    "network": null,
+    "operator": "西武鉄道 (Seibu Railway)"
+  },
+  {
+    "name": "西武球場前",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武秩父線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武立川",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武豊島線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武遊園地第１隧道",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武遊園地第２隧道",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武遊園地第３隧道",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武遊園地第４隧道",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武遊園地第５隧道",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武鉄道拝島線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西武鉄道新宿線",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "西永福",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "西浦和",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西田架道橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西立川",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西船橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西船橋",
+    "network": "東京メトロ;東葉高速線",
+    "operator": "東京地下鉄;東葉高速鉄道"
+  },
+  {
+    "name": "西荻窪",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "西葛西",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "西調布",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "西谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西馬込",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "西高島平",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "西高島平",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "要町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "見沼代親水公園",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "読売ランド前",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "調布",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "護国寺",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "谷保",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "谷在家",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "谷塚",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "谷村町",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "豊四季",
+    "network": "アーバンパークライン",
+    "operator": null
+  },
+  {
+    "name": "豊島園",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "豊島園",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "豊洲",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "豊洲",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "豊田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "豪徳寺",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "貨物引上線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "赤土小学校前",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "赤坂",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "赤坂",
+    "network": "千代田線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "赤坂見附",
+    "network": "東京メトロ丸ノ内線;銀座線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "赤羽",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "赤羽岩淵",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "赤羽橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "赤羽線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "越中島",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "越中島支線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "越中島支線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "越谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "越谷レイクタウン",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "足立小台",
+    "network": "日暮里・舎人ライナー",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "車両所10番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所11番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所12番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所13番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所14番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所15番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所16番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所17番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所1番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所2番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所3番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所4番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所5番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所6番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所7番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所8番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所9番線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所亘り",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車両所引上線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "車輪旋盤線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "車輪旋盤線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "軍畑",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "辰巳",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "逆井",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "通路線",
+    "network": null,
+    "operator": "日本貨物鉄道"
+  },
+  {
+    "name": "運河",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "都営三田線",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営三田線",
+    "network": null,
+    "operator": "東京都交通局 (Tokyo Metropolitan Bureau of Transportation)"
+  },
+  {
+    "name": "都営三田線 (Toei Mita Line)",
+    "network": null,
+    "operator": "東京都交通局 (Tokyo Metropolitan Bureau of Transportation)"
+  },
+  {
+    "name": "都営地下鉄三田線",
+    "network": null,
+    "operator": "東京都交通局 (Tokyo Metropolitan Bureau of Transportation)"
+  },
+  {
+    "name": "都営地下鉄三田線",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営地下鉄三田線",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局 (Tokyo Metropolitan Bureau of Transportation)"
+  },
+  {
+    "name": "都営地下鉄大江戸線",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営地下鉄大江戸線",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営地下鉄新宿線",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営地下鉄新宿線",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営地下鉄浅草線",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営浅草線",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都営浅草線",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都庁前",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都留市",
+    "network": null,
+    "operator": "富士山麓電気鉄道株式会社"
+  },
+  {
+    "name": "都立大学",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "都立家政",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "都筑ふれあいの丘",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "都電荒川線",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "都電雑司ヶ谷",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "野方",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "野火止用水橋梁",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "野田市",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "金子",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "金町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鈴木町",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "鉄道博物館",
+    "network": null,
+    "operator": "埼玉新都市交通"
+  },
+  {
+    "name": "銀座",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "銀座一丁目",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "錦糸町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "錦糸町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鎌ヶ谷",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "鐘ヶ淵",
+    "network": null,
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "長原",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "長沼",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "長津田",
+    "network": "JR横浜線",
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "長津田",
+    "network": "東急こどもの国線",
+    "operator": "横浜高速鉄道"
+  },
+  {
+    "name": "長津田",
+    "network": "東急田園都市線",
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "長浦",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "門前仲町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "門前仲町",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "関東鉄道常総線",
+    "network": null,
+    "operator": "関東鉄道"
+  },
+  {
+    "name": "阿佐ケ谷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸2番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸3番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸4番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸5番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸6番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸7番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "陸8番線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "雑司が谷",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "雑色",
+    "network": null,
+    "operator": "京浜急行電鉄 (Keikyu Corporation)"
+  },
+  {
+    "name": "雪が谷大塚",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "霞ケ関",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "霞ケ関",
+    "network": "千代田線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "霞ケ関",
+    "network": "東京メト",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "霞ヶ関",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "青井",
+    "network": null,
+    "operator": "首都圏新都市鉄道"
+  },
+  {
+    "name": "青山一丁目",
+    "network": "都営地下鉄",
+    "operator": "東京地下鉄;東京都交通局"
+  },
+  {
+    "name": "青梅",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "青梅線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "青梅線 (Ome line)",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "青梅街道",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "青海",
+    "network": null,
+    "operator": "ゆりかもめ"
+  },
+  {
+    "name": "青物横丁",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "青砥",
+    "network": "京成電鉄",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "青葉台",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "面影橋",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "飛田給",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "飛鳥山",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "飯田橋",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "飯田橋",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "飯田橋",
+    "network": "東京メトロ東西線",
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "飯田橋",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "飯能",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "馬喰横山",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "馬喰町",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "馬橋",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "馬橋",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "馬橋支線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "馬橋支線",
+    "network": null,
+    "operator": "東日本旅客鉄道 (East Japan Railway)"
+  },
+  {
+    "name": "馬車道",
+    "network": null,
+    "operator": "横浜高速鉄道"
+  },
+  {
+    "name": "馬込",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "馬込沢",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "駐車場",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "駒場東大前",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "駒沢大学",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "駒込",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "駒込",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "高井戸",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "高円寺",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "高尾",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "高尾",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "高尾山",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "高尾山口",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "高島平",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "高島町",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "高島線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "高崎線",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "高崎線",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "高幡不動",
+    "network": null,
+    "operator": "京王電鉄"
+  },
+  {
+    "name": "高幡不動",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "高松",
+    "network": null,
+    "operator": "多摩都市モノレール"
+  },
+  {
+    "name": "高柳",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "高津",
+    "network": null,
+    "operator": "東京急行電鉄"
+  },
+  {
+    "name": "高田",
+    "network": "横浜市営地下鉄",
+    "operator": "横浜市交通局"
+  },
+  {
+    "name": "高田馬場",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "高田馬場",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "高田馬場",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "高輪ゲートウェイ",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "高輪台",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "高野",
+    "network": null,
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "高麗",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "高麗川",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "鬼子母神前",
+    "network": "都電荒川線",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "鬼越",
+    "network": "京成",
+    "operator": "京成電鉄"
+  },
+  {
+    "name": "鮫洲",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "鰭ヶ崎",
+    "network": null,
+    "operator": "流鉄"
+  },
+  {
+    "name": "鳥沢",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鳩ノ巣",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "鳩ヶ谷",
+    "network": null,
+    "operator": "埼玉高速鉄道"
+  },
+  {
+    "name": "鴨居",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鵜の木",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "鶯谷",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鶴ケ峰",
+    "network": null,
+    "operator": null
+  },
+  {
+    "name": "鶴ヶ島",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "鶴川",
+    "network": null,
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "鶴瀬",
+    "network": "東武鉄道",
+    "operator": "東武鉄道"
+  },
+  {
+    "name": "鶴見",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鶴見小野",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "鶴見市場",
+    "network": null,
+    "operator": "京浜急行電鉄"
+  },
+  {
+    "name": "鶴間",
+    "network": "小田急電鉄",
+    "operator": "小田急電鉄"
+  },
+  {
+    "name": "鷹の台",
+    "network": null,
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "鷺ノ宮",
+    "network": "西武鉄道",
+    "operator": "西武鉄道"
+  },
+  {
+    "name": "鷺沼",
+    "network": "東急電鉄",
+    "operator": "東急電鉄"
+  },
+  {
+    "name": "鹿島田",
+    "network": null,
+    "operator": "東日本旅客鉄道"
+  },
+  {
+    "name": "麹町",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "麻布十番",
+    "network": null,
+    "operator": "東京地下鉄"
+  },
+  {
+    "name": "麻布十番",
+    "network": "都営地下鉄",
+    "operator": "東京都交通局"
+  },
+  {
+    "name": "黒川",
+    "network": null,
+    "operator": "小田急電鉄"
+  }
+]

@@ -3,7 +3,7 @@
   "roads": {
     "datasetName": "江戸主要街道データセット version 4 (August 2026)",
     "landingPage": "https://codh.rois.ac.jp/historical-gis/edo-road/",
-    "downloadUrl": "https://codh.rois.ac.jp/historical-gis/edo-road/edo-road-v4.gpkg",
+    "downloadUrl": "https://codh.rois.ac.jp/historical-gis/edo-road/geopackage.zip",
     "rawPath": "data/raw/codh/edo-road-v4.gpkg",
     "format": "geopackage",
     "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
@@ -13,7 +13,7 @@
   "posts": {
     "datasetName": "江戸宿場データセット version 1 (August 2026)",
     "landingPage": "https://codh.rois.ac.jp/historical-gis/edo-post/",
-    "downloadUrl": "https://codh.rois.ac.jp/historical-gis/edo-post/edo-post-v1.geojson",
+    "downloadUrl": "https://geoshape.ex.nii.ac.jp/edo/post/post.geojson",
     "rawPath": "data/raw/codh/edo-post-v1.geojson",
     "format": "geojson",
     "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
