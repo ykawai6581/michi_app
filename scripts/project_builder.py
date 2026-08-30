@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -32,15 +33,24 @@ def load_project_config(root: Path, project_id: str) -> dict[str, Any]:
     if not path.exists(): raise ProjectBuildError(f"Project config missing: {path}")
     config = json.loads(path.read_text(encoding="utf-8"))
     if config.get("id") != project_id: raise ProjectBuildError(f"Project id must be {project_id!r}")
-    bounds = config.get("bounds")
-    if not isinstance(bounds, list) or len(bounds) != 4 or not all(isinstance(v, (int, float)) for v in bounds) or not (-180 <= bounds[0] < bounds[2] <= 180 and -90 <= bounds[1] < bounds[3] <= 90):
-        raise ProjectBuildError("Malformed bounds: expected [minLon, minLat, maxLon, maxLat] in WGS84")
     layers = config.get("layers")
     if not isinstance(layers, dict): raise ProjectBuildError("Project layers must be an object")
     unsupported = sorted(set(layers) - SUPPORTED_LAYERS)
     if unsupported: raise ProjectBuildError(f"Unsupported layer family: {', '.join(unsupported)}")
     for family in ("railways", "stations"):
         if family in layers and layers[family] != {"mode": "bbox"}: raise ProjectBuildError(f"{family} currently supports only mode=bbox")
+    bounds = config.get("bounds")
+    if isinstance(bounds, list):
+        if len(bounds) != 4 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in bounds) or not (-180 <= bounds[0] < bounds[2] <= 180 and -90 <= bounds[1] < bounds[3] <= 90):
+            raise ProjectBuildError("Malformed bounds: expected [minLon, minLat, maxLon, maxLat] in WGS84")
+    elif bounds is not None:
+        if not isinstance(bounds, dict) or bounds.get("mode") != "auto":
+            raise ProjectBuildError("Malformed bounds: expected a WGS84 bbox or an auto bounds object")
+        if bounds.get("from", "modernRoads") != "modernRoads":
+            raise ProjectBuildError("Unsupported auto bounds source: 'from' currently only accepts 'modernRoads'")
+        padding = bounds.get("paddingKm", 3)
+        if not isinstance(padding, (int, float)) or isinstance(padding, bool) or not math.isfinite(padding) or padding <= 0:
+            raise ProjectBuildError("Auto bounds paddingKm must be a positive finite number")
     return config
 
 def _collection(features: list[dict]) -> dict: return {"type": "FeatureCollection", "features": features}
@@ -48,7 +58,17 @@ def _collection(features: list[dict]) -> dict: return {"type": "FeatureCollectio
 def _read_parquet(path: Path, *, bbox=None) -> list[dict]:
     try: import geopandas as gpd
     except ImportError as error: raise ProjectBuildError("GeoParquet support is missing; install requirements-preprocess.txt") from error
-    frame = gpd.read_parquet(path, bbox=bbox) if bbox else gpd.read_parquet(path)
+    if bbox:
+        try:
+            frame = gpd.read_parquet(path, bbox=bbox)
+        except (TypeError, ValueError, NotImplementedError):
+            # Older GeoParquet metadata/readers may not support bbox pushdown.
+            # Preserve the same intersection semantics with a bounded in-memory fallback.
+            from shapely.geometry import box
+            frame = gpd.read_parquet(path)
+            frame = frame[frame.geometry.notna() & frame.geometry.intersects(box(*bbox))]
+    else:
+        frame = gpd.read_parquet(path)
     return json.loads(frame.to_json(drop_id=True))["features"]
 
 def _require_cache(root: Path, family: str) -> Path:
@@ -65,8 +85,9 @@ def select_modern_roads(root: Path, ids: list[str]) -> list[dict]:
         path = root / "public/data/roads" / f"{road_id}-n13.geojson"
         if not entry or not path.exists():
             raise ProjectBuildError(f"Modern road {road_id!r} is not registered and built. Run: python scripts/preprocess/build-road.py {road_id}")
-        features = json.loads(path.read_text(encoding="utf-8"))["features"]
-        if not features: raise ProjectBuildError(f"Built modern road {road_id!r} contains no features: {path}")
+        document = json.loads(path.read_text(encoding="utf-8")); features = document.get("features", [])
+        if not features or not any(feature.get("geometry") for feature in features):
+            raise ProjectBuildError(f"Built modern road {road_id!r} contains no geometry: {path}. Run: python scripts/preprocess/build-road.py {road_id}")
         for index, feature in enumerate(features):
             feature["properties"].update(id=road_id if len(features) == 1 else f"{road_id}:{index}", roadId=road_id,
                 name=entry["displayName"], aliases=entry.get("aliases", []), entityType="modern-road", type="road", sourceType="canonical-road")
@@ -74,6 +95,40 @@ def select_modern_roads(root: Path, ids: list[str]) -> list[dict]:
     return result
 
 def select_bbox_features(path: Path, bounds: list[float]) -> list[dict]: return _read_parquet(path, bbox=tuple(bounds))
+
+def resolve_project_bounds(config: dict[str, Any], modern_road_features: list[dict]) -> tuple[list[float], dict[str, Any]]:
+    """Resolve configured bounds, projecting only to calculate metric auto padding."""
+    specification = config.get("bounds")
+    if isinstance(specification, list):
+        return [float(value) for value in specification], {"mode": "explicit"}
+    modern_road_ids = config["layers"].get("modernRoads", [])
+    if not modern_road_ids:
+        raise ProjectBuildError("Cannot derive project bounds automatically because no modernRoads are selected. Specify explicit 'bounds' or add a supported auto-bounds source.")
+    auto = specification or {"mode": "auto", "from": "modernRoads", "paddingKm": 3}
+    source = auto.get("from", "modernRoads"); padding_km = auto.get("paddingKm", 3)
+    if source != "modernRoads":
+        raise ProjectBuildError("Unsupported auto bounds source: 'from' currently only accepts 'modernRoads'")
+    if not isinstance(padding_km, (int, float)) or isinstance(padding_km, bool) or not math.isfinite(padding_km) or padding_km <= 0:
+        raise ProjectBuildError("Auto bounds paddingKm must be a positive finite number")
+    if not modern_road_features or not any(feature.get("geometry") for feature in modern_road_features):
+        raise ProjectBuildError("Cannot derive project bounds automatically because the selected modernRoads contain no geometry")
+    try:
+        import geopandas as gpd
+        from shapely.geometry import box
+        roads = gpd.GeoDataFrame.from_features(modern_road_features, crs="EPSG:4326")
+        roads = roads[roads.geometry.notna() & ~roads.geometry.is_empty]
+        if roads.empty: raise ValueError("all selected geometries are empty")
+        metric_crs = roads.estimate_utm_crs()
+        if metric_crs is None: raise ValueError("no suitable metric CRS could be estimated")
+        metric_bounds = roads.to_crs(metric_crs).total_bounds
+        padded = gpd.GeoSeries([box(*metric_bounds).buffer(float(padding_km) * 1000)], crs=metric_crs).to_crs("EPSG:4326").total_bounds
+        resolved = [float(value) for value in padded]
+    except ProjectBuildError: raise
+    except Exception as error:
+        raise ProjectBuildError(f"Cannot derive project bounds automatically from selected modernRoads: {error}") from error
+    if len(resolved) != 4 or not all(math.isfinite(value) for value in resolved) or not (-180 <= resolved[0] < resolved[2] <= 180 and -90 <= resolved[1] < resolved[3] <= 90):
+        raise ProjectBuildError(f"Automatically computed project bounds are invalid: {resolved}")
+    return resolved, {"mode": "auto", "from": "modernRoads", "paddingKm": padding_km, "roadIds": list(modern_road_ids)}
 
 def select_routes(path: Path, route_ids: list[str], family: str) -> list[dict]:
     features = [feature for feature in _read_parquet(path) if feature["properties"].get("routeId") in route_ids]
@@ -99,9 +154,10 @@ def build_search(features_by_family: dict[str, list[dict]]) -> list[dict]:
     return entries
 
 def materialize_project(root: Path, project_id: str, output_root: Path | None = None) -> dict:
-    config = load_project_config(root, project_id); layers = config["layers"]; bounds = config["bounds"]
+    config = load_project_config(root, project_id); layers = config["layers"]
     features: dict[str, list[dict]] = {}
     if "modernRoads" in layers: features["modernRoads"] = select_modern_roads(root, layers["modernRoads"])
+    bounds, bounds_source = resolve_project_bounds(config, features.get("modernRoads", []))
     for family in ("railways", "stations"):
         if family in layers: features[family] = select_bbox_features(_require_cache(root, family), bounds)
     for family in ("historicalRoads", "historicalPosts"):
@@ -114,6 +170,6 @@ def materialize_project(root: Path, project_id: str, output_root: Path | None = 
         (output / relative).write_text(json.dumps(_collection(features.get(family, [])), ensure_ascii=False, separators=(",", ":"))+"\n", encoding="utf-8")
     search = build_search(features); (output / "search/entities.json").write_text(json.dumps(search, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     counts = {"modernRoads": len(features.get("modernRoads", [])), "railwayTracks": len(features.get("railways", [])), "stations": len(features.get("stations", [])), "historicalRoadFeatures": len(features.get("historicalRoads", [])), "historicalPosts": len(features.get("historicalPosts", []))}
-    manifest = {"projectId": project_id, "builtAt": datetime.now(timezone.utc).isoformat(), "bounds": bounds, "sourceLayerFamilies": list(layers), "featureCounts": counts, "inputs": {family: str(path) for family, path in CACHES.items() if family in layers}, "outputs": {**OUTPUTS, "search": "search/entities.json"}}
+    manifest = {"projectId": project_id, "builtAt": datetime.now(timezone.utc).isoformat(), "bounds": bounds, "boundsSource": bounds_source, "sourceLayerFamilies": list(layers), "featureCounts": counts, "inputs": {family: str(path) for family, path in CACHES.items() if family in layers}, "outputs": {**OUTPUTS, "search": "search/entities.json"}}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     return manifest

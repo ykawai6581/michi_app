@@ -1,7 +1,11 @@
 {
   "id": "shinjuku",
   "displayName": "新宿",
-  "bounds": [139.60, 35.64, 139.78, 35.73],
+  "bounds": {
+    "mode": "auto",
+    "from": "modernRoads",
+    "paddingKm": 3
+  },
   "layers": {
     "modernRoads": ["tokyo-named-koshu-kaido"],
     "railways": {"mode": "bbox"},
