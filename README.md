@@ -114,8 +114,10 @@ These build-time sources do **not** create project bundles or change the product
 | Historical major roads | CODH Kaido data → `data/cache/codh/edo-roads/roads.parquet` |
 | Historical post stations (宿場) | CODH Kaido data → `data/cache/codh/edo-posts/posts.parquet` |
 
-Install `requirements-preprocess.txt`. Rail first uses the regional PBF configured in `data/roads/sources.json`, then
-falls back to the configured Overpass endpoint for the explicit Tokyo working extent:
+Install `requirements-preprocess.txt`. Rail first inspects the regional PBF configured in `data/roads/sources.json`.
+The OSM GDAL driver layers `points`, `lines`, `multilinestrings`, `multipolygons`, and `other_relations` are read when
+present so both infrastructure and the different station representations are available. It falls back to the configured
+Overpass endpoint for the explicit Tokyo working extent only when the PBF is absent; `--refresh-osm` forces Overpass:
 
 ```bash
 python scripts/preprocess/preprocess-rail.py
@@ -123,23 +125,30 @@ python scripts/preprocess/preprocess-rail.py --refresh-osm
 python scripts/preprocess/preprocess-rail.py --input data/raw/osm/tokyo-rail.geojson
 ```
 
-Tracks retain distinct, unsimplified OSM ways. `rail`, `subway`, `light_rail`, and `tram` are included; all other
-`railway` values (including proposed, construction, disused, abandoned, and industrial-only categories) are excluded.
+Tracks retain distinct, unsimplified OSM ways. `includedRailwayValues` and `stationRailwayValues` in
+`data/roads/sources.json` are the authoritative runtime policy. By default `rail`, `subway`, `light_rail`, and `tram`
+are included; unconfigured `railway` values such as proposed, construction, disused, and abandoned are excluded.
+Infrastructure tagged `service=yard`, `service=siding`, or `service=spur` remains included when its `railway` value is
+included, and both `service` and `usage` are preserved for later presentation filtering.
 Stations and halts form a separate point layer. Points remain unchanged; polygons use an area centroid and record the
-source geometry type. Only repeated copies of the same OSM element ID are removed—similar names never cause a merge.
+source geometry type. Only repeated copies of the same OSM element ID are removed—similar names and broad authority
+identifiers never cause a merge.
 
-CODH metadata and raw paths are in `data/sources/codh.json`. The official Kaido landing page is treated as authoritative
-for current downloads and terms rather than inventing a stable file endpoint. Download its road and 宿場 GeoJSON under
-the configured, gitignored `data/raw/codh/` paths, then run:
+CODH metadata, official download URLs, archive members/layers, and raw paths are in `data/sources/codh.json`. The normal
+command downloads the official 江戸主要街道 and 江戸宿場 archives when absent, keeps the ZIP files under the gitignored
+`data/raw/codh/` tree, deterministically extracts the configured GeoPackage member, and reads the configured layer:
 
 ```bash
 python scripts/preprocess/preprocess-codh.py
+python scripts/preprocess/preprocess-codh.py --refresh
 python scripts/preprocess/preprocess-codh.py --roads /path/to/roads.geojson --posts /path/to/posts.geojson
 ```
 
-Both workflows write WGS84 GeoParquet, manifests, and small discovery indexes. Roads and posts retain CODH route IDs,
+The source configuration records CODH/ROIS-DS attribution and the published Creative Commons Attribution 4.0
+International (CC BY 4.0) license separately for both datasets. Both workflows write WGS84 GeoParquet, manifests, and
+small discovery indexes. Roads and posts retain exact CODH route IDs, including branch IDs such as `R400-1`,
 so road `R003` links to `R003` 宿場 without name matching, and original properties remain available as JSON. Task C will
-later select small video-specific subsets. These reusable caches stay outside browser assets, and neither OSM rail nor
+later select small video-specific subsets; it is not implemented here. These reusable caches stay outside browser assets, and neither OSM rail nor
 CODH geometry passes through the OSM↔N13 canonical-road matcher.
 
 ## 画面構成

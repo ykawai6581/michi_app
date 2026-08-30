@@ -7,13 +7,12 @@ from collections import Counter
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import re
 import urllib.parse
 import urllib.request
 
 from source_normalization import bounds, load_features, write_dataset, write_json
 
-TRACK_VALUES = {"rail", "subway", "light_rail", "tram"}
-STATION_VALUES = {"station", "halt"}
 FIELDS = ("railway", "name", "name:ja", "name:en", "operator", "network", "ref", "service", "usage", "layer", "bridge", "tunnel", "station", "public_transport", "uic_ref", "wikidata")
 
 
@@ -47,34 +46,38 @@ def osm_properties(feature: dict) -> dict:
     return {key: value for key, value in result.items() if value is not None}
 
 
-def normalize(features: list[dict]) -> tuple[list[dict], list[dict]]:
+def normalize(features: list[dict], policy: dict) -> tuple[list[dict], list[dict]]:
+    track_values = set(policy["includedRailwayValues"])
+    station_values = set(policy["stationRailwayValues"])
     tracks, candidates = [], []
     for feature in features:
         railway = feature.get("properties", {}).get("railway")
         geometry_type = feature.get("geometry", {}).get("type")
-        if railway in TRACK_VALUES and geometry_type in {"LineString", "MultiLineString"}:
+        if railway in track_values and geometry_type in {"LineString", "MultiLineString"}:
             tracks.append({"type": "Feature", "properties": {**osm_properties(feature), "sourceType": "openstreetmap", "entityType": "modern-rail-track", "geometryType": geometry_type}, "geometry": feature["geometry"]})
-        if railway in STATION_VALUES and geometry_type in {"Point", "LineString", "MultiLineString", "Polygon", "MultiPolygon"}:
+        if railway in station_values and geometry_type in {"Point", "LineString", "MultiLineString", "Polygon", "MultiPolygon"}:
             properties = osm_properties(feature); properties.update(sourceType="openstreetmap", entityType="modern-rail-station", geometryType="Point", sourceGeometryType=geometry_type)
             candidates.append({"type": "Feature", "properties": properties, "geometry": {"type": "Point", "coordinates": representative_point(feature["geometry"])}})
-    # Exact OSM identity and exact authority IDs are safe duplicate signals. Names never merge stations.
+    # Authority IDs may describe a station complex with distinct facilities, so only
+    # repeated copies of the exact OSM element are removed. Names never merge stations.
     stations, seen = [], set()
     for station in candidates:
         properties = station["properties"]
-        authority = ("uic_ref", properties["uic_ref"]) if properties.get("uic_ref") else (("wikidata", properties["wikidata"]) if properties.get("wikidata") else None)
-        key = authority or (properties.get("osm_element_type"), properties.get("osm_element_id"))
+        key = (properties.get("osm_element_type"), properties.get("osm_element_id"))
         if key in seen: continue
         seen.add(key); stations.append(station)
     return tracks, stations
 
 
-def overpass_query(box: list[float]) -> str:
+def overpass_query(box: list[float], policy: dict) -> str:
     south, west, north, east = box[1], box[0], box[3], box[2]
-    return f'[out:json][timeout:300];(way["railway"~"^(rail|subway|light_rail|tram)$"]({south},{west},{north},{east});nwr["railway"~"^(station|halt)$"]({south},{west},{north},{east}););out body geom;'
+    tracks = "|".join(map(re.escape, policy["includedRailwayValues"]))
+    stations = "|".join(map(re.escape, policy["stationRailwayValues"]))
+    return f'[out:json][timeout:300];(way["railway"~"^({tracks})$"]({south},{west},{north},{east});nwr["railway"~"^({stations})$"]({south},{west},{north},{east}););out body geom;'
 
 
-def run(source: Path, output: Path, method="local", source_date=None, configured_bounds=None, extension=".parquet") -> dict:
-    features, _ = load_features(source); tracks, stations = normalize(features)
+def run(source: Path, output: Path, policy: dict, method="local", source_date=None, configured_bounds=None, extension=".parquet") -> dict:
+    features, _, source_info = load_features(source); tracks, stations = normalize(features, policy)
     track_path, station_path = output / f"tracks{extension}", output / f"stations{extension}"
     write_dataset(tracks, track_path); write_dataset(stations, station_path)
     categories = dict(sorted(Counter(f["properties"]["railway"] for f in tracks).items()))
@@ -82,7 +85,8 @@ def run(source: Path, output: Path, method="local", source_date=None, configured
                 "acquiredAt": datetime.now(timezone.utc).isoformat(), "sourceDate": source_date,
                 "workingBoundsWgs84": configured_bounds or bounds(features), "crs": "EPSG:4326",
                 "featureCounts": {"tracks": len(tracks), "stations": len(stations)}, "trackCountsByRailway": categories,
-                "selection": {"includedTrackRailwayValues": sorted(TRACK_VALUES), "includedStationRailwayValues": sorted(STATION_VALUES), "excludedPolicy": "All other railway values, including proposed, construction, disused, abandoned and narrow industrial service-only categories, are excluded."},
+                "sourceFormat": source_info["sourceFormat"], "sourceLayersRead": source_info["sourceLayers"],
+                "selection": {"includedTrackRailwayValues": list(policy["includedRailwayValues"]), "includedStationRailwayValues": list(policy["stationRailwayValues"]), "policy": "Selection is based on configured railway values. Included infrastructure is retained regardless of service/usage; yard, siding and spur tracks are not removed. Unconfigured values such as proposed, construction, abandoned and disused are excluded."},
                 "outputs": {"tracks": str(track_path), "stations": str(station_path), "index": str(output / "index.json")},
                 "provenance": {"provider": "OpenStreetMap contributors", "source": str(source), "license": "ODbL 1.0", "url": "https://www.openstreetmap.org/copyright"}}
     index = sorted({(f["properties"].get("name") or f["properties"].get("name:ja") or "", f["properties"].get("network", ""), f["properties"].get("operator", "")) for f in tracks + stations})
@@ -97,6 +101,6 @@ def main() -> None:
     source = args.input or Path(config["local"]["path"]); method = "local-regional-pbf"
     if not source.exists() or args.refresh_osm:
         raw = Path("data/raw/osm/tokyo-rail-overpass.json"); raw.parent.mkdir(parents=True, exist_ok=True)
-        request = urllib.request.Request(config["overpass"]["endpoint"], data=urllib.parse.urlencode({"data": overpass_query(rail["bounds"])}).encode(), headers={"User-Agent": "michi-app-source-preprocessor/1.0"})
+        request = urllib.request.Request(config["overpass"]["endpoint"], data=urllib.parse.urlencode({"data": overpass_query(rail["bounds"], rail)}).encode(), headers={"User-Agent": "michi-app-source-preprocessor/1.0"})
         raw.write_bytes(urllib.request.urlopen(request, timeout=360).read()); source, method = raw, "overpass"
-    print(json.dumps(run(source, Path(rail["cacheDirectory"]), method, configured_bounds=rail["bounds"]), ensure_ascii=False, indent=2))
+    print(json.dumps(run(source, Path(rail["cacheDirectory"]), rail, method, configured_bounds=rail["bounds"]), ensure_ascii=False, indent=2))

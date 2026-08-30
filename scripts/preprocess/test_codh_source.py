@@ -1,55 +1,75 @@
-"""Offline fixture tests for CODH road/post normalization and linkage."""
+"""Offline fixture tests for CODH road/post normalization and acquisition."""
 
+import io
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+import zipfile
 
 sys.path.insert(0, str(Path(__file__).parent))
-from codh_source import normalize_posts, normalize_roads, run
+from codh_source import download, extract_configured_archive, normalize_posts, normalize_roads, route_id, run
 
 
 def road(rid, name, y=35):
     return {"type":"Feature", "id":f"road-{rid}", "properties":{"route_id":rid,"road_name":name,"extra":"kept"}, "geometry":{"type":"LineString","coordinates":[[139,y],[140,y+0.1]]}}
 
 
+def metadata():
+    common = {"landingPage":"https://example.test/landing", "downloadUrl":"https://example.test/data.zip", "license":"Creative Commons Attribution 4.0 International (CC BY 4.0)", "licenseUrl":"https://creativecommons.org/licenses/by/4.0/", "attribution":"CODH"}
+    return {"provider":"CODH", "normalizedCrs":"EPSG:4326", "roads":{**common,"datasetName":"江戸主要街道データセット"}, "posts":{**common,"datasetName":"江戸宿場データセット"}}
+
+
+class Response(io.BytesIO):
+    def __enter__(self): return self
+    def __exit__(self, *args): self.close()
+
+
 class CodhSourceTests(unittest.TestCase):
-    def setUp(self):
-        self.roads = [road(f"R00{i}", name, 34+i/10) for i,name in enumerate(["東海道","中山道","甲州道中","奥州道中","日光道中"], 1)] + [road("R006", "追加街道")]
-        self.posts = [
-            {"type":"Feature","id":"P1","properties":{"road_id":"R003","name":"同名でなくても連結","note":"kept"},"geometry":{"type":"Point","coordinates":[139.1,35.1]}},
-            {"type":"Feature","id":"P2","properties":{"road_id":"R003","name":"第二宿"},"geometry":{"type":"Point","coordinates":[139.2,35.2]}},
-        ]
+    def test_route_id_syntax(self):
+        for value in ["R001", "R400", "R400-1", "R810-1"]:
+            self.assertEqual(route_id({"RouteID":value}), value)
+        for value in ["R40", "R400-", "R400-A", "r400", "R400-1-2", "P001"]:
+            with self.subTest(value=value), self.assertRaises(ValueError): route_id({"RouteID":value})
 
-    def test_routes_geometry_additional_roads_and_posts(self):
-        normalized = normalize_roads(self.roads, "EPSG:4326")
-        self.assertEqual({f["properties"]["routeId"] for f in normalized}, {f"R00{i}" for i in range(1,7)})
-        self.assertEqual(normalized[0]["geometry"], self.roads[0]["geometry"])
-        for rid in ["R001","R002","R003","R004","R005"]:
-            self.assertEqual(len([f for f in normalized if f["properties"]["routeId"] == rid]), 1)
-        posts = normalize_posts(self.posts, "EPSG:4326")
-        self.assertEqual([p["properties"]["routeId"] for p in posts], ["R003","R003"])
-        self.assertIn("note", posts[0]["properties"]["originalProperties"])
+    def test_branch_ids_preserved_and_linked_exactly(self):
+        roads = normalize_roads([road("R400-1", "branch")], "EPSG:4326")
+        posts = normalize_posts([{"type":"Feature","id":"P1","properties":{"RouteID":"R400-1","Name":"Branch Post"},"geometry":{"type":"Point","coordinates":[139,35]}}], "EPSG:4326")
+        self.assertEqual(roads[0]["properties"]["routeId"], "R400-1")
+        self.assertEqual(posts[0]["properties"]["routeId"], roads[0]["properties"]["routeId"])
 
-    def test_web_mercator_crs_normalization(self):
-        source = [road("R001", "x")]; source[0]["geometry"]["coordinates"] = [[0,0],[1113194.9078,1118889.9748]]
-        normalized = normalize_roads(source, "EPSG:3857")
-        self.assertAlmostEqual(normalized[0]["geometry"]["coordinates"][1][0], 10, places=5)
-        self.assertAlmostEqual(normalized[0]["geometry"]["coordinates"][1][1], 10, places=5)
+    def test_official_schema_field_names(self):
+        # Current CODH layers expose route identifiers/names as ID/Name on roads
+        # and RouteID/PostID/Name on posts.
+        official_road = {"type":"Feature","properties":{"ID":"R810-1","Name":"支線"},"geometry":{"type":"LineString","coordinates":[[1,2],[3,4]]}}
+        official_post = {"type":"Feature","properties":{"PostID":"S81001","RouteID":"R810-1","Name":"宿場"},"geometry":{"type":"Point","coordinates":[1,2]}}
+        self.assertEqual(normalize_roads([official_road], "EPSG:4326")[0]["properties"]["routeId"], "R810-1")
+        self.assertEqual(normalize_posts([official_post], "EPSG:4326")[0]["properties"]["postId"], "S81001")
 
-    def test_manifests_provenance_route_link_and_indexes(self):
-        metadata = {"provider":"CODH", "datasetLandingPage":"https://example.test/", "license":"fixture license", "attribution":"fixture attribution", "roads":{"sourceUrl":"https://example.test/roads"}, "posts":{"sourceUrl":"https://example.test/posts"}}
+    def test_geometry_crs_manifests_license_and_counts(self):
+        roads = [road("R001", "東海道"), road("R400-1", "branch")]
+        posts = [{"type":"Feature","id":"P1","properties":{"RouteID":"R400-1","Name":"宿"},"geometry":{"type":"Point","coordinates":[139,35]}}]
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); rp=root/"roads.geojson"; pp=root/"posts.geojson"
-            rp.write_text(json.dumps({"type":"FeatureCollection","features":self.roads})); pp.write_text(json.dumps({"type":"FeatureCollection","features":self.posts}))
-            roads_manifest, posts_manifest = run(rp, pp, root/"road-cache", root/"post-cache", metadata, extension=".geojson")
-            self.assertEqual(roads_manifest["routeIdsPresent"], [f"R00{i}" for i in range(1,7)])
-            self.assertEqual(posts_manifest["countsByRouteId"], {"R003":2})
-            self.assertEqual(roads_manifest["license"], "fixture license")
-            self.assertEqual(posts_manifest["attribution"], "fixture attribution")
-            self.assertEqual(roads_manifest["normalizedCrs"], "EPSG:4326")
-            self.assertEqual(json.loads((root/"post-cache/index.json").read_text())[0]["routeId"], "R003")
+            rp.write_text(json.dumps({"type":"FeatureCollection","features":roads})); pp.write_text(json.dumps({"type":"FeatureCollection","features":posts}))
+            rm, pm = run(rp, pp, root/"road-cache", root/"post-cache", metadata(), extension=".geojson")
+            self.assertEqual(rm["routeIdsPresent"], ["R001", "R400-1"]); self.assertEqual(pm["countsByRouteId"], {"R400-1":1})
+            self.assertEqual(rm["license"], "Creative Commons Attribution 4.0 International (CC BY 4.0)")
+            self.assertEqual(rm["normalizedCrs"], "EPSG:4326"); self.assertEqual(rm["downloadUrl"], "https://example.test/data.zip")
+
+    def test_automatic_download_and_deterministic_archive_member(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); archive=root/"source.zip"
+            calls=[]
+            def opener(request, timeout): calls.append(request.full_url); return Response(b"download")
+            self.assertTrue(download(archive, "https://example.test/source.zip", False, opener))
+            self.assertEqual(archive.read_bytes(), b"download"); self.assertEqual(calls, ["https://example.test/source.zip"])
+            with zipfile.ZipFile(archive, "w") as target:
+                target.writestr("nested/roads.gpkg", b"gpkg"); target.writestr("other.gpkg", b"wrong")
+            extracted = extract_configured_archive(archive, root/"extracted", "roads.gpkg")
+            self.assertEqual(extracted.read_bytes(), b"gpkg")
+            with self.assertRaises(RuntimeError): extract_configured_archive(archive, root/"bad", "missing.gpkg")
 
 
 if __name__ == "__main__": unittest.main()

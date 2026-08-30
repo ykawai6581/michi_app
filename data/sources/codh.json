@@ -1,16 +1,26 @@
 {
   "provider": "Center for Open Data in the Humanities (CODH), ROIS-DS",
-  "datasetLandingPage": "https://geoshape.ex.nii.ac.jp/kaido/",
   "roads": {
-    "sourceUrl": "https://geoshape.ex.nii.ac.jp/kaido/",
-    "rawPath": "data/raw/codh/edo-roads.geojson"
+    "datasetName": "江戸主要街道データセット",
+    "landingPage": "https://geoshape.ex.nii.ac.jp/kaido/",
+    "downloadUrl": "https://geoshape.ex.nii.ac.jp/kaido/download/kaido.zip",
+    "rawPath": "data/raw/codh/kaido.zip",
+    "archiveMember": "kaido.gpkg",
+    "layer": "roads",
+    "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Center for Open Data in the Humanities (CODH), ROIS-DS"
   },
   "posts": {
-    "sourceUrl": "https://geoshape.ex.nii.ac.jp/kaido/",
-    "rawPath": "data/raw/codh/edo-posts.geojson"
+    "datasetName": "江戸宿場データセット",
+    "landingPage": "https://geoshape.ex.nii.ac.jp/kaido/",
+    "downloadUrl": "https://geoshape.ex.nii.ac.jp/kaido/download/shukuba.zip",
+    "rawPath": "data/raw/codh/shukuba.zip",
+    "archiveMember": "shukuba.gpkg",
+    "layer": "posts",
+    "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Center for Open Data in the Humanities (CODH), ROIS-DS"
   },
-  "license": "See the CODH Kaido dataset landing page and downloaded source metadata for current terms.",
-  "attribution": "Center for Open Data in the Humanities (CODH), ROIS-DS",
-  "sourceCrs": "EPSG:4326",
   "normalizedCrs": "EPSG:4326"
 }
