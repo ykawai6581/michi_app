@@ -23,12 +23,22 @@ export interface EntityProperties {
   osm_id?: number
   ref?: string
   highway?: string
+  railGroupId?: string
+  railDisplayName?: string
+  routeId?: string
+  postId?: string
+  historicalLabel?: string
+  start?: string
+  end?: string
+  operator?: string
+  network?: string
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>
 export interface SceneItem { feature: EntityFeature; visible: boolean }
 export interface HighlightStyle { roadColor: string; locationColor: string; regionColor: string; width: number; opacity: number; glow: boolean; animate: boolean; annotationSize: 'normal' | 'large' }
 export interface LayerVisibility { basemap: BasemapMode; modernRoads: boolean; railways: boolean; stations: boolean; historicalRoads: boolean; historicalPosts: boolean }
+export interface PointOverlayStyle { stations: { radius: number; color: string }; historicalPosts: { radius: number; color: string } }
 export interface RoadSourceVisibility { n13: boolean; osm: boolean }
 export interface CameraState { center: [number, number]; zoom: number; bearing: number; pitch: number }
 export interface SavedView { id: string; name: string; camera: CameraState }

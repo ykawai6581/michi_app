@@ -1,0 +1,29 @@
+export const projectIdPattern=/^[a-z0-9][a-z0-9-]*$/
+export type Bounds={mode:'auto';from:'modernRoads';paddingKm:number}|[number,number,number,number]
+export type ProjectConfig={id:string;displayName:string;bounds:Bounds;layers:{modernRoads?:string[];railways?:{mode:'bbox'};stations?:{mode:'bbox'};historicalRoads?:string[];historicalPosts?:string[]}}
+export type ProjectLayer='modernRoads'|'railways'|'stations'|'historicalRoads'|'historicalPosts'
+export type ProjectVisibility=Record<ProjectLayer,boolean>
+
+export const emptyProject=():ProjectConfig=>({id:'',displayName:'',bounds:{mode:'auto',from:'modernRoads',paddingKm:3},layers:{modernRoads:[],historicalRoads:[],historicalPosts:[]}})
+export const initialProjectVisibility=():ProjectVisibility=>({modernRoads:true,railways:true,stations:true,historicalRoads:true,historicalPosts:true})
+export function toggleProjectLayer(project:ProjectConfig,family:ProjectLayer,value?:string):ProjectConfig{
+  const layers={...project.layers}
+  if(family==='railways'||family==='stations')layers[family]=layers[family]?undefined:{mode:'bbox'}
+  else if(value){const selected=layers[family]||[];layers[family]=selected.includes(value)?selected.filter(id=>id!==value):[...selected,value]}
+  return{...project,layers}
+}
+export function selectHistoricalRoute(project:ProjectConfig,routeId:string):ProjectConfig{
+  const adding=!(project.layers.historicalRoads||[]).includes(routeId)
+  let next=toggleProjectLayer(project,'historicalRoads',routeId)
+  if(adding&&!(next.layers.historicalPosts||[]).includes(routeId))next=toggleProjectLayer(next,'historicalPosts',routeId)
+  return next
+}
+export const serializeProject=(project:ProjectConfig)=>JSON.parse(JSON.stringify(project)) as ProjectConfig
+
+export type ProjectSavePlan={existing:boolean;method:'POST'|'PUT';path:string;saveLabel:string;buildLabel:string}
+export function projectSavePlan(projectId:string,existingIds:string[]):ProjectSavePlan{
+  const existing=existingIds.includes(projectId)
+  return existing
+    ?{existing,method:'PUT',path:`/api/projects/${projectId}`,saveLabel:'Update Project',buildLabel:'Update & Build'}
+    :{existing,method:'POST',path:'/api/projects',saveLabel:'Save Project',buildLabel:'Save & Build'}
+}

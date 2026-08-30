@@ -34,6 +34,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, road_ui.metadata())
             if route == ["api", "roads"]:
                 return self._send(200, {"roads": road_ui.list_roads(road_ui.REGISTRY)})
+            if route == ["api", "projects"]:
+                return self._send(200, {"projects": road_ui.list_projects()})
+            if route == ["api", "project-catalog"]:
+                return self._send(200, road_ui.project_catalog())
+            if len(route) == 3 and route[:2] == ["api", "projects"]:
+                return self._send(200, {"project": road_ui.load_project(route[2])})
+            if len(route) == 4 and route[:2] == ["api", "projects"] and route[3] == "preview":
+                return self._send(200, road_ui.project_preview(route[2]))
+            if len(route) == 4 and route[:2] == ["api", "roads"] and route[3] == "references":
+                return self._send(200, {"referencedByProjects": road_ui.project_references(route[2])})
             if len(route) == 3 and route[:2] == ["api", "roads"]:
                 return self._send(200, {"road": road_ui.get_road(road_ui.REGISTRY, route[2])})
             self._send(404, {"error": {"message": "Not found"}})
@@ -45,6 +55,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):  # noqa: N802
         self._mutate("PUT")
+
+    def do_DELETE(self):  # noqa: N802
+        self._mutate("DELETE")
 
     def _mutate(self, method):
         try:
@@ -63,6 +76,14 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"road": road_ui.save_road(road_ui.REGISTRY, body["road"], route[2])}
             elif len(route) == 4 and route[:2] == ["api", "roads"] and route[3] == "build":
                 result = road_ui.build_road(route[2])
+            elif route == ["api", "projects"] and method == "POST":
+                result = {"project": road_ui.save_project(body["project"])}
+            elif len(route) == 3 and route[:2] == ["api", "projects"] and method == "PUT":
+                result = {"project": road_ui.save_project(body["project"], route[2])}
+            elif len(route) == 4 and route[:2] == ["api", "projects"] and route[3] == "build":
+                result = road_ui.build_project(route[2])
+            elif len(route) == 3 and route[:2] == ["api", "roads"] and method == "DELETE":
+                result = road_ui.delete_road(route[2])
             else:
                 return self._send(404, {"error": {"message": "Not found"}})
             self._send(200, result)

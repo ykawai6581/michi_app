@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {emptyDiagnosticState,initialLayerVisibility,removeAt,toggle,toggleLayerVisibility,uniqueAdd} from './model'
+import {deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyRoad,findRegisteredRoad,initialLayerVisibility,removeAt,resolveDeletableRoad,toggle,toggleLayerVisibility,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -16,4 +16,18 @@ describe('road form helpers',()=>{
     const cleared=emptyDiagnosticState()
     expect(cleared).toEqual({layers:{},analysis:undefined,discovered:[],picked:{}})
   })
+  it('recognizes a registered current ID independently of dropdown editing state',()=>{
+    const registered={...emptyRoad(),id:'tokyo-named-itsukaichi-kaido',displayName:'五日市街道'}
+    expect(resolveDeletableRoad([registered],registered.id,registered.id)).toBe(registered)
+    expect(resolveDeletableRoad([registered],registered.id,undefined)).toBe(registered)
+    expect(findRegisteredRoad([registered],'tokyo-named-unknown')).toBeUndefined()
+  })
+  it('uses registered identity and name in deletion confirmation, not draft fields',()=>{
+    const registered={...emptyRoad(),id:'tokyo-named-itsukaichi-kaido',displayName:'五日市街道'}
+    const target=resolveDeletableRoad([registered],registered.id)
+    expect(deletionConfirmation(target!,[])).toContain('Delete 五日市街道?\ntokyo-named-itsukaichi-kaido')
+    expect(deletionConfirmation(target!,[])).not.toContain('unsaved name')
+    expect(deletionApiPaths(target!.id)).toEqual({references:'/api/roads/tokyo-named-itsukaichi-kaido/references',delete:'/api/roads/tokyo-named-itsukaichi-kaido'})
+  })
+  it('stops exposing deletion after the registered entry is removed',()=>expect(resolveDeletableRoad([], 'tokyo-named-itsukaichi-kaido')).toBeUndefined())
 })

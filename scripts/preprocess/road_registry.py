@@ -119,3 +119,24 @@ def save_road(path: Path, draft: dict, editing_id: str | None = None) -> dict:
         if temporary and temporary.exists():
             temporary.unlink()
     return road
+
+
+def delete_road(path: Path, road_id: str) -> dict:
+    """Atomically remove exactly one registered road and preserve registry metadata."""
+    if not isinstance(road_id, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", road_id):
+        raise ValueError("id must contain lowercase letters, numbers, and hyphens")
+    registry = load_registry(path)
+    roads = registry.get("roads", [])
+    matches = [road for road in roads if road.get("id") == road_id]
+    if not matches:
+        raise KeyError(f"Unknown road id {road_id!r}")
+    registry["roads"] = [road for road in roads if road.get("id") != road_id]
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as output:
+            json.dump(registry, output, ensure_ascii=False, indent=2); output.write("\n")
+            output.flush(); os.fsync(output.fileno()); temporary = Path(output.name)
+        temporary.replace(path)
+    finally:
+        if temporary and temporary.exists(): temporary.unlink()
+    return copy.deepcopy(matches[0])

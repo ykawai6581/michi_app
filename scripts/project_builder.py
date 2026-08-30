@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 SUPPORTED_LAYERS = {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}
 OUTPUTS = {
@@ -139,10 +140,51 @@ def select_routes(path: Path, route_ids: list[str], family: str) -> list[dict]:
 def _browser_properties(features: list[dict], family: str) -> None:
     for index, feature in enumerate(features):
         p = feature["properties"]
-        if family == "railways": p.update(id=f"rail:{p.get('osm_element_type','way')}:{p.get('osm_element_id',index)}", type="railway")
+        if family == "railways":
+            p.update(id=f"rail:{p.get('osm_element_type','way')}:{p.get('osm_element_id',index)}", type="railway")
+            group = rail_group_properties(p)
+            if group: p.update(group)
         elif family == "stations": p.update(id=f"station:{p.get('osm_element_type','element')}:{p.get('osm_element_id',index)}", name=p.get("name:ja") or p.get("name") or "名称不明駅", type="station")
         elif family == "historicalRoads": p.update(id=f"historical-road:{p['routeId']}:{index}", type="historical-road")
         elif family == "historicalPosts": p.update(id=f"historical-post:{p['postId']}", name=p.get("name") or p.get("historicalLabel") or p["postId"], type="historical-place")
+
+def rail_group_properties(properties: dict) -> dict | None:
+    """Derive a conservative, exact-tag physical-track grouping for the browser."""
+    wikidata = str(properties.get("wikidata") or "").strip()
+    name = str(properties.get("name:ja") or properties.get("name") or "").strip()
+    ref = str(properties.get("ref") or "").strip()
+    qualifier = str(properties.get("operator") or properties.get("network") or "").strip()
+    if wikidata:
+        key, display = f"wikidata:{wikidata}", name or ref or wikidata
+    elif name and qualifier:
+        key, display = f"name:{name}:{qualifier}", name
+    elif ref and qualifier:
+        key, display = f"ref:{ref}:{qualifier}", name or ref
+    else:
+        return None
+    return {"railGroupId": "rail:" + quote(key, safe=":"), "railDisplayName": display}
+
+
+def _rail_search(features: list[dict]) -> list[dict]:
+    groups = {}
+    for feature in features:
+        p = feature["properties"]
+        if p.get("railGroupId") and p.get("railDisplayName"):
+            groups.setdefault(p["railGroupId"], []).append(feature)
+    result = []
+    for group_id, members in groups.items():
+        first = members[0]["properties"]
+        lines = []
+        for member in members:
+            geometry = member["geometry"]
+            lines.extend(geometry["coordinates"] if geometry["type"] == "MultiLineString" else [geometry["coordinates"]])
+        aliases = [value for value in (first.get("name:en"), first.get("ref"), first.get("operator"), first.get("network")) if value and value != first["railDisplayName"]]
+        result.append({"id": group_id, "entityType":"railway", "displayName":first["railDisplayName"],
+                       "aliases":list(dict.fromkeys(aliases)), "searchTerms":list(dict.fromkeys([first["railDisplayName"], *aliases])),
+                       "source":"osm", "geometryHint":"MultiLineString", "railGroupId":group_id,
+                       "geometry":{"type":"MultiLineString", "coordinates":lines}})
+    return result
+
 
 def build_search(features_by_family: dict[str, list[dict]]) -> list[dict]:
     entries = []
@@ -151,7 +193,7 @@ def build_search(features_by_family: dict[str, list[dict]]) -> list[dict]:
             p, geometry = feature["properties"], feature["geometry"]
             aliases = [v for v in [*(p.get("aliases") or []), p.get("name:ja"), p.get("altName"), p.get("historicalLabel"), p.get("routeId"), p.get("postId")] if v and v != p.get("name")]
             entries.append({"id": p["id"], "entityType": {"modernRoads":"modern-road", "stations":"railway-station", "historicalRoads":"historical-road", "historicalPosts":"historical-post"}[family], "displayName": p["name"], "aliases": list(dict.fromkeys(aliases)), "searchTerms": list(dict.fromkeys([p["name"], *aliases])), **({"routeId": p["routeId"]} if p.get("routeId") else {}), "source": p.get("sourceType"), "geometryHint": geometry["type"]})
-    return entries
+    return entries + _rail_search(features_by_family.get("railways", []))
 
 def materialize_project(root: Path, project_id: str, output_root: Path | None = None) -> dict:
     config = load_project_config(root, project_id); layers = config["layers"]
