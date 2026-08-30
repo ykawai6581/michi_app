@@ -9,10 +9,11 @@ const basemaps: { id: BasemapMode; name: string; hint: string }[] = [
 ]
 
 const overlays: { id: Exclude<keyof LayerVisibility, 'basemap'>; name: string; hint: string }[] = [
-  { id: 'roads', name: '現代道路', hint: 'デモ' },
-  { id: 'historicalRoads', name: '江戸街道', hint: 'デモ' },
-  { id: 'places', name: '宿場・地名', hint: 'デモ' },
-  { id: 'chome', name: '町丁目', hint: 'デモ' },
+  { id: 'modernRoads', name: '現代道路', hint: 'canonical' },
+  { id: 'railways', name: '鉄道', hint: 'OSM' },
+  { id: 'stations', name: '駅', hint: 'OSM' },
+  { id: 'historicalRoads', name: '江戸街道', hint: 'CODH' },
+  { id: 'historicalPosts', name: '宿場', hint: 'CODH' },
 ]
 
 export function LayerPanel({ value, onChange, roadSources, onRoadSourcesChange }: { value: LayerVisibility; onChange: (value: LayerVisibility) => void; roadSources: RoadSourceVisibility; onRoadSourcesChange: (value: RoadSourceVisibility) => void }) {

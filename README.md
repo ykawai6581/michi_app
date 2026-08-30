@@ -105,6 +105,64 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 
 ## Reusable rail and historical source caches
 
+## Project materialization
+
+Reusable caches are large, build-time inputs and never browser assets. A project config selects a small subset and
+`build-project.py` writes the complete static bundle consumed by React/MapLibre. Bounds can be an explicit WGS84
+`[minLon, minLat, maxLon, maxLat]` bbox, or can be derived from the full built N13 geometry of the project's selected
+canonical modern roads:
+
+```json
+"bounds": {
+  "mode": "auto",
+  "from": "modernRoads",
+  "paddingKm": 3
+}
+```
+
+When `bounds` is omitted, the same `modernRoads` auto mode and 3 km padding are the default. Auto mode unions every
+selected road's canonical `public/data/roads/<road-id>-n13.geojson` geometry, estimates a suitable local UTM CRS, and
+expands that combined extent by the configured real-world distance. It never uses the full N13 source extent or the
+OSM reference geometry. This produces the intended pipeline: project road geometry → nearby spatial context → bbox
+rail/station extraction → small browser bundle. The derived bbox does not clip canonical roads, CODH road routes, or
+CODH post selections; it only controls bbox-mode supporting layers such as railways and stations. The resolved WGS84
+bbox and its derivation metadata are recorded in `manifest.json`, while output `project.json` preserves the configured
+auto specification.
+
+Prepare sources, materialize the project, and start Vite:
+
+```bash
+python scripts/preprocess/preprocess-n13.py data/raw/n13/N13.geojson --output data/cache/n13/roads
+python scripts/preprocess/preprocess-rail.py
+python scripts/preprocess/preprocess-codh.py
+python scripts/build-project.py shinjuku
+npm run dev
+```
+
+`projects/<id>/project.json` contains an ID, display name, optional explicit/auto bounds, canonical modern-road IDs,
+bbox-mode rail and station selectors, and exact CODH route IDs. A missing cache or canonical build fails with the preprocessing command
+needed to create it. Rail bbox reads use GeoParquet filtering and preserve every parallel source track; stations are
+selected spatially without further deduplication. CODH roads and posts are selected by exact `routeId` without
+matching, snapping, simplification, or name-based post deduplication.
+
+Generated, deployable files are tracked under:
+
+```text
+public/projects/<id>/
+├── project.json
+├── manifest.json
+├── data/
+│   ├── modern-roads.geojson
+│   ├── railways.geojson
+│   ├── stations.geojson
+│   ├── historical-roads.geojson
+│   └── historical-posts.geojson
+└── search/entities.json
+```
+
+The manifest records timestamp, bounds, inputs, outputs, layer families, and feature counts. The search index contains
+modern roads, stations, historical roads, and historical posts; track segments deliberately are not search entities.
+
 These build-time sources do **not** create project bundles or change the production application:
 
 | Entity | Source → normalized cache |
