@@ -135,10 +135,14 @@ source geometry type. Only repeated copies of the same OSM element ID are remove
 identifiers never cause a merge.
 
 CODH metadata, official download URLs, formats, and raw paths are in `data/sources/codh.json`. The normal command
-downloads the current official **江戸主要街道 version 4** GeoPackage and **江戸宿場 version 1** GeoJSON when absent,
+downloads the current official **江戸主要街道 version 4** ZIP and **江戸宿場 version 1** GeoJSON when absent,
 validates each response before atomically publishing it under the gitignored `data/raw/codh/` tree, and then normalizes
-the source. The road GeoPackage's sole named layer is selected explicitly after inspection; the post source is direct
-GeoJSON, not a fabricated ZIP or GeoPackage:
+the source. The road ZIP member `geopackage/edo-road-v4.gpkg` is extracted under `data/raw/codh/extracted/edo-road/`,
+validated as a GeoPackage, and the configured `road_codh_260731` layer is verified against the inspected layers. Roads
+map `numbering`, `name`, `alt_name`, `start`, and `end` into normalized source records while retaining every geometry,
+including multiple features with the same route ID. The post source is direct
+GeoJSON and has no archive or GeoPackage step; `id`, `road_id`, `name`, `jk`, and `jk_id` map to distinct post records,
+and neither shared names nor shared historical-place IDs cause deduplication:
 
 ```bash
 python scripts/preprocess/preprocess-codh.py
