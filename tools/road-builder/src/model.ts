@@ -10,3 +10,14 @@ export type LayerVisibility=Record<DiagnosticLayerId,boolean>
 export const initialLayerVisibility=():LayerVisibility=>({reference:true,selected:true,candidates:false,rejected:false})
 export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
 export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
+
+export const findRegisteredRoad=(roads:Road[],canonicalId:string):Road|undefined=>roads.find(item=>item.id===canonicalId)
+export const resolveDeletableRoad=(roads:Road[],canonicalId:string,editing?:string):Road|undefined=>{
+  if(editing===canonicalId)return findRegisteredRoad(roads,editing)
+  return findRegisteredRoad(roads,canonicalId)
+}
+export const deletionConfirmation=(road:Pick<Road,'id'|'displayName'>,references:{id:string;displayName:string}[])=>{
+  const used=references.length?`\n\nUsed by projects:\n${references.map(item=>`- ${item.displayName} (${item.id})`).join('\n')}\nThese project configs will NOT be modified automatically.`:''
+  return `Delete ${road.displayName}?\n${road.id}\n\nThis will remove the registered road and its generated road-specific outputs. Shared N13/OSM source datasets will not be deleted.${used}`
+}
+export const deletionApiPaths=(registeredId:string)=>({references:`/api/roads/${registeredId}/references`,delete:`/api/roads/${registeredId}`})
