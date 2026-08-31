@@ -5,8 +5,9 @@ export const DEFAULT_PROJECT_ID = 'shinjuku'
 export const PROJECT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 export const PROJECT_FILES = ['modern-roads', 'railways', 'stations', 'historical-roads', 'historical-posts'] as const
 export type ProjectFile = typeof PROJECT_FILES[number]
+export interface ProjectConfigMetadata { id: string; displayName: string }
 export interface ProjectManifest { projectId: string; bounds: [number, number, number, number]; featureCounts: Record<string, number> }
-export interface ProjectData { manifest: ProjectManifest; collections: Record<ProjectFile, FeatureCollection>; searchable: EntityFeature[] }
+export interface ProjectData { config: ProjectConfigMetadata; manifest: ProjectManifest; collections: Record<ProjectFile, FeatureCollection>; searchable: EntityFeature[] }
 
 export function railwaySearchFeatures(collection: FeatureCollection): EntityFeature[] {
   const groups = new Map<string, EntityFeature[]>()
@@ -32,8 +33,8 @@ async function getJson<T>(projectId: string, path: string): Promise<T> {
 
 export async function loadProject(projectId = resolveProjectId()): Promise<ProjectData> {
   if (!PROJECT_ID_PATTERN.test(projectId)) throw new Error(`Unsafe project ID: ${projectId}`)
-  const [manifest, ...loaded] = await Promise.all([getJson<ProjectManifest>(projectId, 'manifest.json'), ...PROJECT_FILES.map((file) => getJson<FeatureCollection>(projectId, `data/${file}.geojson`))])
+  const [config, manifest, ...loaded] = await Promise.all([getJson<ProjectConfigMetadata>(projectId, 'project.json'), getJson<ProjectManifest>(projectId, 'manifest.json'), ...PROJECT_FILES.map((file) => getJson<FeatureCollection>(projectId, `data/${file}.geojson`))])
   const collections = Object.fromEntries(PROJECT_FILES.map((file, index) => [file, loaded[index]])) as Record<ProjectFile, FeatureCollection>
   const searchable = [...(['modern-roads', 'stations', 'historical-roads', 'historical-posts'].flatMap((file) => collections[file as ProjectFile].features) as EntityFeature[]), ...railwaySearchFeatures(collections.railways)]
-  return { manifest, collections, searchable }
+  return { config, manifest, collections, searchable }
 }

@@ -4,23 +4,25 @@ import { loadProject, PROJECT_FILES, railwaySearchFeatures, resolveProjectId } f
 describe('project loading', () => {
   afterEach(() => vi.unstubAllGlobals())
   it('loads the manifest and all five project layer families', async () => {
-    const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith('manifest.json') ? { projectId: 'shinjuku', bounds: [139,35,140,36], featureCounts: {} } : { type: 'FeatureCollection', features: [] } }))
+    const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith('project.json') ? { id: 'shinjuku', displayName: '新宿' } : url.endsWith('manifest.json') ? { projectId: 'shinjuku', bounds: [139,35,140,36], featureCounts: {} } : { type: 'FeatureCollection', features: [] } }))
     vi.stubGlobal('fetch', fetchMock)
     const project = await loadProject()
     expect(project.manifest.projectId).toBe('shinjuku')
+    expect(project.config).toEqual({ id: 'shinjuku', displayName: '新宿' })
     expect(Object.keys(project.collections)).toEqual([...PROJECT_FILES])
-    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(fetchMock).toHaveBeenCalledTimes(7)
   })
   it('keeps mixed searchable entity types from project data', async () => {
     const types = ['road','railway','station','historical-road','historical-place']
     let index = 0
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith('manifest.json') ? { projectId:'shinjuku', bounds:[139,35,140,36], featureCounts:{} } : { type:'FeatureCollection', features:[{ type:'Feature', properties:{ id:String(index), name:String(index), type:types[index++] }, geometry:{ type:'Point', coordinates:[139,35] } }] } })))
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith('project.json') ? { id:'shinjuku', displayName:'新宿' } : url.endsWith('manifest.json') ? { projectId:'shinjuku', bounds:[139,35,140,36], featureCounts:{} } : { type:'FeatureCollection', features:[{ type:'Feature', properties:{ id:String(index), name:String(index), type:types[index++] }, geometry:{ type:'Point', coordinates:[139,35] } }] } })))
     const project = await loadProject()
     expect(project.searchable.map((feature) => feature.properties.type)).toEqual(['road','station','historical-road','historical-place'])
   })
   it('loads an explicit project ID consistently', async () => {
-    const fetchMock = vi.fn(async () => ({ ok:true, json:async()=>({type:'FeatureCollection',features:[]}) }))
-    vi.stubGlobal('fetch',fetchMock);await loadProject('koshu-video')
+    const fetchMock = vi.fn(async (url: string) => ({ ok:true, json:async()=>url.endsWith('project.json') ? { id:'koshu-video', displayName:'甲州ビデオ' } : url.endsWith('manifest.json') ? { projectId:'koshu-video', bounds:[0,0,1,1], featureCounts:{} } : {type:'FeatureCollection',features:[]} }))
+    vi.stubGlobal('fetch',fetchMock);const project=await loadProject('koshu-video')
+    expect(project.config).toEqual({ id:'koshu-video', displayName:'甲州ビデオ' })
     expect(fetchMock.mock.calls.every((call)=>String((call as unknown[])[0]).includes('/projects/koshu-video/'))).toBe(true)
   })
   it('resolves safe URL IDs and defaults unsafe or missing IDs',()=>{
