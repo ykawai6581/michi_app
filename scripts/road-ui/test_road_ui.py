@@ -46,6 +46,15 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertEqual(result["aliases"], ["テスト通り"])
         self.assertEqual(result["reference"]["names"], ["テスト通り"])
 
+    def test_statutory_network_is_preserved_on_save_and_load(self):
+        road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "displayName": "国道20号",
+                "entityType": "statutory-road", "roadClass": "national",
+                "reference": {"type": "osm-ref", "ref": "20", "network": "JP:national"}}
+        road_ui.save_road(self.registry, road)
+        loaded = road_ui.get_road(self.registry, road["id"])
+        self.assertEqual(loaded["reference"], road["reference"])
+        self.assertEqual(loaded["n13"]["classifications"], ROAD["n13"]["classifications"])
+
     def test_atomic_create_edit_and_duplicate(self):
         new = copy.deepcopy(ROAD)
         new["id"] = "tokyo-named-another-dori"

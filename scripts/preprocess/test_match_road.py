@@ -4,6 +4,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
@@ -224,9 +225,12 @@ class SourceArchitectureTests(unittest.TestCase):
             path = cache / "jp-national-20-osm.geojson"
             gpd.GeoDataFrame({"ref": ["20"], "geometry": [LineString([(139, 35), (140, 35)])]},
                              crs="EPSG:4326").to_file(path, driver="GeoJSON")
-            path.with_suffix(".meta.json").write_text(json.dumps({"coverageBoundsWgs84": [138, 34, 141, 36]}))
+            identity = {"type": "osm-ref", "ref": "20", "network": "JP:national"}
+            path.with_suffix(".meta.json").write_text(json.dumps({
+                "coverageBoundsWgs84": [138, 34, 141, 36], "referenceIdentity": identity}))
             frame, provenance = MATCH_ROAD.build_osm_reference(
-                {"id": "jp-national-20"}, {"osm": {"provider": "auto", "cacheDirectory": str(cache)}},
+                {"id": "jp-national-20", "reference": identity},
+                {"osm": {"provider": "auto", "cacheDirectory": str(cache)}},
                 [139.2, 34.9, 139.8, 35.1])
             self.assertEqual(len(frame), 1)
             self.assertEqual(provenance["provider"], "cache")
@@ -287,6 +291,48 @@ class SourceArchitectureTests(unittest.TestCase):
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
         self.assertIn('["ref"="20"]', query)
         self.assertNotIn("甲州街道", query)
+
+    def test_networked_statutory_query_uses_only_exact_relation_members(self):
+        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
+        self.assertIn('["network"="JP:national"]', query)
+        self.assertIn("way(r.r)", query)
+        self.assertNotIn('way["highway"]["ref"="20"]', query)
+        self.assertNotIn(".w;", query)
+
+        prefectural = {**road, "reference": {"type": "osm-ref", "ref": "20",
+                                              "network": "JP:prefectural"}}
+        prefectural_query = MATCH_ROAD.osm_query(prefectural, [1, 2, 3, 4])
+        self.assertIn('["network"="JP:prefectural"]', prefectural_query)
+        self.assertNotIn('JP:national', prefectural_query)
+        different_n13 = {**road, "n13": {"classifications": ["6"]}}
+        self.assertEqual(MATCH_ROAD.osm_query(different_n13, [1, 2, 3, 4]), query)
+
+    def test_direct_way_fallback_preserves_network_identity(self):
+        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4], direct_fallback=True)
+        self.assertIn('way["highway"]["ref"="20"]["network"="JP:national"]', query)
+
+    def test_networkless_statutory_query_warns_and_retains_legacy_behavior(self):
+        road = {"reference": {"type": "osm-ref", "ref": "20"}}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
+        self.assertIn('way["highway"]["ref"="20"]', query)
+        self.assertIn("without a network", str(caught[0].message))
+
+    def test_local_networked_reference_rejects_lines_without_network_identity(self):
+        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        frame = gpd.GeoDataFrame({"ref": ["20", "20"], "geometry": [
+            LineString([(0, 0), (1, 0)]), LineString([(0, 1), (1, 1)])]}, crs="EPSG:4326")
+        with patch.object(MATCH_ROAD.gpd, "read_file", return_value=frame):
+            with self.assertRaisesRegex(RuntimeError, "cannot establish exact network"):
+                MATCH_ROAD._local_osm_reference(road, Path("roads.pbf"))
+
+        frame["network"] = ["JP:national", "JP:prefectural"]
+        with patch.object(MATCH_ROAD.gpd, "read_file", return_value=frame):
+            selected = MATCH_ROAD._local_osm_reference(road, Path("roads.pbf"))
+        self.assertEqual(list(selected.network), ["JP:national"])
 
     def test_named_reference_query_uses_exact_name_and_alternates(self):
         road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-named-inokashira-dori")

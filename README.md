@@ -296,6 +296,12 @@ only as a legacy fallback: normal matching reads the N13 manifest bounds, uses t
 cache/local/Overpass results to the same working extent. OSM cache sidecars record their coverage; a cache covering
 a larger extent is clipped safely, while one from a smaller extent is rebuilt automatically. Build one road with:
 
+Statutory references with an OSM `network` use only member ways of the exact `type=route`, `route=road`, `ref`, and
+`network` relation. If that relation is absent, the Overpass fallback accepts only highway ways directly tagged with
+both the exact `ref` and `network`; it never broadens to same-number ways. The local GIS `lines` layer is used for a
+networked reference only when it exposes an exact `network` field; otherwise `auto` mode falls through to Overpass
+(`local` mode reports the limitation). Networkless legacy references retain ref-only behavior with an explicit warning.
+
 ```bash
 python scripts/preprocess/match-road.py jp-national-20
 ```

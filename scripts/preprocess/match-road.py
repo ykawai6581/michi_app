@@ -6,6 +6,7 @@ import argparse
 import heapq
 import json
 import math
+import warnings
 from collections import Counter
 from pathlib import Path
 from urllib.parse import urlencode
@@ -182,7 +183,7 @@ def load_road(registry_path: Path, road_id: str) -> dict:
         raise RuntimeError(f"Unknown road id {road_id!r}; add it to {registry_path}") from error
 
 
-def osm_query(road: dict, bounds: list[float]) -> str:
+def osm_query(road: dict, bounds: list[float], direct_fallback: bool = False) -> str:
     west, south, east, north = bounds
     reference = road["reference"]
     if reference["type"] == "osm-name":
@@ -193,26 +194,50 @@ def osm_query(road: dict, bounds: list[float]) -> str:
         return "[out:json][timeout:180];\n(" + "\n".join(filters) + "\n);\nout tags geom;"
     ref = reference["ref"].replace('"', '\\"')
     network = reference.get("network")
-    network_filter = f'["network"="{network}"]' if network else ""
-    return f'''[out:json][timeout:180];
-relation["type"="route"]["route"="road"]["ref"="{ref}"]{network_filter}({south},{west},{north},{east})->.r;
+    escaped_network = str(network).replace('"', '\\"') if network else ""
+    if network and direct_fallback:
+        return f'''[out:json][timeout:180];
+way["highway"]["ref"="{ref}"]["network"="{escaped_network}"]({south},{west},{north},{east});
+out tags geom;'''
+    network_filter = f'["network"="{escaped_network}"]' if network else ""
+    if not network:
+        warnings.warn(
+            f"Statutory road reference uses ref={reference['ref']} without a network; "
+            "same-number roads from other networks may be included.", UserWarning, stacklevel=2)
+        return f'''[out:json][timeout:180];
+relation["type"="route"]["route"="road"]["ref"="{ref}"]({south},{west},{north},{east})->.r;
 way["highway"]["ref"="{ref}"]({south},{west},{north},{east})->.w;
 way(r.r)({south},{west},{north},{east})->.rw;
 (.w;.rw;);
 out tags geom;'''
+    return f'''[out:json][timeout:180];
+relation["type"="route"]["route"="road"]["ref"="{ref}"]{network_filter}({south},{west},{north},{east})->.r;
+way(r.r)({south},{west},{north},{east})->.rw;
+.rw out tags geom;'''
 
 
 def download_reference(road: dict, output: Path, endpoint: str, bounds: list[float]) -> None:
-    request = Request(f"{endpoint}?{urlencode({'data': osm_query(road, bounds)})}", headers={
-        "Accept": "application/json", "User-Agent": "michi-map-road-matcher/0.1",
-    })
-    with urlopen(request, timeout=210) as response:  # noqa: S310
-        payload = json.load(response)
+    def request_elements(direct_fallback: bool = False) -> list[dict]:
+        request = Request(f"{endpoint}?{urlencode({'data': osm_query(road, bounds, direct_fallback)})}", headers={
+            "Accept": "application/json", "User-Agent": "michi-map-road-matcher/0.1",
+        })
+        with urlopen(request, timeout=210) as response:  # noqa: S310
+            return json.load(response)["elements"]
+
+    elements = request_elements()
+    reference = road["reference"]
+    if not elements and reference["type"] == "osm-ref" and reference.get("network"):
+        elements = request_elements(direct_fallback=True)
+        if not elements:
+            raise RuntimeError(
+                f"OSM has neither a matching route relation nor directly tagged highway ways for "
+                f"ref={reference['ref']}, network={reference['network']} ({road['id']})")
     features = [{
         "type": "Feature",
-        "properties": {"osm_way_id": item["id"], **item.get("tags", {})},
+        "properties": {"osm_way_id": item["id"], **item.get("tags", {}),
+                       "osm_reference_network": reference.get("network")},
         "geometry": {"type": "LineString", "coordinates": [[p["lon"], p["lat"]] for p in item["geometry"]]},
-    } for item in payload["elements"] if len(item.get("geometry", [])) > 1]
+    } for item in elements if len(item.get("geometry", [])) > 1]
     if not features:
         raise RuntimeError(f"OSM returned no reference geometry for {road['id']}")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -270,6 +295,13 @@ def _local_osm_reference(road: dict, source: Path) -> gpd.GeoDataFrame:
         ref = str(reference["ref"])
         refs = frame["ref"].fillna("").astype(str).str.split(";")
         frame = frame[refs.apply(lambda values: ref in [value.strip() for value in values])].copy()
+        network = reference.get("network")
+        if network:
+            if "network" not in frame:
+                raise RuntimeError(
+                    f"Local OSM lines source {source} cannot establish exact network={network}; "
+                    "falling through to Overpass is required")
+            frame = frame[frame["network"].fillna("").astype(str) == str(network)].copy()
     else:
         names, tags = set(reference["names"]), reference.get("tags", ["name", "name:ja", "alt_name"])
         masks = [(frame[tag].fillna("").astype(str).str.split(";").apply(
@@ -302,10 +334,13 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
         coverage_bounds = config.get("overpass", {}).get("boundsByJurisdiction", {}).get(road.get("jurisdiction"))
         if not coverage_bounds:
             raise RuntimeError("N13 coverage bounds are required (legacy jurisdiction fallback is unavailable)")
+    identity = {key: road["reference"].get(key) for key in ("type", "ref", "network")
+                if road["reference"].get(key) is not None}
     if cache.exists() and not refresh:
         cached = json.loads(metadata.read_text()) if metadata.exists() else {}
         cached_bounds = cached.get("coverageBoundsWgs84")
-        if cached_bounds and _bounds_cover(cached_bounds, coverage_bounds):
+        if (cached_bounds and cached.get("referenceIdentity") == identity
+                and _bounds_cover(cached_bounds, coverage_bounds)):
             frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
             return frame, {"provider": "cache", "path": str(cache),
                            "cachedCoverageBoundsWgs84": cached_bounds, "workingBoundsWgs84": coverage_bounds}
@@ -319,7 +354,8 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
                 raise RuntimeError(f"Local OSM source contains no reference inside N13 coverage for {road['id']}")
             cache.parent.mkdir(parents=True, exist_ok=True)
             frame.to_file(cache, driver="GeoJSON")
-            metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds}, indent=2) + "\n")
+            metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds,
+                                            "referenceIdentity": identity}, indent=2) + "\n")
             return frame, {"provider": "local", "path": str(local), "cache": str(cache),
                            "workingBoundsWgs84": coverage_bounds}
         except RuntimeError:
@@ -329,7 +365,8 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
         raise RuntimeError(f"Configured local OSM source does not exist: {local}")
     overpass = config["overpass"]
     download_reference(road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), coverage_bounds)
-    metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds}, indent=2) + "\n")
+    metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds,
+                                    "referenceIdentity": identity}, indent=2) + "\n")
     frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
     return frame, {"provider": "overpass", "bounds": coverage_bounds, "cache": str(cache),
                    "workingBoundsWgs84": coverage_bounds}

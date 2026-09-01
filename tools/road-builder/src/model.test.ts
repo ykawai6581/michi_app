@@ -1,9 +1,16 @@
 import {describe,expect,it} from 'vitest'
-import {deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyRoad,findRegisteredRoad,initialLayerVisibility,removeAt,resolveDeletableRoad,toggle,toggleLayerVisibility,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyRoad,findRegisteredRoad,initialLayerVisibility,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
   it('toggles N13 classes without duplicates',()=>expect(toggle(toggle([], '5'),'5')).toEqual([]))
+  it('presets statutory OSM network independently of N13 classification',()=>{
+    const reference={type:'osm-ref',ref:'20'}
+    expect(applyStatutoryNetworkChoice(reference,'national').network).toBe('JP:national')
+    expect(applyStatutoryNetworkChoice(reference,'prefectural').network).toBe('JP:prefectural')
+    expect(statutoryNetworkChoice('JP:national')).toBe('national')
+    expect(statutoryNetworkChoice('JP:custom')).toBe('custom')
+  })
   it('toggles layer visibility without touching its data',()=>{
     const data={type:'FeatureCollection',features:[]} as const
     const layers={reference:data}

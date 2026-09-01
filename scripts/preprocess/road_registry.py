@@ -82,8 +82,12 @@ def validate_road(value: dict) -> dict:
         if not tags:
             raise ValueError("reference.tags must contain at least one OSM name tag")
         reference["names"], reference["tags"] = names, tags
-    elif not str(reference.get("ref", "")).strip():
-        raise ValueError("statutory-road reference.ref is required")
+    else:
+        reference["ref"] = str(reference.get("ref", "")).strip()
+        if not reference["ref"]:
+            raise ValueError("statutory-road reference.ref is required")
+        if "network" in reference:
+            reference["network"] = str(reference["network"]).strip()
     road["matching"] = {**MATCHING_DEFAULTS, **road.get("matching", {})}
     return road
 
