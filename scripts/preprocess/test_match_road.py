@@ -216,6 +216,54 @@ class NetworkSelectionTests(unittest.TestCase):
         blocked = diagnostic[diagnostic.sourceFeatureIndex == 1].iloc[0]
         self.assertEqual(blocked.rejectionReason, "higher-class-reference-already-resolved")
 
+    def test_hierarchical_atomizes_one_cross_domain_source_feature(self):
+        accepted, diagnostic, _ = hierarchical(
+            [LineString([(0, 0), (250, 0)]), LineString([(100, 0), (500, 0)])],
+            ["1", "2"], LineString([(0, 0), (500, 0)]), ["1", "2"],
+            classLockSupportDistanceMeters=.1, classTransitionBufferMeters=20)
+        fallback = accepted[accepted.N13_003 == "2"].iloc[0]
+        self.assertGreaterEqual(fallback.geometry.bounds[0], 229.9)
+        self.assertEqual(fallback.sourceFeatureIndex, 1)
+        self.assertGreater(fallback.sourceGeometryFractionStart, 0)
+        locked_atom = diagnostic[(diagnostic.N13_003 == "2")
+                                 & (diagnostic.domainStatus == "locked-higher-class")].iloc[0]
+        self.assertLessEqual(locked_atom.geometry.bounds[2], 230.1)
+
+    def test_hierarchical_atomizes_shinjuku_stem_from_useful_continuation(self):
+        accepted, _, _ = hierarchical(
+            [LineString([(0, 0), (280, 0)]),
+             LineString([(80, 0), (100, 10), (500, 10)])],
+            ["1", "2"], LineString([(0, 0), (500, 0)]), ["1", "2"],
+            classLockSupportDistanceMeters=.1, classTransitionBufferMeters=20)
+        fallback = accepted[accepted.N13_003 == "2"].geometry.union_all()
+        self.assertGreaterEqual(fallback.bounds[0], 259.9)
+
+    def test_hierarchical_atom_preserves_transition_buffer_overlap(self):
+        accepted, _, _ = hierarchical(
+            [LineString([(0, 0), (200, 0)]), LineString([(180, 0), (400, 0)])],
+            ["1", "2"], LineString([(0, 0), (400, 0)]), ["1", "2"],
+            classLockSupportDistanceMeters=.1, classTransitionBufferMeters=20)
+        fallback = accepted[accepted.N13_003 == "2"].iloc[0]
+        self.assertAlmostEqual(fallback.geometry.bounds[0], 180, delta=.2)
+
+    def test_hierarchical_atom_rejects_feature_entirely_in_locked_domain(self):
+        accepted, _, _ = hierarchical(
+            [LineString([(0, 0), (300, 0)]), LineString([(80, 5), (220, 5)])],
+            ["1", "2"], LineString([(0, 0), (400, 0)]), ["1", "2"],
+            classLockSupportDistanceMeters=.1, classTransitionBufferMeters=20)
+        self.assertEqual(set(accepted.N13_003), {"1"})
+
+    def test_hierarchical_atom_keeps_entirely_unresolved_feature_unchanged(self):
+        source = LineString([(220, 0), (400, 0)])
+        accepted, _, _ = hierarchical(
+            [LineString([(0, 0), (200, 0)]), source], ["1", "2"],
+            LineString([(0, 0), (400, 0)]), ["1", "2"],
+            classLockSupportDistanceMeters=.1, classTransitionBufferMeters=20)
+        fallback = accepted[accepted.N13_003 == "2"].iloc[0]
+        self.assertTrue(fallback.geometry.equals_exact(source, 1e-9))
+        self.assertEqual(fallback.sourceGeometryFractionStart, 0)
+        self.assertEqual(fallback.sourceGeometryFractionEnd, 1)
+
     def test_hierarchical_f_multipart_reference_is_resolved_independently(self):
         reference = MultiLineString([[(0, 0), (200, 0)], [(0, 5), (200, 5)]])
         accepted, _, report = hierarchical(

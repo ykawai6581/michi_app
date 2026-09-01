@@ -16,7 +16,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, MultiLineString, Point, box, mapping
-from shapely.ops import linemerge, unary_union
+from shapely.ops import linemerge, substring, unary_union
 
 REGISTRY = Path("data/roads/registry.json")
 SOURCE_CONFIG = Path("data/roads/sources.json")
@@ -47,7 +47,6 @@ DEFAULT_NETWORK_SELECTION = {
     "maximumClassLockGapMeters": 15.0,
     "classTransitionBufferMeters": 20.0,
     "classLockSupportDistanceMeters": 15.0,
-    "minimumClassPassDomainRatio": 0.8,
 }
 DEFAULT_BRANCH_PRUNING = {
     "enabled": True,
@@ -61,7 +60,7 @@ DEFAULT_BRANCH_PRUNING = {
 }
 HIERARCHICAL_CONFIG_KEYS = (
     "minimumClassLockSpanMeters", "maximumClassLockGapMeters", "classTransitionBufferMeters",
-    "classLockSupportDistanceMeters", "minimumClassPassDomainRatio",
+    "classLockSupportDistanceMeters",
 )
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
@@ -758,7 +757,7 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
                         and min(high, other_high) > max(low, other_low)):
                     covering_residuals.append(float(row.medianResidualMeters))
             dominated_coverage = (covering_residuals
-                                  and min(covering_residuals) + 1.0 < branch_median_residual)
+                                  and min(covering_residuals) + 1e-6 < branch_median_residual)
             if (dangling and attachment_junctions == 1
                     and unique < float(settings["sampleIntervalMeters"]) * 2 and dominated_coverage):
                 report["decision"] = "rejected"; report["rejectionReason"] = "dangling-spur"
@@ -1181,17 +1180,94 @@ def _allowed_reference_intervals(parts: list[LineString], locked_runs: list[dict
     return result
 
 
-def _interval_coverage_ratio(low: float, high: float, intervals: list[tuple[float, float]]) -> float:
-    if high - low <= 1e-9:
-        return 0.0
-    clipped = sorted((max(low, start), min(high, end)) for start, end in intervals
-                     if min(high, end) > max(low, start))
-    covered = 0.0; cursor = low
-    for start, end in clipped:
-        start = max(start, cursor)
-        if end > start:
-            covered += end - start; cursor = end
-    return covered / (high - low)
+def _source_domain_parts(stage1: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Explode source parts once and retain stable feature/part provenance."""
+    exploded = stage1.explode(index_parts=True).copy()
+    exploded["sourceFeatureIndex"] = [index[0] if isinstance(index, tuple) else index
+                                      for index in exploded.index]
+    exploded["sourcePartIndex"] = [index[1] if isinstance(index, tuple) else 0
+                                   for index in exploded.index]
+    return exploded.reset_index(drop=True)
+
+
+def _chainage_boundary_offset(line: LineString, part: LineString, left: float, right: float,
+                               boundary: float, increasing: bool) -> float:
+    """Locate a reference-chainage crossing as a point on the source line."""
+    for _ in range(24):
+        middle = (left + right) / 2
+        chainage = float(part.project(line.interpolate(middle)))
+        if (chainage < boundary) == increasing:
+            left = middle
+        else:
+            right = middle
+    return (left + right) / 2
+
+
+def atomize_candidates_for_reference_domain(candidates: gpd.GeoDataFrame, reference_parts,
+                                             allowed_intervals: dict[int, list[tuple[float, float]]],
+                                             settings) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    """Split monotonic fallback source lines at allowed reference-domain boundaries."""
+    admitted_rows, rejected_rows = [], []
+    interval = float(settings["progressSampleMeters"])
+    for _, row in candidates.iterrows():
+        line = row.geometry
+        metric = _progression_metrics(line, reference_parts, interval)
+        base = row.to_dict()
+        if (not metric["referencePartConsistent"]
+                or metric["chainageMonotonicity"] < float(settings["minimumChainageMonotonicity"])):
+            base.update({"sourceAtomIndex": 0, "domainReferencePart": metric["referencePart"],
+                         "domainStartMeters": metric["referenceStartMeters"],
+                         "domainEndMeters": metric["referenceEndMeters"],
+                         "domainStatus": "rejected-ambiguous-fallback-domain",
+                         "sourceGeometryFractionStart": 0.0, "sourceGeometryFractionEnd": 1.0,
+                         "rejectionReason": "ambiguous-fallback-reference-projection"})
+            rejected_rows.append(base); continue
+        part_index = int(metric["referencePart"]); part = reference_parts[part_index]
+        allowed = allowed_intervals.get(part_index, [])
+        offsets = np.unique(np.append(np.arange(0, line.length, interval), line.length))
+        chainages = [float(part.project(line.interpolate(float(offset)))) for offset in offsets]
+        boundaries = sorted({value for start, end in allowed for value in (start, end)})
+        split_offsets = {0.0, float(line.length)}
+        for index in range(len(offsets) - 1):
+            first, second = chainages[index], chainages[index + 1]
+            if abs(second - first) <= 1e-9:
+                continue
+            for boundary in boundaries:
+                if min(first, second) < boundary < max(first, second):
+                    split_offsets.add(_chainage_boundary_offset(
+                        line, part, float(offsets[index]), float(offsets[index + 1]),
+                        boundary, second > first))
+        ordered = sorted(split_offsets)
+        atom_index = 0
+        for start_offset, end_offset in zip(ordered, ordered[1:]):
+            if end_offset - start_offset <= 1e-6:
+                continue
+            middle = line.interpolate((start_offset + end_offset) / 2)
+            middle_chainage = float(part.project(middle))
+            atom_allowed = any(start <= middle_chainage <= end for start, end in allowed)
+            atom = line if start_offset <= 1e-9 and end_offset >= line.length - 1e-9 else \
+                substring(line, start_offset, end_offset)
+            atom_row = {**base, "geometry": atom, "sourceAtomIndex": atom_index,
+                        "domainReferencePart": part_index,
+                        "domainStartMeters": float(part.project(atom.interpolate(0))),
+                        "domainEndMeters": float(part.project(atom.interpolate(atom.length))),
+                        "domainStatus": "allowed" if atom_allowed else "locked-higher-class",
+                        "sourceGeometryFractionStart": start_offset / line.length,
+                        "sourceGeometryFractionEnd": end_offset / line.length}
+            if atom_allowed:
+                admitted_rows.append(atom_row)
+            else:
+                atom_row["rejectionReason"] = "higher-class-reference-already-resolved"
+                rejected_rows.append(atom_row)
+            atom_index += 1
+    columns = list(candidates.columns) + ["sourceAtomIndex", "domainReferencePart", "domainStartMeters",
+                                         "domainEndMeters", "domainStatus",
+                                         "sourceGeometryFractionStart", "sourceGeometryFractionEnd",
+                                         "rejectionReason"]
+    def frame(rows):
+        return gpd.GeoDataFrame(rows, geometry="geometry", crs=candidates.crs) if rows else \
+            gpd.GeoDataFrame({column: [] for column in columns}, geometry="geometry", crs=candidates.crs)
+    return frame(admitted_rows), frame(rejected_rows)
 
 
 def select_reference_network_hierarchical(stage1: gpd.GeoDataFrame, reference,
@@ -1202,31 +1278,28 @@ def select_reference_network_hierarchical(stage1: gpd.GeoDataFrame, reference,
     priority = [str(value) for value in (class_priority or [])]
     if not priority:
         return select_reference_network(stage1, reference, settings)
-    enabled = list(dict.fromkeys(stage1["N13_003"].astype(str)))
+    source_parts = _source_domain_parts(stage1)
+    enabled = list(dict.fromkeys(source_parts["N13_003"].astype(str)))
     passes = priority + [value for value in enabled if value not in priority]
     parts = _ordered_reference_parts(reference)
     locked_runs, selected_frames, diagnostic_frames, pass_reports = [], [], [], []
     for pass_index, road_class in enumerate(passes):
-        candidates = stage1[stage1["N13_003"].astype(str) == road_class].copy()
+        candidates = source_parts[source_parts["N13_003"].astype(str) == road_class].copy()
         if candidates.empty:
             continue
-        if "sourceFeatureIndex" not in candidates:
-            candidates["sourceFeatureIndex"] = candidates.index
         allowed = _allowed_reference_intervals(
             parts, locked_runs, float(settings["classTransitionBufferMeters"]))
-        metrics = [_progression_metrics(line, parts, float(settings["progressSampleMeters"]))
-                   for line in candidates.geometry]
-        eligible = []
-        for metric in metrics:
-            low = min(metric["referenceStartMeters"], metric["referenceEndMeters"])
-            high = max(metric["referenceStartMeters"], metric["referenceEndMeters"])
-            # Ambiguous multipart projection is retained conservatively rather
-            # than comparing unrelated chainages as one scalar domain.
-            ratio = (_interval_coverage_ratio(low, high, allowed[metric["referencePart"]])
-                     if metric["referencePartConsistent"] else 1.0)
-            eligible.append(ratio >= float(settings["minimumClassPassDomainRatio"]))
-        admitted = candidates[np.asarray(eligible)].copy()
-        excluded = candidates[~np.asarray(eligible)].copy()
+        if pass_index == 0:
+            admitted = candidates.copy(); excluded = candidates.iloc[0:0].copy()
+            admitted["sourceAtomIndex"] = 0
+            admitted["domainReferencePart"] = None
+            admitted["domainStartMeters"] = None; admitted["domainEndMeters"] = None
+            admitted["domainStatus"] = "highest-priority-unrestricted"
+            admitted["sourceGeometryFractionStart"] = 0.0
+            admitted["sourceGeometryFractionEnd"] = 1.0
+        else:
+            admitted, excluded = atomize_candidates_for_reference_domain(
+                candidates, parts, allowed, settings)
         if not excluded.empty:
             excluded["selectionStatus"] = "rejected-higher-class-reference-already-resolved"
             excluded["selectionReason"] = "rejected-higher-class-reference-already-resolved"
@@ -1257,8 +1330,7 @@ def select_reference_network_hierarchical(stage1: gpd.GeoDataFrame, reference,
               "referenceRuns": locked_runs, "selectedCount": len(selected),
               "parameters": {key: settings[key] for key in (
                   "minimumClassLockSpanMeters", "maximumClassLockGapMeters",
-                  "classTransitionBufferMeters", "classLockSupportDistanceMeters",
-                  "minimumClassPassDomainRatio")}}
+                  "classTransitionBufferMeters", "classLockSupportDistanceMeters")}}
     return selected, diagnostics, report
 
 
