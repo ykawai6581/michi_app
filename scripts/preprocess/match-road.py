@@ -1228,6 +1228,13 @@ def atomize_candidates_for_reference_domain(candidates: gpd.GeoDataFrame, refere
         chainages = [float(part.project(line.interpolate(float(offset)))) for offset in offsets]
         boundaries = sorted({value for start, end in allowed for value in (start, end)})
         split_offsets = {0.0, float(line.length)}
+        # A domain boundary commonly lands exactly on the regular source
+        # sampling grid. Preserve that on-source offset directly; strict
+        # between-sample crossing detection alone would otherwise miss it and
+        # leak the whole feature across the locked boundary.
+        for source_offset, chainage in zip(offsets, chainages):
+            if any(abs(chainage - boundary) <= 1e-7 for boundary in boundaries):
+                split_offsets.add(float(source_offset))
         for index in range(len(offsets) - 1):
             first, second = chainages[index], chainages[index + 1]
             if abs(second - first) <= 1e-9:
