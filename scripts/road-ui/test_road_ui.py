@@ -46,6 +46,16 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertEqual(result["aliases"], ["テスト通り"])
         self.assertEqual(result["reference"]["names"], ["テスト通り"])
 
+    def test_statutory_network_is_preserved_on_save_and_load(self):
+        road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "displayName": "国道20号",
+                "entityType": "statutory-road", "roadClass": "national",
+                "reference": {"type": "osm-ref", "ref": "20", "network": "JP:national",
+                              "excludeNames": ["八王子南バイパス"]}}
+        road_ui.save_road(self.registry, road)
+        loaded = road_ui.get_road(self.registry, road["id"])
+        self.assertEqual(loaded["reference"], road["reference"])
+        self.assertEqual(loaded["n13"]["classifications"], ROAD["n13"]["classifications"])
+
     def test_atomic_create_edit_and_duplicate(self):
         new = copy.deepcopy(ROAD)
         new["id"] = "tokyo-named-another-dori"
@@ -66,6 +76,22 @@ class RoadBuilderTests(unittest.TestCase):
         result = road_ui.inspect_osm(ROAD)
         self.assertEqual(result["summary"]["wayCount"], 1)
         self.assertIn("Test Dori", result["discoveredNames"])
+        self.assertIn("referenceExcluded", result)
+
+    @patch.object(road_ui, "_context")
+    def test_osm_inspection_reports_exact_tokens_and_excluded_geometry(self, context):
+        road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "entityType": "statutory-road",
+                "reference": {"type": "osm-ref", "ref": "20", "network": "JP:national",
+                              "excludeNames": ["八王子南バイパス"]}}
+        osm = gpd.GeoDataFrame({"name": ["甲州街道", "別名;八王子南バイパス"],
+                                "osm_way_id": [1, 2], "geometry": [
+                                    LineString([(0, 0), (1, 0)]), LineString([(0, 1), (1, 1)])]},
+                               crs=road_ui.MATCHER.METRIC_CRS)
+        context.return_value = (road, Path(), osm, osm.geometry.iloc[0], {}, {})
+        result = road_ui.inspect_osm(road)
+        self.assertEqual(result["discoveredNames"], ["八王子南バイパス", "別名", "甲州街道"])
+        self.assertEqual(len(result["referenceExcluded"]["features"]), 1)
+        self.assertEqual(result["summary"]["excludedByExactNameCount"], 1)
 
     def test_geojson_preserves_and_serializes_pandas_and_numpy_scalars(self):
         frame = gpd.GeoDataFrame({
@@ -174,6 +200,26 @@ class RoadBuilderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot be changed"):
             road_ui.save_project({**updated,"id":"renamed"}, "demo", root)
         self.assertFalse(list((root / "projects/demo").glob(".project-*")))
+
+    def test_delete_project_removes_only_config_and_built_project_output(self):
+        root = Path(self.temp.name)
+        project = {"id":"demo","displayName":"Demo","bounds":[139,35,140,36],"layers":{}}
+        (root / "projects").mkdir()
+        road_ui.save_project(project, root=root)
+        output = root / "public/projects/demo/data"; output.mkdir(parents=True)
+        (output / "modern-roads.geojson").write_text("{}")
+        shared = root / "public/data/roads/shared.geojson"; shared.parent.mkdir(parents=True)
+        shared.write_text("keep")
+        result = road_ui.delete_project("demo", root)
+        self.assertEqual(result["projectId"], "demo")
+        self.assertEqual(result["deletedPaths"], ["projects/demo", "public/projects/demo"])
+        self.assertFalse((root / "projects/demo").exists())
+        self.assertFalse((root / "public/projects/demo").exists())
+        self.assertTrue(shared.exists())
+        with self.assertRaisesRegex(FileNotFoundError, "does not exist"):
+            road_ui.delete_project("demo", root)
+        with self.assertRaises(ValueError):
+            road_ui.delete_project("../demo", root)
 
     def test_rejects_unsafe_project_ids(self):
         for value in ("../bad", "/bad", "bad/name", "Bad"):

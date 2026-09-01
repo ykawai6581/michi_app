@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -96,6 +97,21 @@ def save_project(project: dict, existing_id: str | None = None, root: Path = ROO
     finally:
         Path(temporary).unlink(missing_ok=True)
     return project
+
+
+def delete_project(project_id: str, root: Path = ROOT) -> dict:
+    """Delete one project configuration and only its project-specific built output."""
+    validate_project_id(project_id)
+    configuration = root / "projects" / project_id
+    if not (configuration / "project.json").is_file():
+        raise FileNotFoundError(f"Project {project_id!r} does not exist")
+    output = root / "public" / "projects" / project_id
+    deleted = []
+    for path in (configuration, output):
+        if path.exists():
+            shutil.rmtree(path)
+            deleted.append(str(path.relative_to(root)))
+    return {"projectId": project_id, "deleted": True, "deletedPaths": deleted}
 
 
 def project_catalog(root: Path = ROOT) -> dict:
@@ -212,13 +228,18 @@ def _geojson(frame) -> dict:
 
 
 def inspect_osm(draft: dict, sources: Path = SOURCES) -> dict:
-    _, _, osm, reference, provenance, diagnostics = _context(draft, sources)
+    road, _, osm, reference, provenance, diagnostics = _context(draft, sources)
+    _, excluded = MATCHER.filter_reference_members(road, osm)
     fields = ["name", "name:ja", "name:en", "alt_name", "ref", "highway"]
     values = {field: sorted(set(osm[field].dropna().astype(str))) if field in osm else [] for field in fields}
     ids = sorted(set(osm["osm_way_id"].dropna().astype(str))) if "osm_way_id" in osm else []
-    return {"reference": _geojson(reference), "summary": {"wayCount": len(osm), "values": values,
-            "wayIds": ids, "provenance": provenance, **diagnostics},
-            "discoveredNames": sorted(set(sum((values[field] for field in fields[:4]), [])))}
+    discovered = sorted({token.strip() for field in fields[:4] for value in values[field]
+                         for token in value.split(";") if token.strip()})
+    return {"reference": _geojson(reference), "referenceExcluded": _geojson(excluded),
+            "summary": {"values": values, "wayIds": ids, "provenance": provenance, **diagnostics,
+                        "memberWayCount": len(osm), "excludedByExactNameCount": len(excluded),
+                        "wayCount": len(osm) - len(excluded)},
+            "discoveredNames": discovered}
 
 
 def analyze_n13(draft: dict, sources: Path = SOURCES) -> dict:
@@ -256,14 +277,16 @@ def prepare_class(road_class: str, sources: Path = SOURCES, runner=PREPROCESSOR.
 
 
 def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
-    road, n13, _, reference, provenance, reference_diagnostics = _context(draft, sources)
+    road, n13, osm, reference, provenance, reference_diagnostics = _context(draft, sources)
+    _, excluded = MATCHER.filter_reference_members(road, osm)
     candidates = MATCHER.load_n13_candidates(road, n13, reference)
     stage1, measured = MATCHER.match_n13(candidates, reference, road)
     selected, diagnostics, report = MATCHER.select_reference_network(
         stage1, reference, {**road.get("networkSelection", {}),
                             "endpointSnapMeters": road.get("display", {}).get(
                                 "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
-    return {"reference": _geojson(reference), "candidates": _geojson(measured),
+    return {"reference": _geojson(reference), "referenceExcluded": _geojson(excluded),
+            "candidates": _geojson(measured),
             "residualPass": _geojson(stage1), "selected": _geojson(selected),
             "diagnostics": _geojson(diagnostics), "report": {"networkSelection": report,
             "osmReference": {**provenance, **reference_diagnostics}, "candidateCount": len(measured),

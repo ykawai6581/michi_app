@@ -296,6 +296,19 @@ only as a legacy fallback: normal matching reads the N13 manifest bounds, uses t
 cache/local/Overpass results to the same working extent. OSM cache sidecars record their coverage; a cache covering
 a larger extent is clipped safely, while one from a smaller extent is rebuilt automatically. Build one road with:
 
+Statutory references with an OSM `network` use only member ways of the exact `type=route`, `route=road`, `ref`, and
+`network` relation. If that relation is absent, the Overpass fallback accepts only highway ways directly tagged with
+both the exact `ref` and `network`; it never broadens to same-number ways. The local GIS `lines` layer is used for a
+networked reference only when it exposes an exact `network` field; otherwise `auto` mode falls through to Overpass
+(`local` mode reports the limitation). Networkless legacy references retain ref-only behavior with an explicit warning.
+
+Road-specific alignment filtering happens only after that canonical acquisition. A statutory reference may set
+`reference.excludeNames` to exact OSM segment names (for example `["八王子南バイパス"]`). The matcher compares exact,
+trimmed semicolon-separated tokens across `name`, `name:ja`, `name:en`, and `alt_name` by default; unnamed members and
+nonmatching names remain included. `reference.excludeNameTags` can override those fields. Exclusions do not participate
+in the raw OSM cache identity, so editing them reuses the complete `ref + network` acquisition while Inspect/Preview
+show excluded ways separately and all N13 analysis uses only the retained geometry.
+
 ```bash
 python scripts/preprocess/match-road.py jp-national-20
 ```
@@ -407,3 +420,7 @@ Repository の **Settings → Pages → Source** を **GitHub Actions** に設�
 Road Builder can also reset an existing canonical road with **Delete Road…**. The confirmation lists projects that
 still reference the road; those reproducible project configs are never changed automatically. Deletion atomically
 removes the registry entry and only exact road-specific generated/reference artifacts, never shared source caches.
+
+The Projects tab exposes **Delete Project…** after an existing project is loaded. After confirmation it removes that
+project's configuration and materialized preview directory, while leaving canonical roads and all shared source data
+untouched.

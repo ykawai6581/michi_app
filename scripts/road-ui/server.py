@@ -80,6 +80,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"project": road_ui.save_project(body["project"])}
             elif len(route) == 3 and route[:2] == ["api", "projects"] and method == "PUT":
                 result = {"project": road_ui.save_project(body["project"], route[2])}
+            elif len(route) == 3 and route[:2] == ["api", "projects"] and method == "DELETE":
+                result = road_ui.delete_project(route[2])
             elif len(route) == 4 and route[:2] == ["api", "projects"] and route[3] == "build":
                 result = road_ui.build_project(route[2])
             elif len(route) == 3 and route[:2] == ["api", "roads"] and method == "DELETE":

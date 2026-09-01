@@ -6,6 +6,7 @@ import argparse
 import heapq
 import json
 import math
+import warnings
 from collections import Counter
 from pathlib import Path
 from urllib.parse import urlencode
@@ -22,6 +23,7 @@ SOURCE_CONFIG = Path("data/roads/sources.json")
 PUBLIC_ROADS = Path("public/data/roads")
 SEARCH_INDEX = Path("public/search/roads.json")
 METRIC_CRS = "EPSG:6677"
+DEFAULT_EXCLUDE_NAME_TAGS = ("name", "name:ja", "name:en", "alt_name")
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 DEFAULT_ENDPOINT_SNAP_METERS = 2.0
 DEFAULT_NETWORK_SELECTION = {
@@ -182,7 +184,7 @@ def load_road(registry_path: Path, road_id: str) -> dict:
         raise RuntimeError(f"Unknown road id {road_id!r}; add it to {registry_path}") from error
 
 
-def osm_query(road: dict, bounds: list[float]) -> str:
+def osm_query(road: dict, bounds: list[float], direct_fallback: bool = False) -> str:
     west, south, east, north = bounds
     reference = road["reference"]
     if reference["type"] == "osm-name":
@@ -193,26 +195,51 @@ def osm_query(road: dict, bounds: list[float]) -> str:
         return "[out:json][timeout:180];\n(" + "\n".join(filters) + "\n);\nout tags geom;"
     ref = reference["ref"].replace('"', '\\"')
     network = reference.get("network")
-    network_filter = f'["network"="{network}"]' if network else ""
-    return f'''[out:json][timeout:180];
-relation["type"="route"]["route"="road"]["ref"="{ref}"]{network_filter}({south},{west},{north},{east})->.r;
+    escaped_network = str(network).replace('"', '\\"') if network else ""
+    if network and direct_fallback:
+        return f'''[out:json][timeout:180];
+way["highway"]["ref"="{ref}"]["network"="{escaped_network}"]({south},{west},{north},{east});
+out tags geom;'''
+    network_filter = f'["network"="{escaped_network}"]' if network else ""
+    if not network:
+        warnings.warn(
+            f"Statutory road reference uses ref={reference['ref']} without a network; "
+            "same-number roads from other networks may be included.", UserWarning, stacklevel=2)
+        return f'''[out:json][timeout:180];
+relation["type"="route"]["route"="road"]["ref"="{ref}"]({south},{west},{north},{east})->.r;
 way["highway"]["ref"="{ref}"]({south},{west},{north},{east})->.w;
 way(r.r)({south},{west},{north},{east})->.rw;
 (.w;.rw;);
 out tags geom;'''
+    return f'''[out:json][timeout:180];
+relation["type"="route"]["route"="road"]["ref"="{ref}"]{network_filter}({south},{west},{north},{east})->.r;
+way(r.r)({south},{west},{north},{east})->.rw;
+.rw out tags geom;'''
 
 
 def download_reference(road: dict, output: Path, endpoint: str, bounds: list[float]) -> None:
-    request = Request(f"{endpoint}?{urlencode({'data': osm_query(road, bounds)})}", headers={
-        "Accept": "application/json", "User-Agent": "michi-map-road-matcher/0.1",
-    })
-    with urlopen(request, timeout=210) as response:  # noqa: S310
-        payload = json.load(response)
+    def request_elements(direct_fallback: bool = False) -> list[dict]:
+        request = Request(f"{endpoint}?{urlencode({'data': osm_query(road, bounds, direct_fallback)})}", headers={
+            "Accept": "application/json", "User-Agent": "michi-map-road-matcher/0.1",
+        })
+        with urlopen(request, timeout=210) as response:  # noqa: S310
+            return json.load(response)["elements"]
+
+    elements = request_elements()
+    reference = road["reference"]
+    if not elements and reference["type"] == "osm-ref" and reference.get("network"):
+        elements = request_elements(direct_fallback=True)
+        if not elements:
+            raise RuntimeError(
+                f"OSM has neither a matching route relation nor directly tagged highway ways for "
+                f"ref={reference['ref']}, network={reference['network']} ({road['id']})")
     features = [{
         "type": "Feature",
-        "properties": {"osm_way_id": item["id"], **item.get("tags", {})},
+        "properties": {"osm_way_id": item["id"], **item.get("tags", {}),
+                       "osm_reference_ref": reference.get("ref"),
+                       "osm_reference_network": reference.get("network")},
         "geometry": {"type": "LineString", "coordinates": [[p["lon"], p["lat"]] for p in item["geometry"]]},
-    } for item in payload["elements"] if len(item.get("geometry", [])) > 1]
+    } for item in elements if len(item.get("geometry", [])) > 1]
     if not features:
         raise RuntimeError(f"OSM returned no reference geometry for {road['id']}")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -245,6 +272,12 @@ def _bounds_cover(outer: list[float], inner: list[float]) -> bool:
             and outer[3] >= inner[3] - OSM_CACHE_BOUNDS_EPSILON)
 
 
+def reference_cache_identity(reference: dict) -> dict:
+    """Return acquisition identity; display-time member exclusions are deliberately absent."""
+    return {key: reference.get(key) for key in ("type", "ref", "network")
+            if reference.get(key) is not None}
+
+
 def clip_osm_to_bounds(frame: gpd.GeoDataFrame, bounds: list[float]) -> gpd.GeoDataFrame:
     """Clip any OSM provider result to the N13 source coverage."""
     if frame.crs is None:
@@ -270,6 +303,13 @@ def _local_osm_reference(road: dict, source: Path) -> gpd.GeoDataFrame:
         ref = str(reference["ref"])
         refs = frame["ref"].fillna("").astype(str).str.split(";")
         frame = frame[refs.apply(lambda values: ref in [value.strip() for value in values])].copy()
+        network = reference.get("network")
+        if network:
+            if "network" not in frame:
+                raise RuntimeError(
+                    f"Local OSM lines source {source} cannot establish exact network={network}; "
+                    "falling through to Overpass is required")
+            frame = frame[frame["network"].fillna("").astype(str) == str(network)].copy()
     else:
         names, tags = set(reference["names"]), reference.get("tags", ["name", "name:ja", "alt_name"])
         masks = [(frame[tag].fillna("").astype(str).str.split(";").apply(
@@ -302,10 +342,12 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
         coverage_bounds = config.get("overpass", {}).get("boundsByJurisdiction", {}).get(road.get("jurisdiction"))
         if not coverage_bounds:
             raise RuntimeError("N13 coverage bounds are required (legacy jurisdiction fallback is unavailable)")
+    identity = reference_cache_identity(road["reference"])
     if cache.exists() and not refresh:
         cached = json.loads(metadata.read_text()) if metadata.exists() else {}
         cached_bounds = cached.get("coverageBoundsWgs84")
-        if cached_bounds and _bounds_cover(cached_bounds, coverage_bounds):
+        if (cached_bounds and cached.get("referenceIdentity") == identity
+                and _bounds_cover(cached_bounds, coverage_bounds)):
             frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
             return frame, {"provider": "cache", "path": str(cache),
                            "cachedCoverageBoundsWgs84": cached_bounds, "workingBoundsWgs84": coverage_bounds}
@@ -319,7 +361,8 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
                 raise RuntimeError(f"Local OSM source contains no reference inside N13 coverage for {road['id']}")
             cache.parent.mkdir(parents=True, exist_ok=True)
             frame.to_file(cache, driver="GeoJSON")
-            metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds}, indent=2) + "\n")
+            metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds,
+                                            "referenceIdentity": identity}, indent=2) + "\n")
             return frame, {"provider": "local", "path": str(local), "cache": str(cache),
                            "workingBoundsWgs84": coverage_bounds}
         except RuntimeError:
@@ -329,14 +372,32 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
         raise RuntimeError(f"Configured local OSM source does not exist: {local}")
     overpass = config["overpass"]
     download_reference(road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), coverage_bounds)
-    metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds}, indent=2) + "\n")
+    metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds,
+                                    "referenceIdentity": identity}, indent=2) + "\n")
     frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
     return frame, {"provider": "overpass", "bounds": coverage_bounds, "cache": str(cache),
                    "workingBoundsWgs84": coverage_bounds}
 
 
+def filter_reference_members(entity: dict, source: gpd.GeoDataFrame) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    """Split reference members using exact, semicolon-tokenized OSM names."""
+    excluded_names = set(map(str, entity["reference"].get("excludeNames", [])))
+    if not excluded_names:
+        return source.copy(), source.iloc[0:0].copy()
+    tags = entity["reference"].get("excludeNameTags", DEFAULT_EXCLUDE_NAME_TAGS)
+    masks = [source[tag].fillna("").astype(str).str.split(";").apply(
+        lambda values: bool(excluded_names.intersection(value.strip() for value in values)))
+             for tag in tags if tag in source]
+    if not masks:
+        return source.copy(), source.iloc[0:0].copy()
+    mask = masks[0]
+    for extra in masks[1:]:
+        mask |= extra
+    return source[~mask].copy(), source[mask].copy()
+
+
 def build_reference(entity: dict, osm_source: gpd.GeoDataFrame) -> tuple[object, dict]:
-    """Build a shared matcher reference and report disconnected OSM ambiguity."""
+    """Build a filtered matcher reference and report disconnected OSM ambiguity."""
     config = entity["reference"]
     source = osm_source.copy()
     if config["type"] == "osm-name":
@@ -350,6 +411,13 @@ def build_reference(entity: dict, osm_source: gpd.GeoDataFrame) -> tuple[object,
         for extra in masks[1:]:
             mask |= extra
         source = source[mask].copy()
+    elif ("osm_reference_ref" in source
+          and source["osm_reference_ref"].fillna("").astype(str).eq(str(config["ref"])).all()
+          and (not config.get("network") or ("osm_reference_network" in source
+               and source["osm_reference_network"].fillna("").astype(str).eq(str(config["network"])).all()))):
+        # Overpass acquisition already established relation/direct-way identity;
+        # member ways are not required to duplicate their parent relation's ref.
+        pass
     elif "ref" in source:
         wanted = str(config["ref"])
         source = source[source["ref"].fillna("").astype(str).str.split(";").apply(
@@ -364,8 +432,12 @@ def build_reference(entity: dict, osm_source: gpd.GeoDataFrame) -> tuple[object,
             source = source[source[identifier].astype(str).isin(include)]
         if exclude:
             source = source[~source[identifier].astype(str).isin(exclude)]
-    if source.empty:
+    member_count = len(source)
+    if not member_count:
         raise RuntimeError(f"OSM source contains no exact reference geometry for {entity['id']}")
+    source, excluded_members = filter_reference_members(entity, source)
+    if source.empty:
+        raise RuntimeError(f"OSM member-name exclusions removed all reference geometry for {entity['id']}")
     if source.crs is None:
         source = source.set_crs("EPSG:4326")
     metric = source.to_crs(METRIC_CRS)
@@ -385,7 +457,11 @@ def build_reference(entity: dict, osm_source: gpd.GeoDataFrame) -> tuple[object,
             groups.append(merged)
     component_lengths = sorted((sum(part.length for part in group) for group in groups), reverse=True)
     return reference, {
-        "type": config["type"], "wayCount": len(source),
+        "type": config["type"], "wayCount": len(source), "memberWayCount": member_count,
+        "excludedByExactNameCount": len(excluded_members),
+        "excludedNames": list(config.get("excludeNames", [])),
+        "statutoryRelation": ({"network": config.get("network"), "ref": config.get("ref")}
+                              if config["type"] == "osm-ref" else None),
         "connectedComponentCount": len(groups),
         "componentLengthsMeters": [round(length, 1) for length in component_lengths],
         "ambiguousDisconnectedReference": len(groups) > 1,
