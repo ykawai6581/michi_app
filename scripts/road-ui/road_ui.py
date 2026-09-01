@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -39,6 +40,8 @@ SOURCES = ROOT / "data/roads/sources.json"
 PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 PREVIEW_CACHE = ROOT / "data/cache/road-builder/previews"
 STALE_PREVIEW_MESSAGE = "Preview is stale; run Preview Match again."
+PREVIEW_JOBS: dict[str, dict] = {}
+PREVIEW_JOBS_LOCK = threading.Lock()
 
 
 def validate_project_id(project_id: str) -> str:
@@ -314,13 +317,14 @@ def _cleanup_previews(cache: Path, road_id: str, retain: int = 5) -> None:
         shutil.rmtree(item, ignore_errors=True)
 
 
-def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CACHE) -> dict:
+def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CACHE,
+                  progress_callback=None, preview_id: str | None = None) -> dict:
     road = validate_road(draft)
     config = MATCHER.load_source_config(sources)
     n13 = Path(config["n13"]["cache"])
-    result = MATCHER.compute_road_build(road, config, n13)
+    result = MATCHER.compute_road_build(road, config, n13, progress_callback=progress_callback)
     fingerprint = _source_fingerprint(road, config, n13)
-    preview_id = uuid.uuid4().hex
+    preview_id = preview_id or uuid.uuid4().hex
     directory = cache / preview_id
     directory.mkdir(parents=True, exist_ok=False)
     diagnostic_path = Path("data/diagnostics") / f"{road['id']}-selection.geojson"
@@ -339,6 +343,49 @@ def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CA
     (directory / "preview.json").write_text(json.dumps(response, ensure_ascii=False, default=str), encoding="utf-8")
     _cleanup_previews(cache, road["id"])
     return response
+
+
+def _update_preview_job(job_id: str, **update) -> None:
+    with PREVIEW_JOBS_LOCK:
+        job = PREVIEW_JOBS.get(job_id)
+        if job is None:
+            return
+        if "progress" in update:
+            update["progress"] = max(job.get("progress", 0), min(100, int(update["progress"])))
+        job.update(update)
+
+
+def _run_preview_job(job_id: str, draft: dict, sources: Path, cache: Path) -> None:
+    try:
+        result = preview_match(draft, sources, cache,
+                               lambda **value: _update_preview_job(job_id, **value), job_id)
+        _update_preview_job(job_id, status="complete", progress=100, phase="Preview ready", result=result)
+    except Exception as error:  # retained as structured data for the polling client
+        _update_preview_job(job_id, status="failed", phase="Preview failed",
+                            error={"type": type(error).__name__, "message": str(error)})
+
+
+def start_preview_job(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CACHE) -> dict:
+    """Start a local background preview and return without doing matching work."""
+    job_id = uuid.uuid4().hex
+    draft_value = json.loads(json.dumps(draft))
+    with PREVIEW_JOBS_LOCK:
+        PREVIEW_JOBS[job_id] = {"jobId": job_id, "previewId": job_id, "status": "running",
+                                "progress": 0, "phase": "Preparing reference"}
+        finished = [key for key, value in PREVIEW_JOBS.items()
+                    if value.get("status") in {"complete", "failed"}]
+        for old_id in finished[:-10]:
+            PREVIEW_JOBS.pop(old_id, None)
+    threading.Thread(target=_run_preview_job, args=(job_id, draft_value, sources, cache),
+                     name=f"road-preview-{job_id[:8]}", daemon=True).start()
+    return {"jobId": job_id, "previewId": job_id}
+
+
+def get_preview_job(job_id: str) -> dict:
+    with PREVIEW_JOBS_LOCK:
+        if job_id not in PREVIEW_JOBS:
+            raise KeyError(f"Unknown preview job {job_id}")
+        return dict(PREVIEW_JOBS[job_id])
 
 
 def build_road(road_id: str, preview_id: str, draft: dict, registry: Path = REGISTRY,

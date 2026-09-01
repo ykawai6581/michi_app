@@ -666,7 +666,8 @@ def _neighbor_runs(runs: list[dict], index: int, maximum_gap: int) -> tuple[dict
     return previous, following
 
 
-def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
+def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None,
+                             progress_callback=None):
     """Select exact N13 substrings justified by OSM samples, then restore source junctions."""
     started = time.perf_counter()
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
@@ -693,6 +694,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                else list(dict.fromkeys(frame.N13_003.astype(str))))
     rank = {road_class: index for index, road_class in enumerate(classes)}
     samples_by_part = [_sample_reference(part, interval) for part in parts]
+    total_reference_samples = sum(len(points) for _, points in samples_by_part)
     owners = [[None] * len(points) for _, points in samples_by_part]
     reassigned_from = [[None] * len(points) for _, points in samples_by_part]
     cross_class_parallel_rejections = 0
@@ -749,6 +751,9 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         return [choice for choice in candidate_cache[cache_key] if choice[2] not in excluded]
 
     # Hierarchical provisional ownership. A class only sees unresolved samples.
+    ownership_total = max(1, total_reference_samples * max(1, len(classes)))
+    ownership_completed = 0
+    update_every = max(100, ownership_total // 100)
     for road_class in classes:
         for part_index, (_, samples) in enumerate(samples_by_part):
             proposals = [None] * len(samples)
@@ -765,6 +770,13 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                     proposals[sample_index] = previous = edge
                 else:
                     previous = None
+                ownership_completed += 1
+                if (progress_callback and
+                        (ownership_completed % update_every == 0 or ownership_completed == ownership_total)):
+                    progress_callback(
+                        progress=25 + int(55 * ownership_completed / ownership_total),
+                        phase=f"Matching class {road_class}", completed=ownership_completed,
+                        total=ownership_total)
             for run in _ownership_runs(proposals):
                 if run["end"] - run["start"] >= minimum_run:
                     owners[part_index][run["start"]:run["end"]] = proposals[run["start"]:run["end"]]
@@ -806,6 +818,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         if not changed:
             break
 
+    if progress_callback:
+        progress_callback(progress=80, phase="Resolving parallel carriageways")
     # Reference parts are deliberately solved independently so that two real
     # carriageways can choose two distinct N13 atoms.  Reconcile only sustained
     # *cross-class* ownership on nearby parallel parts afterwards.  In
@@ -875,6 +889,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                         part_owners[left["end"]:right["start"]] = [left["edge"]] * (right["start"] - left["end"])
                     break
 
+    if progress_callback:
+        progress_callback(progress=88, phase="Connecting selected N13 segments")
     run_rows = []
     connected_transitions = disconnected_transitions = extensions = 0
     for part_index, (offsets, samples) in enumerate(samples_by_part):
@@ -1228,25 +1244,36 @@ def rebuild_search_index(registry_path: Path) -> None:
 
 
 def compute_road_build(road: dict, source_config: dict, n13_source: Path,
-                       refresh_osm: bool = False, overpass_url: str | None = None) -> dict:
+                       refresh_osm: bool = False, overpass_url: str | None = None,
+                       progress_callback=None) -> dict:
     """Compute every preview and publication artifact without writing outputs."""
+    def progress(value, phase, **counts):
+        if progress_callback:
+            progress_callback(progress=value, phase=phase, **counts)
+
+    progress(0, "Preparing reference")
     _, n13_manifest = load_n13_manifest(n13_source)
     osm, osm_provenance = build_osm_reference(
         road, source_config, n13_manifest["boundsWgs84"], refresh_osm, overpass_url)
     reference, reference_diagnostics = build_reference(road, osm)
     _, excluded = filter_reference_members(road, osm)
+    progress(5, "Loading N13 candidates")
     candidates = load_n13_candidates(road, n13_source, reference)
     class_diagnostics = candidates.attrs.get("classDiagnostics", {})
     match = road["matching"]
+    progress(15, "Residual filtering")
     stage1, candidates = match_n13(candidates, reference, road)
     if stage1.empty:
         raise RuntimeError(f"No plausible N13 features selected for {road['id']}")
     network_config = {**road.get("networkSelection", {}), "classPriority": road["n13"]["classifications"],
                       "endpointSnapMeters": road.get("display", {}).get("endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS)}
-    selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
+    progress(25, "Matching reference samples")
+    selected, selection_diagnostics, network_report = select_reference_network(
+        stage1, reference, network_config, progress_callback)
     if selected.empty:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
     selected, connector_report = connect_adjacent_selected_runs(selected, stage1, reference, network_config)
+    progress(95, "Preparing preview output")
     network_report.update(connector_report)
     connector_ids = set(selected.loc[selected.selectionStatus == "accepted-continuity-connector", "sourceFeatureIndex"])
     if connector_ids:

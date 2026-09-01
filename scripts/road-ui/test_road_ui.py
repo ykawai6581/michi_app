@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -171,6 +172,42 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertNotEqual(baseline, road_ui.draft_hash(changed_setting))
         self.assertNotEqual(baseline, road_ui.draft_hash(changed_classes))
         self.assertNotEqual(baseline, road_ui.draft_hash(changed_exclusions))
+
+    def test_background_preview_returns_immediately_and_reports_monotonic_progress(self):
+        cache = Path(self.temp.name) / "previews"
+        expected = {"previewId": "replaced", "selected": {"features": []}}
+
+        def preview(draft, sources, target_cache, progress_callback, preview_id):
+            for progress in (5, 25, 42, 80, 95):
+                progress_callback(progress=progress, phase="Matching reference samples",
+                                  completed=progress, total=100)
+                time.sleep(.005)
+            return {**expected, "previewId": preview_id}
+
+        with patch.object(road_ui, "preview_match", side_effect=preview):
+            started_at = time.perf_counter()
+            started = road_ui.start_preview_job(ROAD, cache=cache)
+            self.assertLess(time.perf_counter() - started_at, .1)
+            observed = []
+            while True:
+                job = road_ui.get_preview_job(started["jobId"])
+                observed.append(job["progress"])
+                if job["status"] != "running":
+                    break
+                time.sleep(.002)
+        self.assertEqual(job["status"], "complete")
+        self.assertEqual(job["progress"], 100)
+        self.assertEqual(job["result"]["selected"], expected["selected"])
+        self.assertEqual(observed, sorted(observed))
+
+    def test_background_preview_retains_structured_failure(self):
+        with patch.object(road_ui, "preview_match", side_effect=ValueError("bad settings")):
+            started = road_ui.start_preview_job(ROAD, cache=Path(self.temp.name) / "previews")
+            while road_ui.get_preview_job(started["jobId"])["status"] == "running":
+                time.sleep(.002)
+        job = road_ui.get_preview_job(started["jobId"])
+        self.assertEqual(job["phase"], "Preview failed")
+        self.assertEqual(job["error"], {"type": "ValueError", "message": "bad settings"})
 
     def test_unknown_preview_fails_without_computing(self):
         with patch.object(road_ui.MATCHER, "compute_road_build") as compute:
