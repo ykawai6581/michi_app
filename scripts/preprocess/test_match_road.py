@@ -334,6 +334,44 @@ class SourceArchitectureTests(unittest.TestCase):
             selected = MATCH_ROAD._local_osm_reference(road, Path("roads.pbf"))
         self.assertEqual(list(selected.network), ["JP:national"])
 
+    def test_exact_member_name_exclusions_split_only_matching_physical_ways(self):
+        frame = gpd.GeoDataFrame({
+            "osm_way_id": ["A", "B", "C", "D", "E"],
+            "name": ["甲州街道", "八王子南バイパス", "国道20号", None,
+                     "別名; 八王子南バイパス"],
+            "geometry": [LineString([(0, y), (10, y)]) for y in range(5)],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        entity = {"reference": {"type": "osm-ref", "ref": "20", "network": "JP:national",
+                                "excludeNames": ["八王子南バイパス"]}}
+        included, excluded = MATCH_ROAD.filter_reference_members(entity, frame)
+        self.assertEqual(list(included.osm_way_id), ["A", "C", "D"])
+        self.assertEqual(list(excluded.osm_way_id), ["B", "E"])
+
+        partial = {**entity, "reference": {**entity["reference"], "excludeNames": ["八王子南"]}}
+        included, excluded = MATCH_ROAD.filter_reference_members(partial, frame)
+        self.assertEqual(len(included), 5)
+        self.assertTrue(excluded.empty)
+
+        empty = {**entity, "reference": {**entity["reference"], "excludeNames": []}}
+        included, excluded = MATCH_ROAD.filter_reference_members(empty, frame)
+        self.assertEqual(len(included), 5)
+        self.assertTrue(excluded.empty)
+
+    def test_exclusions_filter_matcher_geometry_but_not_raw_cache_identity(self):
+        frame = gpd.GeoDataFrame({"ref": ["20", "20"],
+                                  "name": ["甲州街道", "八王子南バイパス"],
+                                  "geometry": [LineString([(0, 0), (10, 0)]),
+                                               LineString([(0, 100), (10, 100)])]},
+                                 crs=MATCH_ROAD.METRIC_CRS)
+        reference = {"type": "osm-ref", "ref": "20", "network": "JP:national",
+                     "excludeNames": ["八王子南バイパス"]}
+        geometry, report = MATCH_ROAD.build_reference({"id": "route-20", "reference": reference}, frame)
+        self.assertEqual(geometry.bounds, (0.0, 0.0, 10.0, 0.0))
+        self.assertEqual(report["memberWayCount"], 2)
+        self.assertEqual(report["excludedByExactNameCount"], 1)
+        self.assertEqual(MATCH_ROAD.reference_cache_identity(reference),
+                         {"type": "osm-ref", "ref": "20", "network": "JP:national"})
+
     def test_named_reference_query_uses_exact_name_and_alternates(self):
         road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-named-inokashira-dori")
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])

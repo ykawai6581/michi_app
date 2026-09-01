@@ -302,6 +302,13 @@ both the exact `ref` and `network`; it never broadens to same-number ways. The l
 networked reference only when it exposes an exact `network` field; otherwise `auto` mode falls through to Overpass
 (`local` mode reports the limitation). Networkless legacy references retain ref-only behavior with an explicit warning.
 
+Road-specific alignment filtering happens only after that canonical acquisition. A statutory reference may set
+`reference.excludeNames` to exact OSM segment names (for example `["八王子南バイパス"]`). The matcher compares exact,
+trimmed semicolon-separated tokens across `name`, `name:ja`, `name:en`, and `alt_name` by default; unnamed members and
+nonmatching names remain included. `reference.excludeNameTags` can override those fields. Exclusions do not participate
+in the raw OSM cache identity, so editing them reuses the complete `ref + network` acquisition while Inspect/Preview
+show excluded ways separately and all N13 analysis uses only the retained geometry.
+
 ```bash
 python scripts/preprocess/match-road.py jp-national-20
 ```

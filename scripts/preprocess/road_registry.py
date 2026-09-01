@@ -88,6 +88,9 @@ def validate_road(value: dict) -> dict:
             raise ValueError("statutory-road reference.ref is required")
         if "network" in reference:
             reference["network"] = str(reference["network"]).strip()
+        reference["excludeNames"] = _unique(reference.get("excludeNames", []))
+        if "excludeNameTags" in reference:
+            reference["excludeNameTags"] = _unique(reference["excludeNameTags"])
     road["matching"] = {**MATCHING_DEFAULTS, **road.get("matching", {})}
     return road
 
