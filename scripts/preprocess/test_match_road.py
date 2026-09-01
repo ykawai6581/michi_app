@@ -130,6 +130,22 @@ class ReferenceOwnershipTests(unittest.TestCase):
                     "junctionExtensionMeters", "reassignedFromSourceFeatureIndex"}
         self.assertTrue(required.issubset(accepted.columns))
 
+    def test_spatial_index_matches_brute_force_with_far_candidates(self):
+        reference = LineString([(0, 0), (2000, 0)])
+        nearby = [LineString([(start, 0), (start + 100, 0)]) for start in range(0, 2000, 100)]
+        irrelevant = [LineString([(index * 4, 500), (index * 4 + 2, 510)]) for index in range(500)]
+        lines = nearby + irrelevant
+        classes = ["1"] * len(lines)
+        indexed, _, indexed_report = select(
+            lines, reference, classes, classPriority=["1"], useSpatialIndex=True)
+        brute, _, brute_report = select(
+            lines, reference, classes, classPriority=["1"], useSpatialIndex=False)
+        self.assertEqual(set(indexed.sourceFeatureIndex), set(brute.sourceFeatureIndex))
+        self.assertTrue(indexed.geometry.union_all().equals(brute.geometry.union_all()))
+        full_product = indexed_report["referenceSampleCount"] * indexed_report["candidateEdgeCount"]
+        self.assertLess(indexed_report["candidateComparisonsPerformed"], full_product / 20)
+        self.assertEqual(brute_report["candidateComparisonsPerformed"], full_product)
+
     def _fixture(self, name):
         path = Path(__file__).parents[2] / "data/fixtures/road-matching" / name
         frame = gpd.read_file(path).to_crs(MATCH_ROAD.METRIC_CRS)

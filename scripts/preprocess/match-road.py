@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import time
 import warnings
 from collections import Counter
 from pathlib import Path
@@ -50,6 +51,7 @@ DEFAULT_NETWORK_SELECTION = {
     "maximumOwnershipBridgeSamples": 2,
     "maximumJunctionExtensionMeters": 35.0,
     "ownershipContinuityIterations": 4,
+    "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
@@ -490,7 +492,11 @@ def load_n13_candidates(road: dict, source: Path, reference=None) -> gpd.GeoData
     corridor = None
     filter_bounds = None
     if reference is not None:
-        corridor_meters = float(road.get("matching", {}).get("spatialShortlistMeters", 50))
+        matching = road.get("matching", {})
+        ownership_distance = float(road.get("networkSelection", {}).get(
+            "maximumSampleDistanceMeters", DEFAULT_NETWORK_SELECTION["maximumSampleDistanceMeters"]))
+        derived_shortlist = ownership_distance + float(matching.get("shortlistSafetyMarginMeters", 5))
+        corridor_meters = max(ownership_distance, float(matching.get("spatialShortlistMeters", derived_shortlist)))
         corridor = reference.buffer(corridor_meters)
         filter_bounds = gpd.GeoSeries([corridor], crs=METRIC_CRS).to_crs("EPSG:4326").total_bounds
     for road_class in road_classes:
@@ -621,6 +627,7 @@ def _neighbor_runs(runs: list[dict], index: int, maximum_gap: int) -> tuple[dict
 
 def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
     """Select exact N13 substrings justified by OSM samples, then restore source junctions."""
+    started = time.perf_counter()
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
@@ -647,22 +654,57 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     samples_by_part = [_sample_reference(part, interval) for part in parts]
     owners = [[None] * len(points) for _, points in samples_by_part]
     reassigned_from = [[None] * len(points) for _, points in samples_by_part]
+    geometries = list(frame.geometry)
+    edge_classes = frame.N13_003.astype(str).tolist()
+    source_feature_indices = frame.sourceFeatureIndex.tolist()
+    class_edges = {road_class: [edge for edge, value in enumerate(edge_classes) if value == road_class]
+                   for road_class in classes}
+    class_spatial_indexes = ({road_class: gpd.GeoSeries([geometries[edge] for edge in edges], crs=frame.crs).sindex
+                              for road_class, edges in class_edges.items()}
+                             if bool(settings["useSpatialIndex"]) else {})
+    reference_vectors = [[_local_orientation(part, sample, interval) for sample in samples]
+                         for part, (_, samples) in zip(parts, samples_by_part)]
+    candidate_cache = {}
+    candidate_comparisons = 0
+    candidates_per_sample = Counter()
+    junction_cache = {}
 
-    def candidates(part_index, sample_index, excluded=frozenset()):
+    def junctions(first_edge, second_edge):
+        key = (first_edge, second_edge)
+        if key not in junction_cache:
+            junction_cache[key] = _source_junctions(geometries[first_edge], geometries[second_edge], tolerance)
+            junction_cache[(second_edge, first_edge)] = [(second, first) for first, second in junction_cache[key]]
+        return junction_cache[key]
+
+    def candidates(part_index, sample_index, road_class=None, excluded=frozenset()):
+        nonlocal candidate_comparisons
+        if road_class is None:
+            combined = [choice for value in classes
+                        for choice in candidates(part_index, sample_index, value, excluded)]
+            return sorted(combined)
+        cache_key = (part_index, sample_index, road_class)
+        if cache_key in candidate_cache:
+            return [choice for choice in candidate_cache[cache_key] if choice[2] not in excluded]
         sample = samples_by_part[part_index][1][sample_index]
-        reference_vector = _local_orientation(parts[part_index], sample, interval)
+        reference_vector = reference_vectors[part_index][sample_index]
         choices = []
-        for edge, row in frame.iterrows():
-            if edge in excluded:
-                continue
-            distance = float(row.geometry.distance(sample))
+        query_bounds = box(sample.x - maximum_distance, sample.y - maximum_distance,
+                           sample.x + maximum_distance, sample.y + maximum_distance)
+        edges = class_edges.get(road_class, [])
+        nearby = ([edges[position] for position in map(int, class_spatial_indexes[road_class].query(query_bounds))]
+                  if road_class in class_spatial_indexes else edges)
+        candidates_per_sample[(part_index, sample_index)] += len(nearby)
+        for edge in nearby:
+            candidate_comparisons += 1
+            distance = float(geometries[edge].distance(sample))
             if distance > maximum_distance:
                 continue
-            mismatch = _angle_difference(_local_orientation(row.geometry, sample, interval), reference_vector)
+            mismatch = _angle_difference(_local_orientation(geometries[edge], sample, interval), reference_vector)
             if mismatch <= maximum_angle:
-                choices.append((rank.get(str(row.N13_003), len(rank)),
+                choices.append((rank.get(edge_classes[edge], len(rank)),
                                 distance + mismatch * float(settings["orientationCostWeight"]), edge))
-        return sorted(choices)
+        candidate_cache[cache_key] = sorted(choices)
+        return [choice for choice in candidate_cache[cache_key] if choice[2] not in excluded]
 
     # Hierarchical provisional ownership. A class only sees unresolved samples.
     for road_class in classes:
@@ -673,8 +715,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 if owners[part_index][sample_index] is not None:
                     previous = None
                     continue
-                choices = [choice for choice in candidates(part_index, sample_index)
-                           if str(frame.at[choice[2], "N13_003"]) == road_class]
+                choices = candidates(part_index, sample_index, road_class)
                 if choices:
                     adjusted = [(cost - (min(float(settings["edgeSwitchCost"]), 2.0) if edge == previous else 0), edge)
                                 for _, cost, edge in choices]
@@ -694,35 +735,30 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             for run_index, run in enumerate(runs):
                 previous, following = _neighbor_runs(runs, run_index, maximum_bridge)
                 edge = run["edge"]
-                edge_rank = rank.get(str(frame.at[edge, "N13_003"]), len(rank))
+                edge_rank = rank.get(edge_classes[edge], len(rank))
                 lower_than_neighbor = any(
-                    edge_rank > rank.get(str(frame.at[neighbor["edge"], "N13_003"]), len(rank))
+                    edge_rank > rank.get(edge_classes[neighbor["edge"]], len(rank))
                     for neighbor in (previous, following) if neighbor)
                 if not lower_than_neighbor:
                     continue
-                upstream = previous is None or bool(_source_junctions(
-                    frame.at[previous["edge"], "geometry"], frame.at[edge, "geometry"], tolerance))
-                downstream = following is None or bool(_source_junctions(
-                    frame.at[edge, "geometry"], frame.at[following["edge"], "geometry"], tolerance))
+                upstream = previous is None or bool(junctions(previous["edge"], edge))
+                downstream = following is None or bool(junctions(edge, following["edge"]))
                 # Interior lower-class substitutions and bridges need both handoffs;
                 # route-start/end continuations only have the available handoff.
                 if upstream and downstream:
                     continue
                 for sample_index in range(run["start"], run["end"]):
-                    alternatives = candidates(part_index, sample_index, {edge})
+                    alternatives = candidates(part_index, sample_index, excluded={edge})
                     def handoff_penalty(choice):
                         candidate_edge = choice[2]
-                        candidate_line = frame.at[candidate_edge, "geometry"]
                         missing = 0
-                        if previous and candidate_edge != previous["edge"] and not _source_junctions(
-                                frame.at[previous["edge"], "geometry"], candidate_line, tolerance):
+                        if previous and candidate_edge != previous["edge"] and not junctions(previous["edge"], candidate_edge):
                             missing += 1
-                        if following and candidate_edge != following["edge"] and not _source_junctions(
-                                candidate_line, frame.at[following["edge"], "geometry"], tolerance):
+                        if following and candidate_edge != following["edge"] and not junctions(candidate_edge, following["edge"]):
                             missing += 1
                         return missing, choice[0], choice[1], choice[2]
                     replacement = min(alternatives, key=handoff_penalty)[2] if alternatives else None
-                    reassigned_from[part_index][sample_index] = int(frame.at[edge, "sourceFeatureIndex"])
+                    reassigned_from[part_index][sample_index] = int(source_feature_indices[edge])
                     part_owners[sample_index] = replacement
                 changed = True
         if not changed:
@@ -759,14 +795,13 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 disconnected_transitions += 1
                 continue
             if first["edge"] == second["edge"]:
-                junctions = [(first["sourceEnd"], second["sourceStart"])]
+                transition_junctions = [(first["sourceEnd"], second["sourceStart"])]
             else:
-                junctions = _source_junctions(frame.at[first["edge"], "geometry"],
-                                               frame.at[second["edge"], "geometry"], tolerance)
-            if not junctions:
+                transition_junctions = junctions(first["edge"], second["edge"])
+            if not transition_junctions:
                 disconnected_transitions += 1
                 continue
-            junction = min(junctions, key=lambda value: abs(value[0] - first["exitProject"])
+            junction = min(transition_junctions, key=lambda value: abs(value[0] - first["exitProject"])
                            + abs(value[1] - second["entryProject"]))
             first_extension = abs(junction[0] - first["exitProject"])
             second_extension = abs(junction[1] - second["entryProject"])
@@ -824,16 +859,23 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     for part_index, (offsets, samples) in enumerate(samples_by_part):
         for sample_index, (offset, sample) in enumerate(zip(offsets, samples)):
             edge = owners[part_index][sample_index]
-            road_class = str(frame.at[edge, "N13_003"]) if edge is not None else None
+            road_class = edge_classes[edge] if edge is not None else None
             ownership_features.append({"type": "Feature", "properties": {
                 "referencePart": part_index, "referenceSample": sample_index,
                 "referenceDistanceMeters": round(float(offset), 3), "ownershipClass": road_class,
                 "ownershipStatus": f"class-{road_class}" if road_class else "unmatched",
-                "sourceFeatureIndex": int(frame.at[edge, "sourceFeatureIndex"]) if edge is not None else None,
+                "sourceFeatureIndex": int(source_feature_indices[edge]) if edge is not None else None,
                 "reassignedFromSourceFeatureIndex": reassigned_from[part_index][sample_index],
             }, "geometry": mapping(sample)})
     counts = Counter(frame.selectionReason)
+    reference_sample_count = sum(len(samples) for _, samples in samples_by_part)
     report = {"stage1CandidateCount": len(frame), "ownershipRunCount": len(accepted),
+              "referenceSampleCount": reference_sample_count, "candidateEdgeCount": len(frame),
+              "candidateComparisonsPerformed": candidate_comparisons,
+              "meanCandidatesPerSample": round(candidate_comparisons / reference_sample_count, 3)
+              if reference_sample_count else 0,
+              "maxCandidatesPerSample": max(candidates_per_sample.values(), default=0),
+              "ownershipSeconds": round(time.perf_counter() - started, 4),
               "sourceConnectedRunTransitions": connected_transitions,
               "sourceDisconnectedRunTransitions": disconnected_transitions,
               "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
