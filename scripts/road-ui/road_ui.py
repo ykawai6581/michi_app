@@ -284,6 +284,7 @@ def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
     stage1, measured = MATCHER.match_n13(candidates, reference, road)
     selected, diagnostics, report = MATCHER.select_reference_network(
         stage1, reference, {**road.get("networkSelection", {}),
+                            "n13ClassPriority": road.get("matching", {}).get("n13ClassPriority", []),
                             "endpointSnapMeters": road.get("display", {}).get(
                                 "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
     branch_config = {**road.get("matching", {}).get("branchPruning", {}),

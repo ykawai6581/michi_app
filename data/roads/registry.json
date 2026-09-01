@@ -15,14 +15,21 @@
       ],
       "n13": {
         "classifications": [
-          "1"
+          "1",
+          "2",
+          "3"
         ]
       },
       "matching": {
         "sampleIntervalMeters": 5,
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
+        "coverageToleranceMeters": 25,
+        "n13ClassPriority": [
+          "1",
+          "2",
+          "3"
+        ]
       },
       "entityType": "statutory-road",
       "reference": {

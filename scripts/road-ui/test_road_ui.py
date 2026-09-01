@@ -46,6 +46,14 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertEqual(result["aliases"], ["テスト通り"])
         self.assertEqual(result["reference"]["names"], ["テスト通り"])
 
+    def test_class_priority_is_ordered_optional_and_limited_to_enabled_classes(self):
+        draft = {**copy.deepcopy(ROAD), "n13": {"classifications": ["2", "3", "5"]},
+                 "matching": {**ROAD["matching"], "n13ClassPriority": ["2", "3", "2"]}}
+        self.assertEqual(road_ui.validate_road(draft)["matching"]["n13ClassPriority"], ["2", "3"])
+        draft["matching"]["n13ClassPriority"] = ["1", "2"]
+        with self.assertRaisesRegex(ValueError, "only enabled"):
+            road_ui.validate_road(draft)
+
     def test_statutory_network_is_preserved_on_save_and_load(self):
         road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "displayName": "国道20号",
                 "entityType": "statutory-road", "roadClass": "national",

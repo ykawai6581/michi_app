@@ -92,6 +92,13 @@ def validate_road(value: dict) -> dict:
         if "excludeNameTags" in reference:
             reference["excludeNameTags"] = _unique(reference["excludeNameTags"])
     road["matching"] = {**MATCHING_DEFAULTS, **road.get("matching", {})}
+    priority = _unique(road["matching"].get("n13ClassPriority", []))
+    if set(priority) - set(classes):
+        raise ValueError("matching.n13ClassPriority must contain only enabled n13.classifications")
+    if priority:
+        road["matching"]["n13ClassPriority"] = priority
+    else:
+        road["matching"].pop("n13ClassPriority", None)
     return road
 
 

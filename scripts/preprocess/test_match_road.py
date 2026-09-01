@@ -131,6 +131,57 @@ class BranchPruningTests(unittest.TestCase):
 
 
 class NetworkSelectionTests(unittest.TestCase):
+    def test_case_l_preferred_class_wins_local_parallel_overlap(self):
+        reference = LineString([(0, 0), (120, 0)])
+        accepted, diagnostic, _ = select(
+            [LineString([(0, 1), (120, 1)]), LineString([(0, 12), (120, 12)])],
+            reference, ["1", "2"], n13ClassPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1"})
+        fallback = diagnostic[diagnostic.N13_003 == "2"].iloc[0]
+        self.assertEqual(fallback.rejectionReason, "dominated-fallback-class")
+        self.assertGreater(fallback.classPreferencePenalty, 0)
+
+    def test_case_m_fallback_class_is_selected_after_preferred_ends(self):
+        accepted, _, _ = select(
+            [LineString([(0, 0), (100, 0)]), LineString([(90, 0), (200, 0)])],
+            LineString([(0, 0), (200, 0)]), ["1", "2"], n13ClassPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertAlmostEqual(float(accepted.geometry.length.sum()), 210)
+
+    def test_case_n_poor_preferred_class_does_not_beat_close_fallback(self):
+        accepted, _, _ = select(
+            [LineString([(0, 20), (120, 20)]), LineString([(0, 0), (120, 0)])],
+            LineString([(0, 0), (120, 0)]), ["1", "2"], n13ClassPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"2"})
+
+    def test_case_o_overlap_handoff_is_continuous_without_long_duplicate(self):
+        accepted, _, _ = select(
+            [LineString([(0, 0), (105, 0)]), LineString([(95, 1), (200, 1)])],
+            LineString([(0, 0), (200, 0)]), ["1", "2"], n13ClassPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertLessEqual(float(accepted.geometry.length.sum()), 210)
+
+    def test_case_p_distinct_osm_parallel_parts_override_class_preference(self):
+        reference = MultiLineString([[(0, 0), (120, 0)], [(0, 5), (120, 5)]])
+        accepted, _, _ = select(
+            [LineString([(0, 0), (120, 0)]), LineString([(0, 5), (120, 5)])],
+            reference, ["1", "2"], n13ClassPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+
+    def test_case_q_shinjuku_like_fallback_passes_residual_but_is_dominated(self):
+        reference = LineString([(0, 0), (200, 0)])
+        lines = [LineString([(0, 2), (200, 2)]), LineString([(0, 16), (200, 16)])]
+        road = {"matching": {"sampleIntervalMeters": 5, "maximumMedianResidualMeters": 20,
+                             "maximumP90ResidualMeters": 25}}
+        stage1, _ = MATCH_ROAD.match_n13(gpd.GeoDataFrame(
+            {"N13_003": ["1", "2"], "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS), reference, road)
+        self.assertEqual(len(stage1), 2)
+        accepted, diagnostic, _ = MATCH_ROAD.select_reference_network(
+            stage1, reference, {"n13ClassPriority": ["1", "2"]})
+        self.assertEqual(set(accepted.N13_003), {"1"})
+        self.assertEqual(diagnostic[diagnostic.N13_003 == "2"].iloc[0].rejectionReason,
+                         "dominated-fallback-class")
+
     def test_straight_road_rejects_short_t_spur(self):
         accepted, diagnostic, _ = select([
             LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
