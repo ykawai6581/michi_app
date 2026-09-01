@@ -201,6 +201,26 @@ class RoadBuilderTests(unittest.TestCase):
             road_ui.save_project({**updated,"id":"renamed"}, "demo", root)
         self.assertFalse(list((root / "projects/demo").glob(".project-*")))
 
+    def test_delete_project_removes_only_config_and_built_project_output(self):
+        root = Path(self.temp.name)
+        project = {"id":"demo","displayName":"Demo","bounds":[139,35,140,36],"layers":{}}
+        (root / "projects").mkdir()
+        road_ui.save_project(project, root=root)
+        output = root / "public/projects/demo/data"; output.mkdir(parents=True)
+        (output / "modern-roads.geojson").write_text("{}")
+        shared = root / "public/data/roads/shared.geojson"; shared.parent.mkdir(parents=True)
+        shared.write_text("keep")
+        result = road_ui.delete_project("demo", root)
+        self.assertEqual(result["projectId"], "demo")
+        self.assertEqual(result["deletedPaths"], ["projects/demo", "public/projects/demo"])
+        self.assertFalse((root / "projects/demo").exists())
+        self.assertFalse((root / "public/projects/demo").exists())
+        self.assertTrue(shared.exists())
+        with self.assertRaisesRegex(FileNotFoundError, "does not exist"):
+            road_ui.delete_project("demo", root)
+        with self.assertRaises(ValueError):
+            road_ui.delete_project("../demo", root)
+
     def test_rejects_unsafe_project_ids(self):
         for value in ("../bad", "/bad", "bad/name", "Bad"):
             with self.assertRaises(ValueError): road_ui.validate_project_id(value)

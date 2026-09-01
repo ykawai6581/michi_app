@@ -27,3 +27,5 @@ export function projectSavePlan(projectId:string,existingIds:string[]):ProjectSa
     ?{existing,method:'PUT',path:`/api/projects/${projectId}`,saveLabel:'Update Project',buildLabel:'Update & Build'}
     :{existing,method:'POST',path:'/api/projects',saveLabel:'Save Project',buildLabel:'Save & Build'}
 }
+export const projectDeletionPath=(projectId:string)=>`/api/projects/${projectId}`
+export const projectDeletionConfirmation=(project:Pick<ProjectConfig,'id'|'displayName'>)=>`Delete ${project.displayName}?\n${project.id}\n\nThis will remove the project configuration and its built preview output. Shared road and source data will not be deleted.`

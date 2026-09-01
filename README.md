@@ -420,3 +420,7 @@ Repository の **Settings → Pages → Source** を **GitHub Actions** に設�
 Road Builder can also reset an existing canonical road with **Delete Road…**. The confirmation lists projects that
 still reference the road; those reproducible project configs are never changed automatically. Deletion atomically
 removes the registry entry and only exact road-specific generated/reference artifacts, never shared source caches.
+
+The Projects tab exposes **Delete Project…** after an existing project is loaded. After confirmation it removes that
+project's configuration and materialized preview directory, while leaving canonical roads and all shared source data
+untouched.

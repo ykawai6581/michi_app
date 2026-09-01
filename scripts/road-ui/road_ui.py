@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -96,6 +97,21 @@ def save_project(project: dict, existing_id: str | None = None, root: Path = ROO
     finally:
         Path(temporary).unlink(missing_ok=True)
     return project
+
+
+def delete_project(project_id: str, root: Path = ROOT) -> dict:
+    """Delete one project configuration and only its project-specific built output."""
+    validate_project_id(project_id)
+    configuration = root / "projects" / project_id
+    if not (configuration / "project.json").is_file():
+        raise FileNotFoundError(f"Project {project_id!r} does not exist")
+    output = root / "public" / "projects" / project_id
+    deleted = []
+    for path in (configuration, output):
+        if path.exists():
+            shutil.rmtree(path)
+            deleted.append(str(path.relative_to(root)))
+    return {"projectId": project_id, "deleted": True, "deletedPaths": deleted}
 
 
 def project_catalog(root: Path = ROOT) -> dict:
