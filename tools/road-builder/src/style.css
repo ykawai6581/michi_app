@@ -4,3 +4,4 @@
 .registered-notice{display:block;margin-top:4px;color:#176b3a;font-weight:600}
 .existing-project{padding:8px;background:#fff8df;border-left:3px solid #c58a00;color:#634800}
 .identityWarning{color:#704f00;background:#fff4cf;border-left:3px solid #c58a00;padding:8px}.hint{color:#52616b}
+.preview-progress{margin:10px 0;padding:10px;background:#eef5ff;border-radius:4px}.preview-progress>div{display:flex;justify-content:space-between}.preview-progress progress{width:100%;height:14px;margin:7px 0}.preview-progress small{display:block;color:#52616b}.preview-progress.failed{background:#ffebee}

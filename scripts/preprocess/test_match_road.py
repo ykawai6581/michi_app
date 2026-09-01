@@ -23,6 +23,7 @@ def stitch(lines, reference=None, tolerance=2):
 
 
 def select(lines, reference, classes=None, **settings):
+    progress_callback = settings.pop("progress_callback", None)
     classes = classes or ["2"] * len(lines)
     frame = gpd.GeoDataFrame({
         "N13_003": classes,
@@ -31,10 +32,23 @@ def select(lines, reference, classes=None, **settings):
         "match_p90_m": [line.distance(reference) for line in lines],
         "geometry": lines,
     }, crs=MATCH_ROAD.METRIC_CRS)
-    return MATCH_ROAD.select_reference_network(frame, reference, settings)
+    return MATCH_ROAD.select_reference_network(frame, reference, settings, progress_callback)
 
 
 class ReferenceOwnershipTests(unittest.TestCase):
+    def test_progress_callback_reports_actual_reference_sample_work_without_changing_output(self):
+        lines = [LineString([(0, 0), (100, 0)])]
+        reference = LineString([(0, 0), (100, 0)])
+        baseline, _, baseline_report = select(lines, reference, ["1"], classPriority=["1"])
+        updates = []
+        instrumented, _, instrumented_report = select(
+            lines, reference, ["1"], classPriority=["1"],
+            progress_callback=lambda **value: updates.append(value))
+        self.assertTrue(any(item.get("completed") and item.get("total") for item in updates))
+        self.assertEqual([item["progress"] for item in updates], sorted(item["progress"] for item in updates))
+        self.assertTrue(baseline.geometry.equals(instrumented.geometry))
+        self.assertEqual(baseline_report, instrumented_report)
+
     def connect(self, lines, reference, classes, **settings):
         accepted, _, _ = select(lines, reference, classes, **settings)
         stage1 = gpd.GeoDataFrame({"N13_003": classes, "sourceFeatureIndex": range(len(lines)),

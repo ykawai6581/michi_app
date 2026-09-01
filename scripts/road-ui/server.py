@@ -38,6 +38,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"projects": road_ui.list_projects()})
             if route == ["api", "project-catalog"]:
                 return self._send(200, road_ui.project_catalog())
+            if len(route) == 3 and route[:2] == ["api", "jobs"]:
+                return self._send(200, road_ui.get_preview_job(route[2]))
             if len(route) == 3 and route[:2] == ["api", "projects"]:
                 return self._send(200, {"project": road_ui.load_project(route[2])})
             if len(route) == 4 and route[:2] == ["api", "projects"] and route[3] == "preview":
@@ -70,6 +72,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = road_ui.prepare_class(str(body["class"]))
             elif route == ["api", "match", "preview"]:
                 result = road_ui.preview_match(body["road"])
+            elif route == ["api", "match", "preview", "start"]:
+                result = road_ui.start_preview_job(body["road"])
             elif route == ["api", "roads"] and method == "POST":
                 result = {"road": road_ui.save_road(road_ui.REGISTRY, body["road"])}
             elif len(route) == 3 and route[:2] == ["api", "roads"] and method == "PUT":
