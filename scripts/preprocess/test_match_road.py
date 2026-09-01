@@ -18,6 +18,28 @@ MATCH_ROAD = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MATCH_ROAD)
 
 
+def route_20_fixture():
+    return {
+        "id": "jp-national-20", "displayName": "国道20号", "aliases": [],
+        "entityType": "statutory-road", "jurisdiction": "JP",
+        "n13": {"classifications": ["1", "2", "3"]},
+        "matching": {"sampleIntervalMeters": 5, "maximumMedianResidualMeters": 20,
+                     "maximumP90ResidualMeters": 25, "coverageToleranceMeters": 25},
+        "reference": {"type": "osm-ref", "ref": "20", "network": "JP:national"},
+    }
+
+
+def koshu_named_fixture():
+    return {
+        "id": "tokyo-named-koshu-kaido", "displayName": "甲州街道", "aliases": [],
+        "entityType": "named-road", "jurisdiction": "Tokyo",
+        "n13": {"classifications": ["2", "3"]},
+        "matching": {"sampleIntervalMeters": 5, "maximumMedianResidualMeters": 20,
+                     "maximumP90ResidualMeters": 25, "coverageToleranceMeters": 25},
+        "reference": {"type": "osm-name", "names": ["甲州街道"], "tags": ["name"]},
+    }
+
+
 def stitch(lines, reference=None, tolerance=2):
     reference = reference or LineString([(-100, 0), (200, 0)])
     return MATCH_ROAD.build_display_chains(lines, reference, {"endpointSnapMeters": tolerance})
@@ -423,7 +445,7 @@ class SourceArchitectureTests(unittest.TestCase):
             gpd.GeoDataFrame({"ref": ["20"], "geometry": [LineString([(139, 35), (139.1, 35)])]},
                              crs="EPSG:4326").to_file(path, driver="GeoJSON")
             path.with_suffix(".meta.json").write_text(json.dumps({"coverageBoundsWgs84": [139, 35, 139.1, 35.1]}))
-            road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+            road = route_20_fixture()
             config = {"osm": {"provider": "overpass", "cacheDirectory": str(cache),
                               "overpass": {"endpoint": "https://example.test"}}}
             with patch.object(MATCH_ROAD, "download_reference") as download, patch.object(
@@ -433,7 +455,8 @@ class SourceArchitectureTests(unittest.TestCase):
             download.assert_called_once()
 
     def test_provider_uses_configured_statutory_identity_and_bounds(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-prefectural-318")
+        road = {**route_20_fixture(), "id": "tokyo-prefectural-318",
+                "reference": {"type": "osm-ref", "ref": "318", "network": "JP:prefectural"}}
         with tempfile.TemporaryDirectory() as directory:
             config = {"osm": {"provider": "overpass", "cacheDirectory": directory, "overpass": {
                 "endpoint": "https://example.test", "boundsByJurisdiction": {"Tokyo": [1, 2, 3, 4]}}}}
@@ -451,7 +474,7 @@ class SourceArchitectureTests(unittest.TestCase):
             config = {"osm": {"provider": "overpass", "cacheDirectory": directory, "overpass": {
                 "endpoint": "https://example.test", "boundsByJurisdiction": {"JP": [122, 20, 154, 46]}}}}
             for road_id in ("jp-national-20", "tokyo-named-koshu-kaido"):
-                road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), road_id)
+                road = route_20_fixture() if road_id == "jp-national-20" else koshu_named_fixture()
                 with patch.object(MATCH_ROAD, "download_reference") as download, patch.object(
                         MATCH_ROAD.gpd, "read_file", return_value=gpd.GeoDataFrame(
                             {"ref": ["20"], "name": ["甲州街道"], "geometry": [LineString([(139.5, 35.6), (139.7, 35.6)])]},
@@ -459,22 +482,24 @@ class SourceArchitectureTests(unittest.TestCase):
                     MATCH_ROAD.build_osm_reference(road, config, bounds, refresh=True)
                 self.assertEqual(download.call_args.args[3], bounds)
         query = MATCH_ROAD.osm_query(
-            MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-named-koshu-kaido"), bounds)
+            koshu_named_fixture(), bounds)
         self.assertIn('["name"="甲州街道"](35.5,139.5,35.8,139.8)', query)
         self.assertNotIn("(20,122,46,154)", query)
 
-    def test_registry_contains_current_statutory_roads(self):
-        for road_id in ("jp-national-20", "jp-national-246", "tokyo-prefectural-318", "tokyo-prefectural-311"):
-            self.assertEqual(MATCH_ROAD.load_road(Path("data/roads/registry.json"), road_id)["id"], road_id)
+    def test_load_road_uses_supplied_registry_without_local_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = Path(directory) / "registry.json"
+            registry.write_text(json.dumps({"roads": [route_20_fixture()]}))
+            self.assertEqual(MATCH_ROAD.load_road(registry, "jp-national-20")["id"], "jp-national-20")
 
     def test_statutory_reference_query_uses_one_ref(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        road = route_20_fixture()
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
         self.assertIn('["ref"="20"]', query)
         self.assertNotIn("甲州街道", query)
 
     def test_networked_statutory_query_uses_only_exact_relation_members(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        road = route_20_fixture()
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
         self.assertIn('["network"="JP:national"]', query)
         self.assertIn("way(r.r)", query)
@@ -490,7 +515,7 @@ class SourceArchitectureTests(unittest.TestCase):
         self.assertEqual(MATCH_ROAD.osm_query(different_n13, [1, 2, 3, 4]), query)
 
     def test_direct_way_fallback_preserves_network_identity(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        road = route_20_fixture()
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4], direct_fallback=True)
         self.assertIn('way["highway"]["ref"="20"]["network"="JP:national"]', query)
 
@@ -503,7 +528,7 @@ class SourceArchitectureTests(unittest.TestCase):
         self.assertIn("without a network", str(caught[0].message))
 
     def test_local_networked_reference_rejects_lines_without_network_identity(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
+        road = route_20_fixture()
         frame = gpd.GeoDataFrame({"ref": ["20", "20"], "geometry": [
             LineString([(0, 0), (1, 0)]), LineString([(0, 1), (1, 1)])]}, crs="EPSG:4326")
         with patch.object(MATCH_ROAD.gpd, "read_file", return_value=frame):
@@ -554,7 +579,9 @@ class SourceArchitectureTests(unittest.TestCase):
                          {"type": "osm-ref", "ref": "20", "network": "JP:national"})
 
     def test_named_reference_query_uses_exact_name_and_alternates(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-named-inokashira-dori")
+        road = {**koshu_named_fixture(), "id": "tokyo-named-inokashira-dori",
+                "reference": {"type": "osm-name", "names": ["井ノ頭通り", "井の頭通り"],
+                              "tags": ["name", "name:ja", "alt_name"]}}
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4])
         self.assertIn('["name"="井ノ頭通り"]', query)
         self.assertIn('["name:ja"="井の頭通り"]', query)
@@ -572,8 +599,8 @@ class SourceArchitectureTests(unittest.TestCase):
                                  crs="EPSG:4326").to_parquet(partition / "roads.parquet")
             entity = {"n13": {"classifications": ["2", "3"]}, "matching": {
                 "sampleIntervalMeters": 5, "maximumMedianResidualMeters": 20, "maximumP90ResidualMeters": 25}}
-            all_candidates = MATCH_ROAD.load_n13_candidates(entity, root)
-            reference = all_candidates[all_candidates.geometry.centroid.y < all_candidates.geometry.centroid.y.min() + 1].geometry.union_all()
+            reference = gpd.GeoSeries(
+                [LineString([(139, 35), (139.02, 35)])], crs="EPSG:4326").to_crs(MATCH_ROAD.METRIC_CRS).iloc[0]
             candidates = MATCH_ROAD.load_n13_candidates(entity, root, reference)
             selected, _ = MATCH_ROAD.match_n13(candidates, reference, entity)
             self.assertEqual(set(selected.N13_003), {"2", "3"})
@@ -583,7 +610,7 @@ class SourceArchitectureTests(unittest.TestCase):
             self.assertEqual(candidates.attrs["classDiagnostics"]["3"]["residualTestedCount"], 1)
 
     def test_local_osm_reference_is_clipped_to_n13_bounds(self):
-        road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "tokyo-named-koshu-kaido")
+        road = koshu_named_fixture()
         frame = gpd.GeoDataFrame({"name": ["甲州街道"], "geometry": [
             LineString([(139, 35.5), (140, 35.5)])]}, crs="EPSG:4326")
         clipped = MATCH_ROAD.clip_osm_to_bounds(frame, [139.25, 35.4, 139.75, 35.6])

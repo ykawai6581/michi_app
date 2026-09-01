@@ -746,7 +746,21 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
             attachment_junctions = _attachment_junction_count(
                 set(path), active - set(path), frame, float(settings["endpointSnapMeters"]))
             report["attachmentJunctionCount"] = attachment_junctions
-            if dangling and attachment_junctions == 1 and unique < float(settings["sampleIntervalMeters"]) * 2:
+            branch_median_residual = float(np.average(
+                subset.medianResidualMeters, weights=subset.branchLengthMeters))
+            covering_residuals = []
+            for edge in active - set(path):
+                row = frame.iloc[edge]
+                other_low = min(float(row.referenceStartMeters), float(row.referenceEndMeters))
+                other_high = max(float(row.referenceStartMeters), float(row.referenceEndMeters))
+                if (bool(row.referencePartConsistent)
+                        and int(row.referencePart) == int(subset.referencePart.iloc[0])
+                        and min(high, other_high) > max(low, other_low)):
+                    covering_residuals.append(float(row.medianResidualMeters))
+            dominated_coverage = (covering_residuals
+                                  and min(covering_residuals) + 1.0 < branch_median_residual)
+            if (dangling and attachment_junctions == 1
+                    and unique < float(settings["sampleIntervalMeters"]) * 2 and dominated_coverage):
                 report["decision"] = "rejected"; report["rejectionReason"] = "dangling-spur"
                 for edge in path:
                     rejected[edge] = ("dangling-spur", report)
