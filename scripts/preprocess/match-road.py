@@ -43,6 +43,16 @@ DEFAULT_NETWORK_SELECTION = {
     "progressCostWeight": 8.0,
     "monotonicityCostWeight": 8.0,
 }
+DEFAULT_BRANCH_PRUNING = {
+    "enabled": True,
+    "minimumProgressRatio": 0.6,
+    "minimumMonotonicity": 0.8,
+    "maximumDetourRatio": 1.5,
+    "maximumResidualMeters": 35.0,
+    "maximumOrientationMismatchDegrees": 55.0,
+    "sampleIntervalMeters": 5.0,
+    "endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS,
+}
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
 
@@ -563,9 +573,13 @@ def _progression_metrics(line: LineString, reference_parts: list[LineString], in
     """Project ordered N13 samples to the closest OSM part and measure route progress."""
     offsets = np.unique(np.append(np.arange(0, line.length, interval), line.length))
     samples = [line.interpolate(float(offset)) for offset in offsets]
-    middle = line.interpolate(line.length / 2)
-    part_index, part = min(enumerate(reference_parts), key=lambda item: item[1].distance(middle))
+    nearest = [min(range(len(reference_parts)), key=lambda index: reference_parts[index].distance(point))
+               for point in samples]
+    part_counts = Counter(nearest)
+    part_index = part_counts.most_common(1)[0][0]
+    part = reference_parts[part_index]
     chainages = np.asarray([part.project(point) for point in samples])
+    residuals = np.asarray([part.distance(point) for point in samples])
     deltas = np.diff(chainages)
     positive = float(deltas[deltas > 0].sum()); negative = float(-deltas[deltas < 0].sum())
     travelled = positive + negative
@@ -586,7 +600,161 @@ def _progression_metrics(line: LineString, reference_parts: list[LineString], in
         "progressRatio": progress / line.length if line.length else 0.0,
         "chainageMonotonicity": monotonicity,
         "orientationMismatchDegrees": float(np.median(orientation)) if orientation else 90.0,
+        "medianResidualMeters": float(np.median(residuals)),
+        "p90ResidualMeters": float(np.percentile(residuals, 90)),
+        "maxResidualMeters": float(residuals.max()),
+        # Never aggressively compare scalar chainages across unrelated parts.
+        "referencePartConsistent": len(part_counts) == 1,
     }
+
+
+def _endpoint_graph(lines: list[LineString], tolerance: float):
+    """Return endpoint-snapped reasoning nodes without altering source coordinates."""
+    endpoints = [(edge, end, Point(line.coords[end])) for edge, line in enumerate(lines) for end in (0, -1)]
+    clusters: list[list[tuple[int, int, Point]]] = []
+    for endpoint in endpoints:
+        cluster = next((items for items in clusters
+                        if all(endpoint[2].distance(item[2]) <= tolerance for item in items)), None)
+        if cluster is None:
+            clusters.append([endpoint])
+        else:
+            cluster.append(endpoint)
+    nodes = {}
+    for node, cluster in enumerate(clusters):
+        for edge, end, _ in cluster:
+            nodes[(edge, end)] = node
+    edge_nodes = {edge: (nodes[(edge, 0)], nodes[(edge, -1)]) for edge in range(len(lines))}
+    incident = {node: set() for node in range(len(clusters))}
+    for edge, (start, end) in edge_nodes.items():
+        incident[start].add(edge); incident[end].add(edge)
+    return edge_nodes, incident
+
+
+def _maximal_graph_paths(active: set[int], edge_nodes, incident):
+    """Yield terminal/junction-to-terminal/junction paths in an edge graph."""
+    degree = {node: len(edges & active) for node, edges in incident.items()}
+    boundaries = {node for node, value in degree.items() if value != 2}
+    paths, used = [], set()
+    for anchor in boundaries:
+        for first in incident[anchor] & active:
+            if first in used:
+                continue
+            path, edge, node = [], first, anchor
+            while edge not in used:
+                used.add(edge); path.append(edge)
+                start, end = edge_nodes[edge]
+                node = end if node == start else start
+                if node in boundaries:
+                    break
+                following = (incident[node] & active) - {edge}
+                if not following:
+                    break
+                edge = next(iter(following))
+            paths.append((anchor, node, path))
+    # Closed components have no boundary. They are uncertain and intentionally
+    # omitted rather than being aggressively removed.
+    return paths
+
+
+def _interval_unique_length(part: int, low: float, high: float, excluded: set[int], frame, active: set[int]) -> float:
+    intervals = []
+    for edge in active - excluded:
+        row = frame.iloc[edge]
+        if int(row.referencePart) != part or not bool(row.referencePartConsistent):
+            continue
+        start = max(low, min(float(row.referenceStartMeters), float(row.referenceEndMeters)))
+        end = min(high, max(float(row.referenceStartMeters), float(row.referenceEndMeters)))
+        if end > start:
+            intervals.append((start, end))
+    intervals.sort()
+    covered = 0.0; cursor = low
+    for start, end in ((min(a, b), max(a, b)) for a, b in intervals):
+        if start > cursor:
+            covered += start - cursor
+        cursor = max(cursor, end)
+    covered += max(0.0, high - cursor)
+    return covered
+
+
+def prune_selected_branches(selected_n13, osm_reference, config: dict | None = None):
+    """Conservatively remove poor-progress source branches after network selection."""
+    settings = {**DEFAULT_BRANCH_PRUNING, **(config or {})}
+    frame = selected_n13.explode(index_parts=False).reset_index().rename(columns={"index": "sourceFeatureIndex"})
+    empty_report = {"candidateBranches": 0, "rejectedBranches": 0, "retainedAlternativePaths": 0,
+                    "protectedUniqueCoverageBranches": 0, "iterations": 0, "branches": []}
+    if frame.empty or not settings["enabled"]:
+        return frame.copy(), frame.iloc[0:0].copy(), empty_report
+    parts = _ordered_reference_parts(osm_reference)
+    metrics = [_progression_metrics(line, parts, float(settings["sampleIntervalMeters"])) for line in frame.geometry]
+    for key in metrics[0]:
+        frame[key] = [metric[key] for metric in metrics]
+    frame["branchLengthMeters"] = frame.geometry.length
+    frame["chainageSpanMeters"] = frame.referenceSpanMeters
+    frame["monotonicity"] = frame.chainageMonotonicity
+    frame["detourRatio"] = frame.branchLengthMeters / frame.referenceProgressMeters.clip(lower=1e-9)
+    edge_nodes, incident = _endpoint_graph(list(frame.geometry), float(settings["endpointSnapMeters"]))
+    active, rejected, branch_reports = set(frame.index), {}, []
+    protected_paths, retained_alternatives, iterations = set(), set(), 0
+    while active:  # Each successful iteration removes at least one source edge.
+        iterations += 1; removed = False
+        paths = _maximal_graph_paths(active, edge_nodes, incident)
+        for start, end, path in paths:
+            dangling = start == end or len(incident[start] & active) == 1 or len(incident[end] & active) == 1
+            reconnecting = not dangling and len(incident[start] & active) > 2 and len(incident[end] & active) > 2
+            if not (dangling or reconnecting):
+                continue
+            subset = frame.iloc[path]
+            length = float(subset.branchLengthMeters.sum())
+            consistent = bool(subset.referencePartConsistent.all()) and subset.referencePart.nunique() == 1
+            low = float(subset[["referenceStartMeters", "referenceEndMeters"]].min().min())
+            high = float(subset[["referenceStartMeters", "referenceEndMeters"]].max().max())
+            span = high - low
+            progress_ratio = span / length if length else 0.0
+            monotonicity = float(np.average(subset.chainageMonotonicity, weights=subset.branchLengthMeters))
+            max_residual = float(subset.maxResidualMeters.max())
+            orientation = float(np.average(subset.orientationMismatchDegrees, weights=subset.branchLengthMeters))
+            detour = length / max(span, 1e-9)
+            poor = []
+            if progress_ratio < float(settings["minimumProgressRatio"]): poor.append("low-chainage-progress")
+            if monotonicity < float(settings["minimumMonotonicity"]): poor.append("chainage-backtracking")
+            if detour > float(settings["maximumDetourRatio"]): poor.append("excessive-detour")
+            if max_residual > float(settings["maximumResidualMeters"]): poor.append("excessive-lateral-excursion")
+            if orientation > float(settings["maximumOrientationMismatchDegrees"]): poor.append("poor-orientation")
+            report = {"sourceEdges": path, "topology": "dangling" if dangling else "alternative",
+                      "branchLengthMeters": round(length, 3), "chainageSpanMeters": round(span, 3),
+                      "progressRatio": round(progress_ratio, 3), "monotonicity": round(monotonicity, 3),
+                      "detourRatio": round(detour, 3), "maxResidualMeters": round(max_residual, 3)}
+            if not consistent:
+                report["decision"] = "retained-uncertain-reference-parts"; branch_reports.append(report); continue
+            if not poor:
+                if reconnecting: retained_alternatives.add(tuple(path))
+                report["decision"] = "retained-plausible"; branch_reports.append(report); continue
+            unique = _interval_unique_length(int(subset.referencePart.iloc[0]), low, high, set(path), frame, active)
+            meaningful = min(span * .25, 20.0) if span else 0.0
+            if unique >= max(float(settings["sampleIntervalMeters"]) * 2, meaningful):
+                protected_paths.add(tuple(path)); report["decision"] = "protected-unique-coverage"
+                report["uniqueCoverageMeters"] = round(unique, 3); branch_reports.append(report); continue
+            reason = ("dangling-spur" if dangling else
+                      "excessive-detour" if "excessive-detour" in poor else poor[0])
+            report["decision"] = "rejected"; report["rejectionReason"] = reason; branch_reports.append(report)
+            for edge in path:
+                rejected[edge] = (reason, report)
+            active.difference_update(path); removed = True; break
+        if not removed:
+            break
+    frame["rejectionReason"] = None
+    for edge, (reason, report) in rejected.items():
+        frame.loc[edge, "rejectionReason"] = reason
+        for key in ("branchLengthMeters", "chainageSpanMeters", "progressRatio", "monotonicity",
+                    "detourRatio", "maxResidualMeters"):
+            frame.loc[edge, key] = report[key]
+        frame.loc[edge, ["selectionStatus", "selectionReason"]] = [f"rejected-{reason}", reason]
+    report = {"candidateBranches": len({tuple(item["sourceEdges"]) for item in branch_reports}),
+              "rejectedBranches": len({tuple(item[1][1]["sourceEdges"]) for item in rejected.items()}),
+              "retainedAlternativePaths": len(retained_alternatives),
+              "protectedUniqueCoverageBranches": len(protected_paths), "iterations": iterations,
+              "branches": branch_reports}
+    return frame.loc[sorted(active)].copy(), frame.loc[sorted(rejected)].copy(), report
 
 
 def _edge_adjacency(lines: list[LineString], tolerance: float) -> dict[int, set[int]]:
@@ -934,6 +1102,19 @@ def main() -> None:
     selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
     if selected.empty:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
+    branch_config = {**road.get("matching", {}).get("branchPruning", {}),
+                     "endpointSnapMeters": road.get("display", {}).get(
+                         "endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS),
+                     "maximumResidualMeters": road.get("matching", {}).get("branchPruning", {}).get(
+                         "maximumResidualMeters", match["maximumP90ResidualMeters"])}
+    selected, branch_rejected, branch_report = prune_selected_branches(selected, reference, branch_config)
+    if selected.empty:
+        raise RuntimeError(f"Branch pruning found no canonical N13 backbone for {road['id']}")
+    if not branch_rejected.empty:
+        # The diagnostics layer includes both sequence rejections and the new
+        # source-edge pruning decisions used by Road Builder.
+        selection_diagnostics = gpd.GeoDataFrame(
+            pd.concat([selection_diagnostics, branch_rejected], ignore_index=True), crs=stage1.crs)
     diagnostic_output = args.diagnostics or Path("data/diagnostics") / f"{road['id']}-selection.geojson"
     write_selection_diagnostics(selection_diagnostics, diagnostic_output)
     for road_class, values in class_diagnostics.items():
@@ -993,6 +1174,7 @@ def main() -> None:
         "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
         "matchingThresholds": match, "unresolvedSections": unresolved,
         "networkSelection": network_report,
+        "branchPruning": branch_report,
         "osmReference": {**osm_provenance, **reference_diagnostics},
         "selectedN13Classifications": dict(Counter(selected["N13_003"].astype(str))),
         "statutoryComposition": {

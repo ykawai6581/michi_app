@@ -34,6 +34,78 @@ def select(lines, reference, classes=None, **settings):
     return MATCH_ROAD.select_reference_network(frame, reference, settings)
 
 
+def prune(lines, reference, **settings):
+    frame = gpd.GeoDataFrame({
+        "selectionStatus": ["accepted-backbone"] * len(lines),
+        "selectionReason": ["accepted-backbone"] * len(lines),
+        "geometry": lines,
+    }, crs=MATCH_ROAD.METRIC_CRS)
+    return MATCH_ROAD.prune_selected_branches(frame, reference, settings)
+
+
+class BranchPruningTests(unittest.TestCase):
+    def test_case_a_dangling_spur_is_removed_after_selection(self):
+        lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
+                 LineString([(50, 0), (55, 8), (58, 20)])]
+        retained, rejected, report = prune(lines, LineString([(0, 0), (100, 0)]))
+        self.assertEqual(set(retained.sourceFeatureIndex), {0, 1})
+        self.assertEqual(set(rejected.rejectionReason), {"dangling-spur"})
+        self.assertEqual(report["rejectedBranches"], 1)
+
+    def test_case_b_short_divided_carriageways_are_both_retained(self):
+        lines = [LineString([(0, 0), (30, 0)]), LineString([(30, 0), (70, 0)]),
+                 LineString([(30, 0), (50, 3), (70, 0)]), LineString([(70, 0), (100, 0)])]
+        retained, rejected, report = prune(lines, LineString([(0, 0), (100, 0)]))
+        self.assertEqual(len(retained), 4)
+        self.assertTrue(rejected.empty)
+        self.assertGreaterEqual(report["retainedAlternativePaths"], 2)
+
+    def test_case_c_rejoining_slip_loop_with_excessive_detour_is_removed(self):
+        lines = [LineString([(0, 0), (30, 0)]), LineString([(30, 0), (70, 0)]),
+                 LineString([(30, 0), (34, 18), (66, 18), (70, 0)]), LineString([(70, 0), (100, 0)])]
+        retained, rejected, _ = prune(lines, LineString([(0, 0), (100, 0)]), maximumResidualMeters=30)
+        self.assertEqual(set(retained.sourceFeatureIndex), {0, 1, 3})
+        self.assertEqual(set(rejected.rejectionReason), {"excessive-detour"})
+
+    def test_case_d_non_reconverging_forward_fork_is_not_aggressively_pruned(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(50, 0), (100, 20)]])
+        lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
+                 LineString([(50, 0), (100, 20)])]
+        retained, rejected, _ = prune(lines, reference)
+        self.assertEqual(len(retained), 3)
+        self.assertTrue(rejected.empty)
+
+    def test_case_e_unique_reference_coverage_protects_necessary_branch(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (70, 0)]),
+                 LineString([(40, 0), (65, 13), (100, 20)])]
+        retained, rejected, report = prune(lines, LineString([(0, 0), (100, 0)]), maximumResidualMeters=10)
+        self.assertEqual(len(retained), 3)
+        self.assertTrue(rejected.empty)
+        self.assertGreaterEqual(report["protectedUniqueCoverageBranches"], 1)
+
+    def test_case_f_very_close_parallel_carriageways_are_not_collapsed(self):
+        lines = [LineString([(0, 0), (25, 0)]), LineString([(25, 0), (75, 0)]),
+                 LineString([(25, 0), (75, 1)]), LineString([(75, 0), (100, 0)])]
+        retained, rejected, _ = prune(lines, LineString([(0, 0), (100, 0)]), endpointSnapMeters=2)
+        self.assertEqual(len(retained), 4)
+        self.assertTrue(rejected.empty)
+
+    def test_shallow_corridor_spur_passes_residual_but_topology_rejects_it(self):
+        reference = LineString([(0, 0), (120, 0)])
+        lines = [LineString([(0, 0), (60, 0)]), LineString([(60, 0), (120, 0)]),
+                 LineString([(60, 0), (68, 3), (75, 10), (80, 20)])]
+        road = {"matching": {"sampleIntervalMeters": 5, "maximumMedianResidualMeters": 25,
+                             "maximumP90ResidualMeters": 30}}
+        candidates = gpd.GeoDataFrame({"geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
+        residual_pass, _ = MATCH_ROAD.match_n13(candidates, reference, road)
+        self.assertEqual(len(residual_pass), 3)
+        residual_pass["selectionStatus"] = "accepted-backbone"
+        residual_pass["selectionReason"] = "accepted-backbone"
+        retained, rejected, _ = MATCH_ROAD.prune_selected_branches(residual_pass, reference)
+        self.assertEqual(len(retained), 2)
+        self.assertEqual(rejected.iloc[0].rejectionReason, "dangling-spur")
+
+
 class NetworkSelectionTests(unittest.TestCase):
     def test_straight_road_rejects_short_t_spur(self):
         accepted, diagnostic, _ = select([

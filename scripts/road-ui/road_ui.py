@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 from shapely.geometry import mapping
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -285,10 +286,23 @@ def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
         stage1, reference, {**road.get("networkSelection", {}),
                             "endpointSnapMeters": road.get("display", {}).get(
                                 "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
+    branch_config = {**road.get("matching", {}).get("branchPruning", {}),
+                     "endpointSnapMeters": road.get("display", {}).get(
+                         "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS),
+                     "maximumResidualMeters": road.get("matching", {}).get("branchPruning", {}).get(
+                         "maximumResidualMeters", road["matching"]["maximumP90ResidualMeters"])}
+    selected, branch_rejected, branch_report = MATCHER.prune_selected_branches(
+        selected, reference, branch_config)
+    if not branch_rejected.empty:
+        diagnostics = gpd.GeoDataFrame(
+            pd.concat([diagnostics, branch_rejected], ignore_index=True), crs=stage1.crs)
+    rejected_diagnostics = diagnostics[
+        diagnostics["selectionStatus"].astype(str).str.startswith("rejected-")].copy()
     return {"reference": _geojson(reference), "referenceExcluded": _geojson(excluded),
             "candidates": _geojson(measured),
             "residualPass": _geojson(stage1), "selected": _geojson(selected),
-            "diagnostics": _geojson(diagnostics), "report": {"networkSelection": report,
+            "diagnostics": _geojson(rejected_diagnostics), "report": {"networkSelection": report,
+            "branchPruning": branch_report,
             "osmReference": {**provenance, **reference_diagnostics}, "candidateCount": len(measured),
             "residualPassCount": len(stage1), "selectedFeatureCount": len(selected)}}
 
