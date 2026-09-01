@@ -12,6 +12,7 @@ public/data/roads/
 # Source caches are local build inputs. Keep their small reproducibility metadata.
 !data/cache/
 data/cache/**
+data/cache/road-builder/previews/
 !data/cache/osm/
 !data/cache/osm/rail/
 !data/cache/osm/rail/manifest.json

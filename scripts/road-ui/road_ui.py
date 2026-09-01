@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
+import time
+import uuid
 from pathlib import Path
 
 import geopandas as gpd
@@ -35,6 +37,8 @@ PREPROCESSOR = _module("road_builder_preprocessor", "preprocess-n13.py")
 REGISTRY = ROOT / "data/roads/registry.json"
 SOURCES = ROOT / "data/roads/sources.json"
 PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+PREVIEW_CACHE = ROOT / "data/cache/road-builder/previews"
+STALE_PREVIEW_MESSAGE = "Preview is stale; run Preview Match again."
 
 
 def validate_project_id(project_id: str) -> str:
@@ -276,29 +280,101 @@ def prepare_class(road_class: str, sources: Path = SOURCES, runner=PREPROCESSOR.
     return runner(source, cache, [road_class])
 
 
-def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
-    road, n13, osm, reference, provenance, reference_diagnostics = _context(draft, sources)
-    _, excluded = MATCHER.filter_reference_members(road, osm)
-    candidates = MATCHER.load_n13_candidates(road, n13, reference)
-    stage1, measured = MATCHER.match_n13(candidates, reference, road)
-    selected, diagnostics, report = MATCHER.select_reference_network(
-        stage1, reference, {**road.get("networkSelection", {}), "classPriority": road["n13"]["classifications"],
-                            "endpointSnapMeters": road.get("display", {}).get(
-                                "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
-    ownership = diagnostics.attrs.get("ownershipSamples", gpd.GeoDataFrame(geometry=[], crs=MATCHER.METRIC_CRS))
-    return {"reference": _geojson(reference), "referenceExcluded": _geojson(excluded),
-            "candidates": _geojson(measured),
-            "residualPass": _geojson(stage1), "selected": _geojson(selected),
-            "diagnostics": _geojson(diagnostics), "ownership": _geojson(ownership), "report": {"networkSelection": report,
-            "osmReference": {**provenance, **reference_diagnostics}, "candidateCount": len(measured),
-            "residualPassCount": len(stage1), "selectedFeatureCount": len(selected)}}
+def draft_hash(draft: dict) -> str:
+    """Hash the canonical validated road, preserving meaningful list order."""
+    normalized = validate_road(draft)
+    payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def build_road(road_id: str, registry: Path = REGISTRY, runner=subprocess.run) -> dict:
-    command = [sys.executable, str(PREPROCESS / "build-road.py"), road_id,
-               "--registry", str(registry), "--n13", str(ROOT / "data/cache/n13/roads")]
-    completed = runner(command, cwd=ROOT, check=True, capture_output=True, text=True)
-    report_path = ROOT / f"public/data/roads/{road_id}.report.json"
-    report = json.loads(report_path.read_text()) if report_path.exists() else {}
-    return {"stdout": completed.stdout, "report": report, "reportPath": str(report_path.relative_to(ROOT)),
-            "outputs": report.get("outputs", {})}
+def _file_hash(path: Path) -> str | None:
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+
+
+def _source_fingerprint(road: dict, config: dict, n13: Path) -> dict:
+    osm_cache = Path(config["osm"]["cacheDirectory"]) / f"{road['id']}-osm.geojson"
+    return {"schemaVersion": MATCHER.ROAD_BUILD_SCHEMA_VERSION,
+            "n13Manifest": _file_hash(n13 / "manifest.json"),
+            "osmReference": _file_hash(osm_cache),
+            "osmReferenceMetadata": _file_hash(osm_cache.with_suffix(".meta.json"))}
+
+
+def _cleanup_previews(cache: Path, road_id: str, retain: int = 5) -> None:
+    entries = sorted((item for item in cache.glob("*") if item.is_dir()),
+                     key=lambda item: item.stat().st_mtime, reverse=True)
+    matching = []
+    for item in entries:
+        try:
+            if json.loads((item / "metadata.json").read_text()).get("roadId") == road_id:
+                matching.append(item)
+        except (OSError, json.JSONDecodeError):
+            if time.time() - item.stat().st_mtime > 7 * 86400:
+                shutil.rmtree(item, ignore_errors=True)
+    for item in matching[retain:]:
+        shutil.rmtree(item, ignore_errors=True)
+
+
+def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CACHE) -> dict:
+    road = validate_road(draft)
+    config = MATCHER.load_source_config(sources)
+    n13 = Path(config["n13"]["cache"])
+    result = MATCHER.compute_road_build(road, config, n13)
+    fingerprint = _source_fingerprint(road, config, n13)
+    preview_id = uuid.uuid4().hex
+    directory = cache / preview_id
+    directory.mkdir(parents=True, exist_ok=False)
+    diagnostic_path = Path("data/diagnostics") / f"{road['id']}-selection.geojson"
+    artifacts = MATCHER.road_build_artifacts(result, diagnostic_path)
+    for name, content in artifacts.items():
+        (directory / f"{name}.artifact").write_bytes(content)
+    final_n13 = json.loads(artifacts["n13"])
+    response = {"previewId": preview_id, "draftHash": draft_hash(road),
+        "reference": _geojson(result["reference"]), "referenceExcluded": _geojson(result["referenceExcluded"]),
+        "candidates": _geojson(result["candidates"]), "residualPass": _geojson(result["residualPass"]),
+        "selected": final_n13, "diagnostics": _geojson(result["selectionDiagnostics"]),
+        "ownership": _geojson(result["ownershipSamples"]), "report": json.loads(artifacts["report"])}
+    metadata_payload = {"previewId": preview_id, "roadId": road["id"], "draftHash": response["draftHash"],
+                        "sourceFingerprint": fingerprint, "createdAt": time.time()}
+    (directory / "metadata.json").write_text(json.dumps(metadata_payload, sort_keys=True), encoding="utf-8")
+    (directory / "preview.json").write_text(json.dumps(response, ensure_ascii=False, default=str), encoding="utf-8")
+    _cleanup_previews(cache, road["id"])
+    return response
+
+
+def build_road(road_id: str, preview_id: str, draft: dict, registry: Path = REGISTRY,
+               sources: Path = SOURCES, cache: Path = PREVIEW_CACHE) -> dict:
+    """Promote cached bytes; never recompute or fall back to the matcher."""
+    road = validate_road(draft)
+    directory = cache / str(preview_id)
+    try:
+        metadata_payload = json.loads((directory / "metadata.json").read_text(encoding="utf-8"))
+        config = MATCHER.load_source_config(sources)
+        n13 = Path(config["n13"]["cache"])
+        valid = (road["id"] == road_id == metadata_payload["roadId"]
+                 and draft_hash(road) == metadata_payload["draftHash"]
+                 and _source_fingerprint(road, config, n13) == metadata_payload["sourceFingerprint"]
+                 and metadata_payload["sourceFingerprint"]["schemaVersion"] == MATCHER.ROAD_BUILD_SCHEMA_VERSION)
+        artifacts = {name: (directory / f"{name}.artifact").read_bytes()
+                     for name in ("n13", "osm", "report", "diagnostics")}
+    except (OSError, KeyError, TypeError, json.JSONDecodeError):
+        valid = False
+    if not valid:
+        raise RuntimeError(STALE_PREVIEW_MESSAGE)
+    existing = None
+    try:
+        get_road(registry, road_id); existing = road_id
+    except KeyError:
+        pass
+    save_road(registry, road, existing)
+    # The result frames are unnecessary for promotion because preview serialized
+    # the complete canonical artifacts. A minimal carrier supplies publication identity.
+    report = json.loads(artifacts["report"])
+    targets = {"n13": ROOT / f"public/data/roads/{road_id}-n13.geojson",
+               "osm": ROOT / f"public/data/roads/{road_id}-osm.geojson",
+               "report": ROOT / f"public/data/roads/{road_id}.report.json",
+               "diagnostics": ROOT / f"data/diagnostics/{road_id}-selection.geojson"}
+    for name, target in targets.items():
+        MATCHER._atomic_write(target, artifacts[name])
+    MATCHER.rebuild_search_index(registry)
+    return {"report": report, "reportPath": f"public/data/roads/{road_id}.report.json",
+            "outputs": report.get("outputs", {}), "previewId": preview_id}
