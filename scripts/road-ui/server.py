@@ -75,7 +75,7 @@ class Handler(BaseHTTPRequestHandler):
             elif len(route) == 3 and route[:2] == ["api", "roads"] and method == "PUT":
                 result = {"road": road_ui.save_road(road_ui.REGISTRY, body["road"], route[2])}
             elif len(route) == 4 and route[:2] == ["api", "roads"] and route[3] == "build":
-                result = road_ui.build_road(route[2])
+                result = road_ui.build_road(route[2], body.get("previewId"), body.get("road"))
             elif route == ["api", "projects"] and method == "POST":
                 result = {"project": road_ui.save_project(body["project"])}
             elif len(route) == 3 and route[:2] == ["api", "projects"] and method == "PUT":

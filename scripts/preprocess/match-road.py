@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
+import tempfile
 import time
 import warnings
 from collections import Counter
@@ -62,6 +64,7 @@ DEFAULT_NETWORK_SELECTION = {
     "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
+ROAD_BUILD_SCHEMA_VERSION = 1
 
 
 def _line_parts(geometries) -> list[LineString]:
@@ -1224,25 +1227,14 @@ def rebuild_search_index(registry_path: Path) -> None:
     SEARCH_INDEX.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("road_id")
-    parser.add_argument("--registry", type=Path, default=REGISTRY)
-    parser.add_argument("--sources", type=Path, default=SOURCE_CONFIG)
-    parser.add_argument("--n13", type=Path, help="override the N13 cache path from source configuration")
-    parser.add_argument("--refresh-osm", action="store_true")
-    parser.add_argument("--overpass-url")
-    parser.add_argument("--diagnostics", type=Path,
-                        help="Stage-1 selection GeoJSON (default: data/diagnostics/<road-id>-selection.geojson)")
-    args = parser.parse_args()
-    road = load_road(args.registry, args.road_id)
-    source_config = load_source_config(args.sources)
-    n13_source = args.n13 or Path(source_config["n13"]["cache"])
+def compute_road_build(road: dict, source_config: dict, n13_source: Path,
+                       refresh_osm: bool = False, overpass_url: str | None = None) -> dict:
+    """Compute every preview and publication artifact without writing outputs."""
     _, n13_manifest = load_n13_manifest(n13_source)
-    coverage_bounds = n13_manifest["boundsWgs84"]
     osm, osm_provenance = build_osm_reference(
-        road, source_config, coverage_bounds, args.refresh_osm, args.overpass_url)
+        road, source_config, n13_manifest["boundsWgs84"], refresh_osm, overpass_url)
     reference, reference_diagnostics = build_reference(road, osm)
+    _, excluded = filter_reference_members(road, osm)
     candidates = load_n13_candidates(road, n13_source, reference)
     class_diagnostics = candidates.attrs.get("classDiagnostics", {})
     match = road["matching"]
@@ -1256,86 +1248,101 @@ def main() -> None:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
     selected, connector_report = connect_adjacent_selected_runs(selected, stage1, reference, network_config)
     network_report.update(connector_report)
-    connector_ids = set(selected.loc[selected.selectionStatus == "accepted-continuity-connector",
-                                     "sourceFeatureIndex"])
+    connector_ids = set(selected.loc[selected.selectionStatus == "accepted-continuity-connector", "sourceFeatureIndex"])
     if connector_ids:
         connector_mask = selection_diagnostics.sourceFeatureIndex.isin(connector_ids)
-        selection_diagnostics.loc[connector_mask, ["selectionStatus", "selectionReason"]] = \
-            "accepted-continuity-connector"
-    diagnostic_output = args.diagnostics or Path("data/diagnostics") / f"{road['id']}-selection.geojson"
-    write_selection_diagnostics(selection_diagnostics, diagnostic_output)
+        selection_diagnostics.loc[connector_mask, ["selectionStatus", "selectionReason"]] = "accepted-continuity-connector"
     for road_class, values in class_diagnostics.items():
         values["selectedFeatureCount"] = int((selected["N13_003"].astype(str) == road_class).sum())
     coverage, unresolved = reference_coverage(
-        reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"]
-    )
+        reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"])
     display_config = road.get("display", {"endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS})
     display_geometry, stitching = build_display_chains(selected, reference, display_config)
-    display_wgs84 = gpd.GeoSeries([display_geometry], crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0]
-    common_properties = {
-        "id": road["id"], "name": road["displayName"], "aliases": road["aliases"], "type": "road",
-        "entityType": road["entityType"], "jurisdiction": road["jurisdiction"],
-    }
+    ownership = selection_diagnostics.attrs.get("ownershipSamples", gpd.GeoDataFrame(geometry=[], crs=METRIC_CRS))
+    return {"schemaVersion": ROAD_BUILD_SCHEMA_VERSION, "road": road, "n13Source": str(n13_source),
+            "n13Manifest": n13_manifest, "osm": osm, "reference": reference, "referenceExcluded": excluded,
+            "osmProvenance": osm_provenance, "referenceDiagnostics": reference_diagnostics,
+            "candidates": candidates, "residualPass": stage1, "selected": selected,
+            "selectionDiagnostics": selection_diagnostics, "ownershipSamples": ownership,
+            "networkReport": network_report, "classDiagnostics": class_diagnostics,
+            "coverage": coverage, "unresolved": unresolved, "displayGeometry": display_geometry,
+            "stitching": stitching, "displayConfig": display_config}
+
+
+def road_build_artifacts(result: dict, diagnostic_output: Path) -> dict[str, bytes]:
+    """Serialize a computed result once; these exact bytes are preview-promotable."""
+    road, selected, reference = result["road"], result["selected"], result["reference"]
+    candidates, match = result["candidates"], road["matching"]
+    display_wgs84 = gpd.GeoSeries([result["displayGeometry"]], crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0]
+    common = {"id": road["id"], "name": road["displayName"], "aliases": road["aliases"], "type": "road",
+              "entityType": road["entityType"], "jurisdiction": road["jurisdiction"]}
     for optional in ("roadClass", "routeNumber"):
-        if optional in road:
-            common_properties[optional] = road[optional]
-    n13_feature = {
-        "type": "Feature",
-        "properties": {
-            **common_properties, "geometrySource": "n13",
-            "source": ["MLIT National Land Numerical Information N13 2024"],
-            "license": "N13 source terms apply", "confidence": "medium",
-            "note": "Identity comes from the road registry and OSM reference; display geometry is stitched from selected N13 segments.",
-            "match": {"candidateCount": len(candidates), "selectedFeatureCount": len(selected), "osmCoveragePercent": round(coverage, 2)},
-            "geometryProcessing": {"source": "MLIT N13", "display": "endpoint-snapped and line-merged", **stitching,
-                                   "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
-        },
-        "geometry": mapping(display_wgs84),
-    }
-    osm_feature = {
-        "type": "Feature", "properties": {
-            **common_properties, "geometrySource": "osm", "source": ["OpenStreetMap"],
-            "license": "ODbL 1.0", "confidence": "high",
-            "note": "OSM reference geometry used to identify and validate the canonical road.",
-            "provenance": osm_provenance,
-        }, "geometry": mapping(gpd.GeoSeries([reference], crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0]),
-    }
-    n13_output = PUBLIC_ROADS / f"{road['id']}-n13.geojson"
-    osm_output = PUBLIC_ROADS / f"{road['id']}-osm.geojson"
-    n13_output.parent.mkdir(parents=True, exist_ok=True)
-    n13_payload = json.dumps({"type": "FeatureCollection", "features": [n13_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n"
+        if optional in road: common[optional] = road[optional]
+    n13_feature = {"type":"Feature", "properties": {**common, "geometrySource":"n13",
+        "source":["MLIT National Land Numerical Information N13 2024"], "license":"N13 source terms apply",
+        "confidence":"medium", "note":"Identity comes from the road registry and OSM reference; display geometry is stitched from selected N13 segments.",
+        "match":{"candidateCount":len(candidates),"selectedFeatureCount":len(selected),"osmCoveragePercent":round(result["coverage"],2)},
+        "geometryProcessing":{"source":"MLIT N13","display":"endpoint-snapped and line-merged",**result["stitching"],
+                              "endpointSnapMeters":float(result["displayConfig"]["endpointSnapMeters"])}},
+        "geometry":mapping(display_wgs84)}
+    osm_feature = {"type":"Feature", "properties": {**common,"geometrySource":"osm","source":["OpenStreetMap"],
+        "license":"ODbL 1.0","confidence":"high","note":"OSM reference geometry used to identify and validate the canonical road.",
+        "provenance":result["osmProvenance"]}, "geometry":mapping(gpd.GeoSeries([reference],crs=METRIC_CRS).to_crs("EPSG:4326").iloc[0])}
+    compact = lambda value: (json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
+    n13_bytes = compact({"type":"FeatureCollection","features":[n13_feature]})
+    osm_bytes = compact({"type":"FeatureCollection","features":[osm_feature]})
     source_geometry = selected.to_crs("EPSG:4326").geometry.union_all()
-    unstitched_feature = {**n13_feature, "geometry": mapping(source_geometry)}
-    unstitched_bytes = len((json.dumps({"type": "FeatureCollection", "features": [unstitched_feature]},
-                                      ensure_ascii=False, separators=(",", ":")) + "\n").encode())
-    n13_output.write_text(n13_payload)
-    osm_output.write_text(json.dumps({"type": "FeatureCollection", "features": [osm_feature]}, ensure_ascii=False, separators=(",", ":")) + "\n")
-    rebuild_search_index(args.registry)
-    report = {
-        "roadId": road["id"], "n13CandidateCount": len(candidates), "selectedFeatureCount": len(selected),
-        "osmReferenceCoveragePercent": round(coverage, 3),
-        "selectedResidualMeters": {
-            field: {"min": round(float(selected[field].min()), 3), "median": round(float(selected[field].median()), 3), "p90": round(float(selected[field].quantile(.9)), 3), "max": round(float(selected[field].max()), 3)}
-            for field in ("match_min_m", "match_median_m", "match_p90_m")
-        },
-        "candidateDistributions": {field: dict(Counter(candidates[field].astype(str))) for field in ("N13_002", "N13_004", "N13_006")},
-        "matchingThresholds": match, "unresolvedSections": unresolved,
-        "networkSelection": network_report,
-        "osmReference": {**osm_provenance, **reference_diagnostics},
-        "selectedN13Classifications": dict(Counter(selected["N13_003"].astype(str))),
-        "statutoryComposition": {
-            "routeRefs": dict(Counter(osm.get("ref", pd.Series(dtype=str)).dropna().astype(str))),
-            "n13Classifications": dict(Counter(selected["N13_003"].astype(str))),
-        },
-        "n13Source": str(n13_source), "n13Coverage": n13_manifest,
-        "n13ClassDiagnostics": class_diagnostics,
-        "geometryProcessing": {**stitching, "endpointSnapMeters": float(display_config["endpointSnapMeters"])},
-        "outputBytes": {"n13BeforeStitching": unstitched_bytes, "n13AfterStitching": n13_output.stat().st_size,
-                        "n13": n13_output.stat().st_size, "osm": osm_output.stat().st_size},
-        "outputs": {"n13": str(n13_output), "osm": str(osm_output), "selectionDiagnostics": str(diagnostic_output)},
-    }
-    (PUBLIC_ROADS / f"{road['id']}.report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    before = len(compact({"type":"FeatureCollection","features":[{**n13_feature,"geometry":mapping(source_geometry)}]}))
+    report = {"roadId":road["id"],"n13CandidateCount":len(candidates),"selectedFeatureCount":len(selected),
+      "osmReferenceCoveragePercent":round(result["coverage"],3),
+      "selectedResidualMeters":{field:{"min":round(float(selected[field].min()),3),"median":round(float(selected[field].median()),3),"p90":round(float(selected[field].quantile(.9)),3),"max":round(float(selected[field].max()),3)} for field in ("match_min_m","match_median_m","match_p90_m")},
+      "candidateDistributions":{field:dict(Counter(candidates[field].astype(str))) for field in ("N13_002","N13_004","N13_006")},
+      "matchingThresholds":match,"unresolvedSections":result["unresolved"],"networkSelection":result["networkReport"],
+      "osmReference":{**result["osmProvenance"],**result["referenceDiagnostics"]},
+      "selectedN13Classifications":dict(Counter(selected["N13_003"].astype(str))),
+      "statutoryComposition":{"routeRefs":dict(Counter(result["osm"].get("ref",pd.Series(dtype=str)).dropna().astype(str))),"n13Classifications":dict(Counter(selected["N13_003"].astype(str)))},
+      "n13Source":result["n13Source"],"n13Coverage":result["n13Manifest"],"n13ClassDiagnostics":result["classDiagnostics"],
+      "geometryProcessing":{**result["stitching"],"endpointSnapMeters":float(result["displayConfig"]["endpointSnapMeters"])},
+      "outputBytes":{"n13BeforeStitching":before,"n13AfterStitching":len(n13_bytes),"n13":len(n13_bytes),"osm":len(osm_bytes)},
+      "outputs":{"n13":str(PUBLIC_ROADS/f"{road['id']}-n13.geojson"),"osm":str(PUBLIC_ROADS/f"{road['id']}-osm.geojson"),"selectionDiagnostics":str(diagnostic_output)}}
+    return {"n13":n13_bytes,"osm":osm_bytes,"report":(json.dumps(report,ensure_ascii=False,indent=2)+"\n").encode(),
+            "diagnostics":result["selectionDiagnostics"].to_crs("EPSG:4326").to_json(drop_id=True,default=str).encode()}
+
+
+def _atomic_write(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as output:
+            output.write(content); output.flush(); os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def publish_road_build(result: dict, registry_path: Path, diagnostic_output: Path | None = None,
+                       artifacts: dict[str, bytes] | None = None) -> dict:
+    road = result["road"]
+    diagnostic_output = diagnostic_output or Path("data/diagnostics") / f"{road['id']}-selection.geojson"
+    artifacts = artifacts or road_build_artifacts(result, diagnostic_output)
+    targets = {"n13":PUBLIC_ROADS/f"{road['id']}-n13.geojson", "osm":PUBLIC_ROADS/f"{road['id']}-osm.geojson",
+               "report":PUBLIC_ROADS/f"{road['id']}.report.json", "diagnostics":diagnostic_output}
+    for key, target in targets.items(): _atomic_write(target, artifacts[key])
+    rebuild_search_index(registry_path)
+    return json.loads(artifacts["report"])
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("road_id"); parser.add_argument("--registry",type=Path,default=REGISTRY)
+    parser.add_argument("--sources",type=Path,default=SOURCE_CONFIG); parser.add_argument("--n13",type=Path)
+    parser.add_argument("--refresh-osm",action="store_true"); parser.add_argument("--overpass-url")
+    parser.add_argument("--diagnostics",type=Path)
+    args = parser.parse_args()
+    road = load_road(args.registry,args.road_id); source_config=load_source_config(args.sources)
+    result=compute_road_build(road,source_config,args.n13 or Path(source_config["n13"]["cache"]),args.refresh_osm,args.overpass_url)
+    report=publish_road_build(result,args.registry,args.diagnostics)
+    print(json.dumps(report,ensure_ascii=False,indent=2))
 
 
 if __name__ == "__main__":

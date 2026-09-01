@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import json
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -161,13 +160,49 @@ class RoadBuilderTests(unittest.TestCase):
             road_ui.preview_match(ROAD)
         self.assertEqual(self.registry.read_bytes(), before)
 
-    def test_save_and_build_invokes_existing_pipeline(self):
-        completed = subprocess.CompletedProcess([], 0, stdout="ok", stderr="")
-        runner = Mock(return_value=completed)
-        road_ui.build_road(ROAD["id"], self.registry, runner)
-        command = runner.call_args.args[0]
-        self.assertEqual(Path(command[1]).name, "build-road.py")
-        self.assertNotIsInstance(command, str)
+    def test_matching_relevant_changes_alter_draft_hash(self):
+        baseline = road_ui.draft_hash(ROAD)
+        changed_setting = copy.deepcopy(ROAD)
+        changed_setting["matching"]["coverageToleranceMeters"] += 1
+        changed_classes = copy.deepcopy(ROAD)
+        changed_classes["n13"]["classifications"] = ["3", "2"]
+        changed_exclusions = copy.deepcopy(ROAD)
+        changed_exclusions["reference"]["excludeNames"] = ["Bypass"]
+        self.assertNotEqual(baseline, road_ui.draft_hash(changed_setting))
+        self.assertNotEqual(baseline, road_ui.draft_hash(changed_classes))
+        self.assertNotEqual(baseline, road_ui.draft_hash(changed_exclusions))
+
+    def test_unknown_preview_fails_without_computing(self):
+        with patch.object(road_ui.MATCHER, "compute_road_build") as compute:
+            with self.assertRaisesRegex(RuntimeError, "Preview is stale"):
+                road_ui.build_road(ROAD["id"], "unknown", ROAD, self.registry,
+                                   cache=Path(self.temp.name) / "previews")
+            compute.assert_not_called()
+
+    def test_build_promotes_exact_cached_preview_without_matching(self):
+        root = Path(self.temp.name)
+        cache = root / "previews"; preview = cache / "approved"; preview.mkdir(parents=True)
+        sources = root / "sources.json"
+        n13 = root / "n13"; n13.mkdir(); (n13 / "manifest.json").write_text("manifest")
+        osm = root / "osm"; osm.mkdir()
+        sources.write_text(json.dumps({"n13":{"cache":str(n13)},"osm":{"cacheDirectory":str(osm)}}))
+        fingerprint = {"schemaVersion":road_ui.MATCHER.ROAD_BUILD_SCHEMA_VERSION,
+                       "n13Manifest":road_ui._file_hash(n13 / "manifest.json"),
+                       "osmReference":None,"osmReferenceMetadata":None}
+        metadata = {"roadId":ROAD["id"],"draftHash":road_ui.draft_hash(ROAD),
+                    "sourceFingerprint":fingerprint}
+        (preview / "metadata.json").write_text(json.dumps(metadata))
+        exact_n13 = b'{"type":"FeatureCollection","features":[]}\n'
+        artifacts = {"n13":exact_n13,"osm":b'{}\n',"report":b'{"outputs":{}}\n',"diagnostics":b'{}'}
+        for name, content in artifacts.items(): (preview / f"{name}.artifact").write_bytes(content)
+        registry = root / "registry.json"
+        registry.write_text(json.dumps({"display":{},"roads":[ROAD]}))
+        with patch.object(road_ui, "ROOT", root), \
+             patch.object(road_ui.MATCHER, "compute_road_build") as compute, \
+             patch.object(road_ui.MATCHER, "rebuild_search_index"):
+            road_ui.build_road(ROAD["id"], "approved", ROAD, registry, sources, cache)
+        compute.assert_not_called()
+        self.assertEqual((root / f"public/data/roads/{ROAD['id']}-n13.geojson").read_bytes(), exact_n13)
 
     def test_project_crud_is_atomic_and_does_not_build_or_touch_registry(self):
         root = Path(self.temp.name); (root / "projects").mkdir()
