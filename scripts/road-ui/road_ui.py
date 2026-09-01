@@ -282,13 +282,14 @@ def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
     _, excluded = MATCHER.filter_reference_members(road, osm)
     candidates = MATCHER.load_n13_candidates(road, n13, reference)
     stage1, measured = MATCHER.match_n13(candidates, reference, road)
-    selected, diagnostics, report = MATCHER.select_reference_network(
-        stage1, reference, {**road.get("networkSelection", {}),
-                            "n13ClassPriority": road.get("matching", {}).get("n13ClassPriority", []),
-                            "endpointSnapMeters": road.get("display", {}).get(
-                                "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
+    selected, diagnostics, report = MATCHER.select_reference_network_hierarchical(
+        stage1, reference, road.get("matching", {}).get("n13ClassPriority"),
+        {**road.get("networkSelection", {}),
+         **{key: road.get("matching", {})[key] for key in MATCHER.HIERARCHICAL_CONFIG_KEYS
+            if key in road.get("matching", {})},
+         "endpointSnapMeters": road.get("display", {}).get(
+            "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
     branch_config = {**road.get("matching", {}).get("branchPruning", {}),
-                     "n13ClassPriority": road.get("matching", {}).get("n13ClassPriority", []),
                      "endpointSnapMeters": road.get("display", {}).get(
                          "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS),
                      "maximumResidualMeters": road.get("matching", {}).get("branchPruning", {}).get(

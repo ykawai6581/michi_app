@@ -35,6 +35,17 @@ def select(lines, reference, classes=None, **settings):
     return MATCH_ROAD.select_reference_network(frame, reference, settings)
 
 
+def hierarchical(lines, classes, reference, priority, **settings):
+    frame = gpd.GeoDataFrame({
+        "N13_003": classes,
+        "match_min_m": [line.distance(reference) for line in lines],
+        "match_median_m": [line.distance(reference) for line in lines],
+        "match_p90_m": [line.distance(reference) for line in lines],
+        "geometry": lines,
+    }, crs=MATCH_ROAD.METRIC_CRS)
+    return MATCH_ROAD.select_reference_network_hierarchical(frame, reference, priority, settings)
+
+
 def prune(lines, reference, **settings):
     frame = gpd.GeoDataFrame({
         "selectionStatus": ["accepted-backbone"] * len(lines),
@@ -44,72 +55,7 @@ def prune(lines, reference, **settings):
     return MATCH_ROAD.prune_selected_branches(frame, reference, settings)
 
 
-def class_prune(lines, classes, reference, priority, **settings):
-    frame = gpd.GeoDataFrame({
-        "N13_003": classes,
-        "selectionStatus": ["accepted-backbone"] * len(lines),
-        "selectionReason": ["accepted-backbone"] * len(lines),
-        "referenceSampleSupportCount": [10] * len(lines),
-        "backboneMembership": [True] * len(lines),
-        "geometry": lines,
-    }, crs=MATCH_ROAD.METRIC_CRS)
-    return MATCH_ROAD.prune_selected_branches(
-        frame, reference, {"n13ClassPriority": priority, **settings})
-
-
 class BranchPruningTests(unittest.TestCase):
-    def test_selected_shinjuku_stem_is_removed_by_sustained_class_backbone(self):
-        reference = LineString([(0, 0), (300, 0)])
-        retained, rejected, report = class_prune(
-            [LineString([(0, 0), (300, 0)]), LineString([(100, 0), (110, 8), (220, 8)])],
-            ["1", "2"], reference, ["1", "2"])
-        self.assertEqual(set(retained.N13_003), {"1"})
-        self.assertEqual(set(rejected.rejectionReason), {"dominated-fallback-class"})
-        self.assertEqual(rejected.iloc[0].attachmentPosition, "interior")
-        self.assertEqual(report["classDominatedSelectedBranches"], 1)
-
-    def test_western_fallback_transition_keeps_unique_forward_coverage(self):
-        retained, rejected, report = class_prune(
-            [LineString([(0, 0), (180, 0)]), LineString([(170, 0), (400, 0)])],
-            ["1", "2"], LineString([(0, 0), (400, 0)]), ["1", "2"])
-        self.assertEqual(set(retained.N13_003), {"1", "2"})
-        self.assertTrue(rejected.empty)
-        transition = next(item for item in report["branches"] if item.get("n13Class") == "2")
-        self.assertGreater(transition["uniqueForwardCoverageMeters"], 200)
-
-    def test_short_class_three_interior_stem_is_removed(self):
-        retained, rejected, _ = class_prune(
-            [LineString([(0, 0), (500, 0)]), LineString([(250, 0), (260, 6), (330, 6)])],
-            ["1", "3"], LineString([(0, 0), (500, 0)]), ["1", "2", "3"])
-        self.assertEqual(set(retained.N13_003), {"1"})
-        self.assertEqual(rejected.iloc[0].rejectionReason, "dominated-fallback-class")
-
-    def test_short_preferred_island_does_not_suppress_fallback_backbone(self):
-        retained, rejected, report = class_prune(
-            [LineString([(0, 0), (1000, 0)]), LineString([(400, 0), (420, 0)])],
-            ["2", "1"], LineString([(0, 0), (1000, 0)]), ["1", "2"])
-        self.assertEqual(len(retained), 2)
-        self.assertTrue(rejected.empty)
-        self.assertEqual(report["classDominatedSelectedBranches"], 0)
-
-    def test_lower_class_gap_bridge_is_protected(self):
-        retained, rejected, report = class_prune(
-            [LineString([(0, 0), (150, 0)]), LineString([(200, 0), (400, 0)]),
-             LineString([(140, 0), (210, 0)])], ["1", "1", "2"],
-            LineString([(0, 0), (400, 0)]), ["1", "2"])
-        self.assertEqual(len(retained), 3)
-        self.assertTrue(rejected.empty)
-        bridge = next(item for item in report["branches"] if item.get("n13Class") == "2")
-        self.assertGreaterEqual(bridge["coverageLossIfRemoved"], 40)
-
-    def test_distinct_osm_part_protects_lower_class_carriageway(self):
-        reference = MultiLineString([[(0, 0), (200, 0)], [(0, 5), (200, 5)]])
-        retained, rejected, _ = class_prune(
-            [LineString([(0, 0), (200, 0)]), LineString([(0, 5), (200, 5)])],
-            ["1", "2"], reference, ["1", "2"])
-        self.assertEqual(len(retained), 2)
-        self.assertTrue(rejected.empty)
-
     def test_network_output_can_join_rejections_without_duplicate_index_columns(self):
         reference = LineString([(0, 0), (100, 0)])
         lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
@@ -196,56 +142,57 @@ class BranchPruningTests(unittest.TestCase):
 
 
 class NetworkSelectionTests(unittest.TestCase):
-    def test_case_l_preferred_class_wins_local_parallel_overlap(self):
-        reference = LineString([(0, 0), (120, 0)])
-        accepted, diagnostic, _ = select(
-            [LineString([(0, 1), (120, 1)]), LineString([(0, 12), (120, 12)])],
-            reference, ["1", "2"], n13ClassPriority=["1", "2"])
+    def test_hierarchical_a_shinjuku_parallel_stem_is_outside_fallback_domain(self):
+        reference = LineString([(0, 0), (300, 0)])
+        accepted, diagnostic, report = hierarchical(
+            [LineString([(0, 0), (300, 0)]), LineString([(80, 10), (230, 10)])],
+            ["1", "2"], reference, ["1", "2"])
         self.assertEqual(set(accepted.N13_003), {"1"})
         fallback = diagnostic[diagnostic.N13_003 == "2"].iloc[0]
-        self.assertEqual(fallback.rejectionReason, "dominated-fallback-class")
-        self.assertGreater(fallback.classPreferencePenalty, 0)
+        self.assertEqual(fallback.rejectionReason, "higher-class-reference-already-resolved")
+        self.assertTrue(report["referenceRuns"][0]["locked"])
 
-    def test_case_m_fallback_class_is_selected_after_preferred_ends(self):
-        accepted, _, _ = select(
-            [LineString([(0, 0), (100, 0)]), LineString([(90, 0), (200, 0)])],
-            LineString([(0, 0), (200, 0)]), ["1", "2"], n13ClassPriority=["1", "2"])
+    def test_hierarchical_b_western_fallback_fills_unresolved_reference(self):
+        accepted, _, report = hierarchical(
+            [LineString([(0, 0), (180, 0)]), LineString([(170, 0), (400, 0)])],
+            ["1", "2"], LineString([(0, 0), (400, 0)]), ["1", "2"])
         self.assertEqual(set(accepted.N13_003), {"1", "2"})
-        self.assertAlmostEqual(float(accepted.geometry.length.sum()), 210)
+        self.assertEqual(set(accepted.selectionClassPass), {"1", "2"})
+        self.assertGreater(sum(item["selectedReferenceSampleCount"] for _, item in accepted.iterrows()), 0)
+        self.assertEqual(report["mode"], "hierarchical-reference-coverage")
 
-    def test_case_n_poor_preferred_class_does_not_beat_close_fallback(self):
-        accepted, _, _ = select(
-            [LineString([(0, 20), (120, 20)]), LineString([(0, 0), (120, 0)])],
-            LineString([(0, 0), (120, 0)]), ["1", "2"], n13ClassPriority=["1", "2"])
-        self.assertEqual(set(accepted.N13_003), {"2"})
+    def test_hierarchical_c_tiny_high_class_island_does_not_lock_fallback(self):
+        accepted, _, report = hierarchical(
+            [LineString([(190, 0), (210, 0)]), LineString([(0, 0), (400, 0)])],
+            ["1", "2"], LineString([(0, 0), (400, 0)]), ["1", "2"])
+        self.assertIn("2", set(accepted.N13_003))
+        class_one_runs = [run for run in report["referenceRuns"] if run["resolvedByClass"] == "1"]
+        self.assertTrue(class_one_runs)
+        self.assertTrue(all(not run["locked"] for run in class_one_runs))
 
-    def test_case_o_overlap_handoff_is_continuous_without_long_duplicate(self):
-        accepted, _, _ = select(
-            [LineString([(0, 0), (105, 0)]), LineString([(95, 1), (200, 1)])],
-            LineString([(0, 0), (200, 0)]), ["1", "2"], n13ClassPriority=["1", "2"])
-        self.assertEqual(set(accepted.N13_003), {"1", "2"})
-        self.assertLessEqual(float(accepted.geometry.length.sum()), 210)
-
-    def test_case_p_distinct_osm_parallel_parts_override_class_preference(self):
-        reference = MultiLineString([[(0, 0), (120, 0)], [(0, 5), (120, 5)]])
-        accepted, _, _ = select(
-            [LineString([(0, 0), (120, 0)]), LineString([(0, 5), (120, 5)])],
-            reference, ["1", "2"], n13ClassPriority=["1", "2"])
+    def test_hierarchical_d_real_high_class_gap_is_filled_by_fallback(self):
+        accepted, _, _ = hierarchical(
+            [LineString([(0, 0), (150, 0)]), LineString([(200, 0), (400, 0)]),
+             LineString([(140, 0), (210, 0)])], ["1", "1", "2"],
+            LineString([(0, 0), (400, 0)]), ["1", "2"])
         self.assertEqual(set(accepted.N13_003), {"1", "2"})
 
-    def test_case_q_shinjuku_like_fallback_passes_residual_but_is_dominated(self):
-        reference = LineString([(0, 0), (200, 0)])
-        lines = [LineString([(0, 2), (200, 2)]), LineString([(0, 16), (200, 16)])]
-        road = {"matching": {"sampleIntervalMeters": 5, "maximumMedianResidualMeters": 20,
-                             "maximumP90ResidualMeters": 25}}
-        stage1, _ = MATCH_ROAD.match_n13(gpd.GeoDataFrame(
-            {"N13_003": ["1", "2"], "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS), reference, road)
-        self.assertEqual(len(stage1), 2)
-        accepted, diagnostic, _ = MATCH_ROAD.select_reference_network(
-            stage1, reference, {"n13ClassPriority": ["1", "2"]})
-        self.assertEqual(set(accepted.N13_003), {"1"})
-        self.assertEqual(diagnostic[diagnostic.N13_003 == "2"].iloc[0].rejectionReason,
-                         "dominated-fallback-class")
+    def test_hierarchical_e_lower_class_cannot_traverse_locked_interior(self):
+        accepted, diagnostic, _ = hierarchical(
+            [LineString([(0, 0), (250, 0)]), LineString([(20, 8), (250, 8)]),
+             LineString([(250, 0), (500, 0)])], ["1", "2", "2"],
+            LineString([(0, 0), (500, 0)]), ["1", "2"])
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 2})
+        blocked = diagnostic[diagnostic.sourceFeatureIndex == 1].iloc[0]
+        self.assertEqual(blocked.rejectionReason, "higher-class-reference-already-resolved")
+
+    def test_hierarchical_f_multipart_reference_is_resolved_independently(self):
+        reference = MultiLineString([[(0, 0), (200, 0)], [(0, 5), (200, 5)]])
+        accepted, _, report = hierarchical(
+            [LineString([(0, 0), (200, 0)]), LineString([(0, 5), (200, 5)])],
+            ["1", "2"], reference, ["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertEqual({run["referencePart"] for run in report["referenceRuns"] if run["locked"]}, {0, 1})
 
     def test_straight_road_rejects_short_t_spur(self):
         accepted, diagnostic, _ = select([

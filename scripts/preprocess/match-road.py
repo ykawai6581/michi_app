@@ -42,10 +42,12 @@ DEFAULT_NETWORK_SELECTION = {
     "orientationCostWeight": 0.2,
     "progressCostWeight": 8.0,
     "monotonicityCostWeight": 8.0,
-    "n13ClassPriority": [],
-    "classFallbackPenalty": 30.0,
-    "preferredClassSupportDistanceMeters": 15.0,
-    "preferredClassMaximumOrientationMismatchDegrees": 45.0,
+    "allowedReferenceIntervals": None,
+    "minimumClassLockSpanMeters": 75.0,
+    "maximumClassLockGapMeters": 15.0,
+    "classTransitionBufferMeters": 20.0,
+    "classLockSupportDistanceMeters": 15.0,
+    "minimumClassPassDomainRatio": 0.8,
 }
 DEFAULT_BRANCH_PRUNING = {
     "enabled": True,
@@ -56,12 +58,11 @@ DEFAULT_BRANCH_PRUNING = {
     "maximumOrientationMismatchDegrees": 55.0,
     "sampleIntervalMeters": 5.0,
     "endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS,
-    "n13ClassPriority": [],
-    "minimumPreferredBackboneSpanMeters": 75.0,
-    "preferredBackboneMergeGapMeters": 10.0,
-    "minimumUniqueForwardCoverageMeters": 15.0,
-    "classAttachmentEndToleranceMeters": 15.0,
 }
+HIERARCHICAL_CONFIG_KEYS = (
+    "minimumClassLockSpanMeters", "maximumClassLockGapMeters", "classTransitionBufferMeters",
+    "classLockSupportDistanceMeters", "minimumClassPassDomainRatio",
+)
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
 
@@ -685,133 +686,6 @@ def _interval_unique_length(part: int, low: float, high: float, excluded: set[in
     return covered
 
 
-def _merge_class_backbones(frame, active: set[int], class_ranks: dict[str, int], settings) -> list[dict]:
-    """Build sustained, directly supported class intervals on each OSM part."""
-    intervals = []
-    for edge in active:
-        row = frame.iloc[edge]
-        rank = class_ranks.get(str(row.get("N13_003", "")))
-        direct_support = (int(row.get("referenceSampleSupportCount", 1) or 0) > 0
-                          and bool(row.get("backboneMembership", True)))
-        if (rank is None or not direct_support or not bool(row.referencePartConsistent)
-                or float(row.chainageMonotonicity) < float(settings["minimumMonotonicity"])
-                or float(row.maxResidualMeters) > float(settings["maximumResidualMeters"])):
-            continue
-        low = min(float(row.referenceStartMeters), float(row.referenceEndMeters))
-        high = max(float(row.referenceStartMeters), float(row.referenceEndMeters))
-        intervals.append({"part": int(row.referencePart), "rank": rank, "low": low, "high": high,
-                          "edges": {edge}, "roadClass": str(row.N13_003)})
-    merged = []
-    gap = float(settings["preferredBackboneMergeGapMeters"])
-    for interval in sorted(intervals, key=lambda item: (item["part"], item["rank"], item["low"])):
-        previous = merged[-1] if merged else None
-        if (previous and previous["part"] == interval["part"] and previous["rank"] == interval["rank"]
-                and interval["low"] <= previous["high"] + gap):
-            previous["high"] = max(previous["high"], interval["high"])
-            previous["edges"].update(interval["edges"])
-        else:
-            merged.append(interval)
-    minimum = float(settings["minimumPreferredBackboneSpanMeters"])
-    return [interval for interval in merged if interval["high"] - interval["low"] >= minimum]
-
-
-def _interval_overlap_and_unique(low: float, high: float, coverage: list[tuple[float, float]]) -> tuple[float, float]:
-    """Return covered and uncovered lengths within one chainage interval."""
-    clipped = sorted((max(low, start), min(high, end)) for start, end in coverage
-                     if min(high, end) > max(low, start))
-    overlap = 0.0; cursor = low
-    for start, end in clipped:
-        start = max(start, cursor)
-        if end > start:
-            overlap += end - start
-            cursor = end
-    return overlap, max(0.0, high - low - overlap)
-
-
-def _class_dominated_selected_branches(frame, active: set[int], rejected: dict,
-                                       settings) -> tuple[set[int], list[dict]]:
-    """Remove selected fallback components redundant with a sustained preferred backbone."""
-    priority = [str(value) for value in settings.get("n13ClassPriority", [])]
-    ranks = {road_class: rank for rank, road_class in enumerate(priority)}
-    if len(ranks) < 2:
-        return active, []
-    backbones = _merge_class_backbones(frame, active, ranks, settings)
-    if not backbones:
-        return active, []
-    adjacency = _edge_adjacency(list(frame.geometry), float(settings["endpointSnapMeters"]))
-    decisions = []
-    for rank in range(1, len(priority)):
-        remaining = {edge for edge in active if ranks.get(str(frame.iloc[edge].get("N13_003", ""))) == rank}
-        while remaining:
-            seed = remaining.pop(); component = {seed}; frontier = [seed]
-            while frontier:
-                connected = adjacency[frontier.pop()] & remaining
-                remaining.difference_update(connected); component.update(connected); frontier.extend(connected)
-            subset = frame.iloc[list(component)]
-            if not bool(subset.referencePartConsistent.all()) or subset.referencePart.nunique() != 1:
-                continue
-            part = int(subset.referencePart.iloc[0])
-            dominant = [item for item in backbones
-                        if item["part"] == part and item["rank"] < rank and item["edges"] & active]
-            if not dominant:
-                continue  # Includes independently supported multipart carriageways.
-            low = float(subset[["referenceStartMeters", "referenceEndMeters"]].min().min())
-            high = float(subset[["referenceStartMeters", "referenceEndMeters"]].max().max())
-            best = max(dominant, key=lambda item: _interval_overlap_and_unique(
-                low, high, [(item["low"], item["high"])])[0])
-            coverage = [(item["low"], item["high"]) for item in dominant]
-            overlap, unique = _interval_overlap_and_unique(low, high, coverage)
-            coverage_loss = _interval_unique_length(part, low, high, component, frame, active)
-            span = high - low
-            meaningful = max(float(settings["minimumUniqueForwardCoverageMeters"]), span * .1)
-            higher_edges = set().union(*(item["edges"] for item in dominant))
-            attachments = adjacency[next(iter(component))] & higher_edges
-            for edge in component:
-                attachments.update(adjacency[edge] & higher_edges)
-            # Endpoint-to-line-interior adjacency decides whether the fallback
-            # path touches the dominant source network.
-            tolerance = float(settings["classAttachmentEndToleranceMeters"])
-            if attachments:
-                attachment_chainages = []
-                for edge in component:
-                    row = frame.iloc[edge]
-                    for end, chainage in ((0, row.referenceStartMeters), (-1, row.referenceEndMeters)):
-                        point = Point(row.geometry.coords[end])
-                        if any(frame.iloc[higher].geometry.distance(point) <=
-                               float(settings["endpointSnapMeters"]) for higher in higher_edges):
-                            attachment_chainages.append(float(chainage))
-                if any(abs(chainage - best["low"]) <= tolerance for chainage in attachment_chainages):
-                    attachment_position = "upstream-end"
-                elif any(abs(chainage - best["high"]) <= tolerance for chainage in attachment_chainages):
-                    attachment_position = "downstream-end"
-                else:
-                    attachment_position = "interior"
-            elif overlap >= span * .8:
-                attachment_position = "parallel"
-            else:
-                attachment_position = "unknown"
-            decision = {
-                "sourceEdges": sorted(component), "n13Class": priority[rank],
-                "n13ClassPriorityRank": rank, "dominantClass": best["roadClass"],
-                "dominantClassPriorityRank": best["rank"],
-                "dominantBackboneSpanMeters": round(best["high"] - best["low"], 3),
-                "attachmentPosition": attachment_position,
-                "overlapWithPreferredBackboneMeters": round(overlap, 3),
-                "uniqueForwardCoverageMeters": round(unique, 3),
-                "coverageLossIfRemoved": round(coverage_loss, 3),
-            }
-            if (unique < meaningful and coverage_loss < meaningful
-                    and attachment_position in {"interior", "parallel"} and overlap >= span - meaningful):
-                decision["decision"] = "rejected"; decision["rejectionReason"] = "dominated-fallback-class"
-                for edge in component:
-                    rejected[edge] = ("dominated-fallback-class", decision)
-                active.difference_update(component)
-            else:
-                decision["decision"] = "retained-class-transition-or-gap"
-            decisions.append(decision)
-    return active, decisions
-
-
 def prune_selected_branches(selected_n13, osm_reference, config: dict | None = None):
     """Conservatively remove poor-progress source branches after network selection."""
     settings = {**DEFAULT_BRANCH_PRUNING, **(config or {})}
@@ -830,10 +704,6 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
     metrics = [_progression_metrics(line, parts, float(settings["sampleIntervalMeters"])) for line in frame.geometry]
     for key in metrics[0]:
         frame[key] = [metric[key] for metric in metrics]
-    class_ranks = {str(value): rank for rank, value in enumerate(settings.get("n13ClassPriority", []))}
-    if "N13_003" in frame:
-        frame["n13Class"] = frame["N13_003"].astype(str)
-        frame["n13ClassPriorityRank"] = [class_ranks.get(value) for value in frame.n13Class]
     frame["branchLengthMeters"] = frame.geometry.length
     frame["chainageSpanMeters"] = frame.referenceSpanMeters
     frame["monotonicity"] = frame.chainageMonotonicity
@@ -888,8 +758,6 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
             active.difference_update(path); removed = True; break
         if not removed:
             break
-    active, class_decisions = _class_dominated_selected_branches(frame, active, rejected, settings)
-    branch_reports.extend(class_decisions)
     frame["rejectionReason"] = None
     for edge, (reason, report) in rejected.items():
         frame.loc[edge, "rejectionReason"] = reason
@@ -897,26 +765,11 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
                     "detourRatio", "maxResidualMeters"):
             if key in report:
                 frame.loc[edge, key] = report[key]
-        for key in ("dominantClass", "dominantClassPriorityRank", "dominantBackboneSpanMeters",
-                    "attachmentPosition", "overlapWithPreferredBackboneMeters",
-                    "uniqueForwardCoverageMeters", "coverageLossIfRemoved"):
-            if key in report:
-                frame.loc[edge, key] = report[key]
         frame.loc[edge, ["selectionStatus", "selectionReason"]] = [f"rejected-{reason}", reason]
     report = {"candidateBranches": len({tuple(item["sourceEdges"]) for item in branch_reports}),
               "rejectedBranches": len({tuple(item[1][1]["sourceEdges"]) for item in rejected.items()}),
               "retainedAlternativePaths": len(retained_alternatives),
               "protectedUniqueCoverageBranches": len(protected_paths), "iterations": iterations,
-              "classDominatedSelectedBranches": sum(item.get("rejectionReason") ==
-                                                       "dominated-fallback-class"
-                                                       for item in class_decisions),
-              "classBackbone": {
-                  "priority": [str(value) for value in settings.get("n13ClassPriority", [])],
-                  "minimumSpanMeters": float(settings["minimumPreferredBackboneSpanMeters"]),
-                  "mergeGapMeters": float(settings["preferredBackboneMergeGapMeters"]),
-                  "minimumUniqueForwardCoverageMeters": float(
-                      settings["minimumUniqueForwardCoverageMeters"]),
-              },
               "branches": branch_reports}
     return frame.loc[sorted(active)].copy(), frame.loc[sorted(rejected)].copy(), report
 
@@ -997,33 +850,23 @@ def _infer_reference_sequence(part_index: int, part: LineString, frame, adjacenc
     states: list[list[int | None]] = []
     emissions: list[dict[int | None, float]] = []
     support: dict[int, list[float]] = {edge: [] for edge in frame.index}
-    class_penalties: dict[int, list[float]] = {edge: [] for edge in frame.index}
-    local_best_ranks: dict[int, list[int]] = {edge: [] for edge in frame.index}
-    priority = [str(value) for value in settings.get("n13ClassPriority", [])]
-    ranks = {road_class: rank for rank, road_class in enumerate(priority)}
+    allowed_intervals = (settings.get("allowedReferenceIntervals") or {}).get(part_index)
+    allowed_samples = []
     for offset, sample in zip(offsets, samples):
+        allowed = allowed_intervals is None or any(start <= float(offset) <= end
+                                                   for start, end in allowed_intervals)
+        allowed_samples.append(allowed)
+        if not allowed:
+            states.append([None]); emissions.append({None: 0.0}); continue
         osm_vector = _local_orientation(part, sample, float(settings["progressSampleMeters"]))
         nearby = []
         costs: dict[int | None, float] = {None: float(settings["unmatchedSampleCost"])}
-        observations = {}
         for edge, line in enumerate(frame.geometry):
             distance = float(line.distance(sample))
             if distance > maximum_distance:
                 continue
             mismatch = _angle_difference(_local_orientation(line, sample, float(settings["progressSampleMeters"])),
                                          osm_vector)
-            observations[edge] = (distance, mismatch)
-        adequate_ranks = [ranks[str(frame.iloc[edge].N13_003)] for edge, (distance, mismatch) in observations.items()
-                          if str(frame.iloc[edge].N13_003) in ranks
-                          and int(frame.iloc[edge].referencePart) == part_index
-                          and bool(frame.iloc[edge].referencePartConsistent)
-                          and distance <= float(settings["preferredClassSupportDistanceMeters"])
-                          and mismatch <= float(settings["preferredClassMaximumOrientationMismatchDegrees"])
-                          and float(frame.iloc[edge].progressRatio) >= float(settings["minimumProgressRatio"])
-                          and float(frame.iloc[edge].chainageMonotonicity) >=
-                              float(settings["minimumChainageMonotonicity"])]
-        local_best_rank = min(adequate_ranks) if adequate_ranks else None
-        for edge, (distance, mismatch) in observations.items():
             # Former hard eligibility metrics are deliberately soft. A poor
             # local edge can win when graph continuity and reference coverage
             # make it the necessary explanation for this sample.
@@ -1031,19 +874,12 @@ def _infer_reference_sequence(part_index: int, part: LineString, frame, adjacenc
             monotonicity_penalty = max(0.0, float(settings["minimumChainageMonotonicity"])
                                        - float(frame.iloc[edge].chainageMonotonicity))
             orientation_excess = max(0.0, mismatch - float(settings["maximumOrientationMismatchDegrees"]))
-            rank = ranks.get(str(frame.iloc[edge].N13_003))
-            class_penalty = (max(0, rank - local_best_rank) * float(settings["classFallbackPenalty"])
-                             if rank is not None and local_best_rank is not None else 0.0)
             costs[edge] = (distance + mismatch * float(settings["orientationCostWeight"])
                            + progress_penalty * float(settings["progressCostWeight"])
                            + monotonicity_penalty * float(settings["monotonicityCostWeight"])
-                           + orientation_excess * float(settings["orientationCostWeight"])
-                           + class_penalty)
+                           + orientation_excess * float(settings["orientationCostWeight"]))
             nearby.append(edge)
             support[edge].append(float(offset))
-            class_penalties[edge].append(class_penalty)
-            if local_best_rank is not None:
-                local_best_ranks[edge].append(local_best_rank)
         states.append(nearby + [None])
         emissions.append(costs)
 
@@ -1051,8 +887,7 @@ def _infer_reference_sequence(part_index: int, part: LineString, frame, adjacenc
     if not supported_samples:
         return {"part": part_index, "offsets": offsets, "states": [None] * len(samples),
                 "paths": [], "support": support, "emissions": emissions, "cost": 0.0,
-                "activeRange": None, "repairedGaps": [], "classPenalties": class_penalties,
-                "localBestRanks": local_best_ranks}
+                "activeRange": None, "repairedGaps": [], "allowedSamples": allowed_samples}
     first, last = min(supported_samples), max(supported_samples)
     costs = {state: emissions[first][state] for state in states[first]}
     histories = {state: [] for state in states[first]}
@@ -1096,7 +931,7 @@ def _infer_reference_sequence(part_index: int, part: LineString, frame, adjacenc
     return {"part": part_index, "offsets": offsets, "states": full_sequence,
             "support": support, "emissions": emissions, "cost": float(costs[final]),
             "activeRange": (first, last), "transitionConnectors": connector_histories[final],
-            "repairedGaps": [], "classPenalties": class_penalties, "localBestRanks": local_best_ranks}
+            "repairedGaps": [], "allowedSamples": allowed_samples}
 
 
 def _repair_internal_gaps(inference: dict, frame, adjacency, settings, path_cache) -> set[int]:
@@ -1113,6 +948,8 @@ def _repair_internal_gaps(inference: dict, frame, adjacency, settings, path_cach
             index += 1
         if start == 0 or index == len(states):
             continue  # legitimate termination: never repair beyond supported coverage
+        if not all(inference["allowedSamples"][start:index]):
+            continue  # A locked higher-class interval is a connector barrier.
         left, right = states[start - 1], states[index]
         gap_length = float(inference["offsets"][index] - inference["offsets"][start - 1])
         maximum = min(float(settings["maximumGapConnectorMeters"]),
@@ -1135,7 +972,10 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
-    frame = stage1.explode(index_parts=False).reset_index().rename(columns={"index": "sourceFeatureIndex"})
+    frame = stage1.explode(index_parts=False).copy()
+    if "sourceFeatureIndex" not in frame.columns:
+        frame["sourceFeatureIndex"] = frame.index
+    frame = frame.reset_index(drop=True)
     parts = _ordered_reference_parts(reference)
     metrics = [_progression_metrics(line, parts, float(settings["progressSampleMeters"])) for line in frame.geometry]
     for key in metrics[0]:
@@ -1149,42 +989,39 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     membership: dict[int, set[int]] = {edge: set() for edge in frame.index}
     gap_repair: set[int] = set()
     sample_support = Counter()
+    selected_sample_support = Counter()
     minimum_emission = {edge: float("inf") for edge in frame.index}
-    edge_class_penalties = {edge: [] for edge in frame.index}
-    edge_local_best_ranks = {edge: [] for edge in frame.index}
+    selected_samples = []
     for inference in inferences:
         for edge, offsets in inference["support"].items():
             sample_support[edge] += len(offsets)
         for sample_index, state in enumerate(inference["states"]):
             if state is not None:
                 membership[state].add(inference["part"])
+                selected_sample_support[state] += 1
                 minimum_emission[state] = min(minimum_emission[state], inference["emissions"][sample_index][state])
-        for edge in frame.index:
-            edge_class_penalties[edge].extend(inference["classPenalties"][edge])
-            edge_local_best_ranks[edge].extend(inference["localBestRanks"][edge])
+                sample = parts[inference["part"]].interpolate(float(inference["offsets"][sample_index]))
+                selected_samples.append({"referencePart": inference["part"],
+                                         "referenceChainageMeters": float(inference["offsets"][sample_index]),
+                                         "sourceEdge": int(state),
+                                         "distanceMeters": float(frame.iloc[state].geometry.distance(sample)),
+                                         "lockEligible": bool(frame.iloc[state].referencePartConsistent)
+                                             and int(frame.iloc[state].referencePart) == inference["part"]})
         for connector in inference.get("transitionConnectors", []):
             # Intermediate edges explain graph continuity rather than an
             # emission at one reference sample; expose them as gap repairs.
             gap_repair.update(connector[1:-1])
         gap_repair.update(_repair_internal_gaps(inference, frame, adjacency, settings, path_cache))
     selected = {edge for edge, support_parts in membership.items() if support_parts} | gap_repair
-    frame["referenceSampleSupportCount"] = [sample_support[edge] for edge in frame.index]
+    frame["candidateReferenceSampleCount"] = [sample_support[edge] for edge in frame.index]
+    frame["selectedReferenceSampleCount"] = [selected_sample_support[edge] for edge in frame.index]
     frame["emissionCost"] = [round(minimum_emission[edge], 3) if math.isfinite(minimum_emission[edge]) else None
                              for edge in frame.index]
     frame["backboneMembership"] = [edge in selected for edge in frame.index]
     frame["parallelOsmSupportPart"] = [",".join(map(str, sorted(membership[edge]))) if membership[edge] else None
                                        for edge in frame.index]
     frame["gapRepairMembership"] = [edge in gap_repair for edge in frame.index]
-    class_ranks = {str(value): rank for rank, value in enumerate(settings.get("n13ClassPriority", []))}
     frame["n13Class"] = frame["N13_003"].astype(str)
-    frame["n13ClassPriorityRank"] = [class_ranks.get(value) for value in frame.n13Class]
-    frame["localBestAvailableClassRank"] = [min(edge_local_best_ranks[edge], default=None)
-                                             for edge in frame.index]
-    frame["classPreferencePenalty"] = [round(max(edge_class_penalties[edge], default=0.0), 3)
-                                        for edge in frame.index]
-    frame["preferredClassLocallyAvailable"] = [bool(edge_class_penalties[edge] and
-                                                      max(edge_class_penalties[edge]) > 0)
-                                                for edge in frame.index]
     for edge in selected:
         reason = "accepted-gap-repair" if edge in gap_repair and not membership[edge] else "accepted-backbone"
         if membership[edge] and min(membership[edge]) > 0:
@@ -1212,33 +1049,6 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             reason = "rejected-redundant-parallel"
         else:
             reason = "rejected-disconnected"
-        dominance_edges = set(attachments)
-        consistent_component = bool(frame.iloc[list(component)].referencePartConsistent.all())
-        redundant_class_coverage = False
-        if consistent_component and frame.iloc[list(component)].referencePart.nunique() == 1:
-            component_part = int(frame.iloc[next(iter(component))].referencePart)
-            low = float(frame.iloc[list(component)][["referenceStartMeters", "referenceEndMeters"]].min().min())
-            high = float(frame.iloc[list(component)][["referenceStartMeters", "referenceEndMeters"]].max().max())
-            unique = _interval_unique_length(component_part, low, high, set(), frame, selected)
-            redundant_class_coverage = unique < max(float(settings["progressSampleMeters"]) * 2,
-                                                     (high - low) * .1)
-            for edge in selected:
-                row = frame.iloc[edge]
-                overlap = min(high, max(float(row.referenceStartMeters), float(row.referenceEndMeters))) - \
-                    max(low, min(float(row.referenceStartMeters), float(row.referenceEndMeters)))
-                if (bool(row.referencePartConsistent) and int(row.referencePart) == component_part
-                        and overlap > 0 and float(row.match_median_m) <=
-                            float(frame.iloc[list(component)].match_median_m.median())):
-                    dominance_edges.add(edge)
-        selected_ranks = [frame.iloc[edge].n13ClassPriorityRank for edge in dominance_edges
-                          if pd.notna(frame.iloc[edge].n13ClassPriorityRank)]
-        component_ranks = [frame.iloc[edge].n13ClassPriorityRank for edge in component
-                           if pd.notna(frame.iloc[edge].n13ClassPriorityRank)]
-        if (reason in {"rejected-detour", "rejected-redundant-parallel"}
-                and redundant_class_coverage
-                and selected_ranks and component_ranks and min(selected_ranks) < min(component_ranks)
-                and any(float(frame.iloc[edge].classPreferencePenalty) > 0 for edge in component)):
-            reason = "rejected-dominated-fallback-class"
         frame.loc[list(component), ["selectionStatus", "selectionReason"]] = reason
     frame["rejectionReason"] = [reason.removeprefix("rejected-") if str(status).startswith("rejected-") else None
                                 for status, reason in zip(frame.selectionStatus, frame.selectionReason)]
@@ -1250,14 +1060,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         "parallelSelectedCount": int((frame.selectionStatus == "accepted-parallel-osm-supported").sum()),
         "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
         "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
-        "n13ClassPreference": {
-            "priority": [str(value) for value in settings.get("n13ClassPriority", [])],
-            "fallbackPenalty": float(settings["classFallbackPenalty"]),
-            "supportDistanceMeters": float(settings["preferredClassSupportDistanceMeters"]),
-            "penalizedEdgeCount": int((frame.classPreferencePenalty > 0).sum()),
-            "dominatedFallbackCount": int((frame.selectionStatus ==
-                                             "rejected-dominated-fallback-class").sum()),
-        },
+        "selectedReferenceSamples": selected_samples,
         "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
         "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
         "referencePartInference": [{
@@ -1270,6 +1073,131 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         "parameters": settings,
     }
     return accepted, frame, report
+
+
+def _merge_sample_runs(samples: list[dict], road_class: str, settings) -> list[dict]:
+    """Turn confidently owned reference samples into substantial lock runs."""
+    runs = []
+    maximum_gap = float(settings["maximumClassLockGapMeters"]) + float(settings["progressSampleMeters"])
+    for part in sorted({sample["referencePart"] for sample in samples}):
+        offsets = sorted(sample["referenceChainageMeters"] for sample in samples
+                         if sample["referencePart"] == part
+                         and sample["lockEligible"]
+                         and sample["distanceMeters"] <= float(settings["classLockSupportDistanceMeters"]))
+        for offset in offsets:
+            if runs and runs[-1]["referencePart"] == part and offset - runs[-1]["referenceEndMeters"] <= maximum_gap:
+                runs[-1]["referenceEndMeters"] = offset
+            else:
+                runs.append({"referencePart": part, "referenceStartMeters": offset,
+                             "referenceEndMeters": offset, "resolvedByClass": road_class})
+    minimum = float(settings["minimumClassLockSpanMeters"])
+    for run in runs:
+        run["locked"] = run["referenceEndMeters"] - run["referenceStartMeters"] >= minimum
+    return runs
+
+
+def _allowed_reference_intervals(parts: list[LineString], locked_runs: list[dict], buffer: float) -> dict:
+    """Return unresolved reference windows expanded only by transition margins."""
+    result = {}
+    for part_index, part in enumerate(parts):
+        locked = sorted((run["referenceStartMeters"], run["referenceEndMeters"])
+                        for run in locked_runs if run["locked"] and run["referencePart"] == part_index)
+        merged = []
+        for start, end in locked:
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+            else:
+                merged.append((start, end))
+        unresolved, cursor = [], 0.0
+        for start, end in merged:
+            if start > cursor:
+                unresolved.append((max(0.0, cursor - buffer), min(part.length, start + buffer)))
+            cursor = max(cursor, end)
+        if cursor < part.length:
+            unresolved.append((max(0.0, cursor - buffer), part.length))
+        result[part_index] = unresolved
+    return result
+
+
+def _interval_coverage_ratio(low: float, high: float, intervals: list[tuple[float, float]]) -> float:
+    if high - low <= 1e-9:
+        return 0.0
+    clipped = sorted((max(low, start), min(high, end)) for start, end in intervals
+                     if min(high, end) > max(low, start))
+    covered = 0.0; cursor = low
+    for start, end in clipped:
+        start = max(start, cursor)
+        if end > start:
+            covered += end - start; cursor = end
+    return covered / (high - low)
+
+
+def select_reference_network_hierarchical(stage1: gpd.GeoDataFrame, reference,
+                                          class_priority: list[str] | None,
+                                          config: dict | None = None):
+    """Resolve OSM samples class-by-class, admitting fallbacks only in unresolved windows."""
+    settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
+    priority = [str(value) for value in (class_priority or [])]
+    if not priority:
+        return select_reference_network(stage1, reference, settings)
+    enabled = list(dict.fromkeys(stage1["N13_003"].astype(str)))
+    passes = priority + [value for value in enabled if value not in priority]
+    parts = _ordered_reference_parts(reference)
+    locked_runs, selected_frames, diagnostic_frames, pass_reports = [], [], [], []
+    for pass_index, road_class in enumerate(passes):
+        candidates = stage1[stage1["N13_003"].astype(str) == road_class].copy()
+        if candidates.empty:
+            continue
+        if "sourceFeatureIndex" not in candidates:
+            candidates["sourceFeatureIndex"] = candidates.index
+        allowed = _allowed_reference_intervals(
+            parts, locked_runs, float(settings["classTransitionBufferMeters"]))
+        metrics = [_progression_metrics(line, parts, float(settings["progressSampleMeters"]))
+                   for line in candidates.geometry]
+        eligible = []
+        for metric in metrics:
+            low = min(metric["referenceStartMeters"], metric["referenceEndMeters"])
+            high = max(metric["referenceStartMeters"], metric["referenceEndMeters"])
+            # Ambiguous multipart projection is retained conservatively rather
+            # than comparing unrelated chainages as one scalar domain.
+            ratio = (_interval_coverage_ratio(low, high, allowed[metric["referencePart"]])
+                     if metric["referencePartConsistent"] else 1.0)
+            eligible.append(ratio >= float(settings["minimumClassPassDomainRatio"]))
+        admitted = candidates[np.asarray(eligible)].copy()
+        excluded = candidates[~np.asarray(eligible)].copy()
+        if not excluded.empty:
+            excluded["selectionStatus"] = "rejected-higher-class-reference-already-resolved"
+            excluded["selectionReason"] = "rejected-higher-class-reference-already-resolved"
+            excluded["rejectionReason"] = "higher-class-reference-already-resolved"
+            excluded["selectionClassPass"] = road_class
+            excluded["candidateReferenceSampleCount"] = 0
+            excluded["selectedReferenceSampleCount"] = 0
+            diagnostic_frames.append(excluded)
+        if admitted.empty:
+            pass_reports.append({"class": road_class, "candidateCount": len(candidates),
+                                 "admittedCount": 0, "selectedCount": 0})
+            continue
+        pass_settings = {**settings, "allowedReferenceIntervals": allowed}
+        selected, diagnostics, report = select_reference_network(admitted, reference, pass_settings)
+        selected["selectionClassPass"] = road_class
+        diagnostics["selectionClassPass"] = road_class
+        selected_frames.append(selected); diagnostic_frames.append(diagnostics)
+        runs = _merge_sample_runs(report["selectedReferenceSamples"], road_class, settings)
+        locked_runs.extend(runs)
+        pass_reports.append({"class": road_class, "candidateCount": len(candidates),
+                             "admittedCount": len(admitted), "selectedCount": len(selected),
+                             "lockedRunCount": sum(run["locked"] for run in runs)})
+    selected = gpd.GeoDataFrame(pd.concat(selected_frames, ignore_index=True), crs=stage1.crs) \
+        if selected_frames else stage1.iloc[0:0].copy()
+    diagnostics = gpd.GeoDataFrame(pd.concat(diagnostic_frames, ignore_index=True), crs=stage1.crs) \
+        if diagnostic_frames else stage1.iloc[0:0].copy()
+    report = {"mode": "hierarchical-reference-coverage", "classPasses": pass_reports,
+              "referenceRuns": locked_runs, "selectedCount": len(selected),
+              "parameters": {key: settings[key] for key in (
+                  "minimumClassLockSpanMeters", "maximumClassLockGapMeters",
+                  "classTransitionBufferMeters", "classLockSupportDistanceMeters",
+                  "minimumClassPassDomainRatio")}}
+    return selected, diagnostics, report
 
 
 def write_selection_diagnostics(frame: gpd.GeoDataFrame, output: Path) -> None:
@@ -1339,13 +1267,13 @@ def main() -> None:
     if stage1.empty:
         raise RuntimeError(f"No plausible N13 features selected for {road['id']}")
     network_config = {**road.get("networkSelection", {}),
-                      "n13ClassPriority": match.get("n13ClassPriority", []),
+                      **{key: match[key] for key in HIERARCHICAL_CONFIG_KEYS if key in match},
                       "endpointSnapMeters": road.get("display", {}).get("endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS)}
-    selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
+    selected, selection_diagnostics, network_report = select_reference_network_hierarchical(
+        stage1, reference, match.get("n13ClassPriority"), network_config)
     if selected.empty:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
     branch_config = {**road.get("matching", {}).get("branchPruning", {}),
-                     "n13ClassPriority": match.get("n13ClassPriority", []),
                      "endpointSnapMeters": road.get("display", {}).get(
                          "endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS),
                      "maximumResidualMeters": road.get("matching", {}).get("branchPruning", {}).get(
