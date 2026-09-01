@@ -141,8 +141,10 @@ When `bounds` is omitted, the same `modernRoads` auto mode and 3 km padding are 
 selected road's canonical `public/data/roads/<road-id>-n13.geojson` geometry, estimates a suitable local UTM CRS, and
 expands that combined extent by the configured real-world distance. It never uses the full N13 source extent or the
 OSM reference geometry. This produces the intended pipeline: project road geometry → nearby spatial context → bbox
-rail/station extraction → small browser bundle. The derived bbox does not clip canonical roads, CODH road routes, or
-CODH post selections; it only controls bbox-mode supporting layers such as railways and stations. The resolved WGS84
+rail/station extraction → small browser bundle. OSM `railway=*` ways remain the physical track context, while OSM
+`type=route` + `route=railway` relations are the canonical logical lines used by search and highlighting. Passenger
+`route=train` services are intentionally not logical railway identities. The derived bbox does not clip canonical roads, CODH road routes, or
+CODH post selections; it only controls bbox-mode supporting layers such as physical tracks and stations. The resolved WGS84
 bbox and its derivation metadata are recorded in `manifest.json`, while output `project.json` preserves the configured
 auto specification.
 
@@ -157,7 +159,9 @@ npm run dev
 ```
 
 `projects/<id>/project.json` contains an ID, display name, optional explicit/auto bounds, canonical modern-road IDs,
-bbox-mode rail and station selectors, and exact CODH route IDs. A missing cache or canonical build fails with the preprocessing command
+bbox-mode station selectors, railway selection settings, and exact CODH route IDs. The preferred railway setting is
+`{"mode":"near-modern-roads","distanceKm":3}`: if any portion of a cached logical route intersects the metric road
+corridor, the complete relation geometry is selected without clipping to either the corridor or project bbox. A missing cache or canonical build fails with the preprocessing command
 needed to create it. Rail bbox reads use GeoParquet filtering and preserve every parallel source track; stations are
 selected spatially without further deduplication. CODH roads and posts are selected by exact `routeId` without
 matching, snapping, simplification, or name-based post deduplication.
@@ -171,14 +175,17 @@ public/projects/<id>/
 ├── data/
 │   ├── modern-roads.geojson
 │   ├── railways.geojson
+│   ├── railway-routes.geojson
 │   ├── stations.geojson
 │   ├── historical-roads.geojson
 │   └── historical-posts.geojson
 └── search/entities.json
 ```
 
-The manifest records timestamp, bounds, inputs, outputs, layer families, and feature counts. The search index contains
-modern roads, stations, historical roads, and historical posts; track segments deliberately are not search entities.
+The manifest records timestamp, bounds, railway selection, inputs, outputs, layer families, and separate physical-track
+and logical-route counts. `railways.geojson` is the local physical base layer; `railway-routes.geojson` contains full
+relation `MultiLineString` features. Search emits one entity per selected relation. Tracks without a usable relation
+retain only conservative exact-tag fallback grouping; names are never fuzzily normalized.
 
 These build-time sources do **not** create project bundles or change the production application:
 

@@ -11,6 +11,7 @@ from urllib.parse import quote
 SUPPORTED_LAYERS = {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}
 OUTPUTS = {
     "modernRoads": "data/modern-roads.geojson", "railways": "data/railways.geojson",
+    "railwayRoutes": "data/railway-routes.geojson",
     "stations": "data/stations.geojson", "historicalRoads": "data/historical-roads.geojson",
     "historicalPosts": "data/historical-posts.geojson",
 }
@@ -20,6 +21,8 @@ CACHES = {
     "historicalRoads": Path("data/cache/codh/edo-roads/roads.parquet"),
     "historicalPosts": Path("data/cache/codh/edo-posts/posts.parquet"),
 }
+RAIL_ROUTES_CACHE = Path("data/cache/osm/rail/routes.parquet")
+RAIL_MEMBERS_CACHE = Path("data/cache/osm/rail/route-members.parquet")
 PREPROCESS = {
     "railways": "python scripts/preprocess/preprocess-rail.py",
     "stations": "python scripts/preprocess/preprocess-rail.py",
@@ -38,8 +41,13 @@ def load_project_config(root: Path, project_id: str) -> dict[str, Any]:
     if not isinstance(layers, dict): raise ProjectBuildError("Project layers must be an object")
     unsupported = sorted(set(layers) - SUPPORTED_LAYERS)
     if unsupported: raise ProjectBuildError(f"Unsupported layer family: {', '.join(unsupported)}")
-    for family in ("railways", "stations"):
-        if family in layers and layers[family] != {"mode": "bbox"}: raise ProjectBuildError(f"{family} currently supports only mode=bbox")
+    if "stations" in layers and layers["stations"] != {"mode": "bbox"}: raise ProjectBuildError("stations currently supports only mode=bbox")
+    if "railways" in layers:
+        rail = layers["railways"]
+        if rail != {"mode":"bbox"}:
+            distance = rail.get("distanceKm") if isinstance(rail, dict) and rail.get("mode") == "near-modern-roads" else None
+            if not isinstance(distance, (int,float)) or isinstance(distance,bool) or not math.isfinite(distance) or distance <= 0:
+                raise ProjectBuildError("railways must use mode=bbox or near-modern-roads with a positive distanceKm")
     bounds = config.get("bounds")
     if isinstance(bounds, list):
         if len(bounds) != 4 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in bounds) or not (-180 <= bounds[0] < bounds[2] <= 180 and -90 <= bounds[1] < bounds[3] <= 90):
@@ -97,6 +105,17 @@ def select_modern_roads(root: Path, ids: list[str]) -> list[dict]:
 
 def select_bbox_features(path: Path, bounds: list[float]) -> list[dict]: return _read_parquet(path, bbox=tuple(bounds))
 
+def select_near_road_routes(path: Path, roads: list[dict], distance_km: float) -> list[dict]:
+    """Select on corridor intersection while returning untouched full route features."""
+    import geopandas as gpd
+    routes = gpd.read_parquet(path)
+    road_frame = gpd.GeoDataFrame.from_features(roads, crs="EPSG:4326")
+    metric = road_frame.estimate_utm_crs()
+    if metric is None: raise ProjectBuildError("Cannot estimate a metric CRS for railway proximity selection")
+    corridor = road_frame.to_crs(metric).geometry.buffer(distance_km * 1000).union_all()
+    selected = routes.to_crs(metric).geometry.intersects(corridor)
+    return json.loads(routes[selected].to_json(drop_id=True))["features"]
+
 def resolve_project_bounds(config: dict[str, Any], modern_road_features: list[dict]) -> tuple[list[float], dict[str, Any]]:
     """Resolve configured bounds, projecting only to calculate metric auto padding."""
     specification = config.get("bounds")
@@ -144,6 +163,8 @@ def _browser_properties(features: list[dict], family: str) -> None:
             p.update(id=f"rail:{p.get('osm_element_type','way')}:{p.get('osm_element_id',index)}", type="railway")
             group = rail_group_properties(p)
             if group: p.update(group)
+        elif family == "railwayRoutes":
+            p.update(id=p["railRouteId"], name=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"], type="railway", railDisplayName=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"])
         elif family == "stations": p.update(id=f"station:{p.get('osm_element_type','element')}:{p.get('osm_element_id',index)}", name=p.get("name:ja") or p.get("name") or "名称不明駅", type="station")
         elif family == "historicalRoads": p.update(id=f"historical-road:{p['routeId']}:{index}", type="historical-road")
         elif family == "historicalPosts": p.update(id=f"historical-post:{p['postId']}", name=p.get("name") or p.get("historicalLabel") or p["postId"], type="historical-place")
@@ -165,13 +186,19 @@ def rail_group_properties(properties: dict) -> dict | None:
     return {"railGroupId": "rail:" + quote(key, safe=":"), "railDisplayName": display}
 
 
-def _rail_search(features: list[dict]) -> list[dict]:
+def _rail_search(features: list[dict], routes: list[dict] | None = None) -> list[dict]:
+    result=[]
+    for route in routes or []:
+        p=route["properties"]; display=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"]
+        aliases=[v for v in (p.get("name"),p.get("name:ja"),p.get("name:en"),p.get("ref"),p.get("operator"),p.get("network")) if v and v != display]
+        result.append({"id":p["railRouteId"],"entityType":"railway","displayName":display,"aliases":list(dict.fromkeys(aliases)),"searchTerms":list(dict.fromkeys([display,*aliases])),"source":"osm","geometryHint":"MultiLineString","railRouteId":p["railRouteId"],"identitySource":"route-relation","geometry":route["geometry"]})
+    member_way_ids={str(way) for route in routes or [] for way in route["properties"].get("memberWayIds",[])}
     groups = {}
     for feature in features:
         p = feature["properties"]
+        if str(p.get("osm_way_id") or p.get("osm_element_id")) in member_way_ids: continue
         if p.get("railGroupId") and p.get("railDisplayName"):
             groups.setdefault(p["railGroupId"], []).append(feature)
-    result = []
     for group_id, members in groups.items():
         first = members[0]["properties"]
         lines = []
@@ -181,7 +208,7 @@ def _rail_search(features: list[dict]) -> list[dict]:
         aliases = [value for value in (first.get("name:en"), first.get("ref"), first.get("operator"), first.get("network")) if value and value != first["railDisplayName"]]
         result.append({"id": group_id, "entityType":"railway", "displayName":first["railDisplayName"],
                        "aliases":list(dict.fromkeys(aliases)), "searchTerms":list(dict.fromkeys([first["railDisplayName"], *aliases])),
-                       "source":"osm", "geometryHint":"MultiLineString", "railGroupId":group_id,
+                       "source":"osm", "geometryHint":"MultiLineString", "railGroupId":group_id, "identitySource":"exact-track-tags",
                        "geometry":{"type":"MultiLineString", "coordinates":lines}})
     return result
 
@@ -193,15 +220,27 @@ def build_search(features_by_family: dict[str, list[dict]]) -> list[dict]:
             p, geometry = feature["properties"], feature["geometry"]
             aliases = [v for v in [*(p.get("aliases") or []), p.get("name:ja"), p.get("altName"), p.get("historicalLabel"), p.get("routeId"), p.get("postId")] if v and v != p.get("name")]
             entries.append({"id": p["id"], "entityType": {"modernRoads":"modern-road", "stations":"railway-station", "historicalRoads":"historical-road", "historicalPosts":"historical-post"}[family], "displayName": p["name"], "aliases": list(dict.fromkeys(aliases)), "searchTerms": list(dict.fromkeys([p["name"], *aliases])), **({"routeId": p["routeId"]} if p.get("routeId") else {}), "source": p.get("sourceType"), "geometryHint": geometry["type"]})
-    return entries + _rail_search(features_by_family.get("railways", []))
+    return entries + _rail_search(features_by_family.get("railways", []), features_by_family.get("railwayRoutes", []))
 
 def materialize_project(root: Path, project_id: str, output_root: Path | None = None) -> dict:
     config = load_project_config(root, project_id); layers = config["layers"]
     features: dict[str, list[dict]] = {}
     if "modernRoads" in layers: features["modernRoads"] = select_modern_roads(root, layers["modernRoads"])
     bounds, bounds_source = resolve_project_bounds(config, features.get("modernRoads", []))
-    for family in ("railways", "stations"):
-        if family in layers: features[family] = select_bbox_features(_require_cache(root, family), bounds)
+    if "railways" in layers:
+        features["railways"] = select_bbox_features(_require_cache(root, "railways"), bounds)
+        route_path, member_path = root / RAIL_ROUTES_CACHE, root / RAIL_MEMBERS_CACHE
+        if not route_path.exists() or not member_path.exists(): raise ProjectBuildError(f"Required railway relation caches missing. Run: {PREPROCESS['railways']}")
+        rail_config=layers["railways"]
+        features["railwayRoutes"] = (_read_parquet(route_path, bbox=tuple(bounds)) if rail_config["mode"] == "bbox" else select_near_road_routes(route_path, features.get("modernRoads",[]), rail_config["distanceKm"]))
+        selected_ids={route["properties"]["railRouteId"] for route in features["railwayRoutes"]}
+        memberships=[m for m in _read_parquet(member_path) if m["properties"].get("railRouteId") in selected_ids]
+        by_route={route_id:[] for route_id in selected_ids}; by_way={}
+        for membership in memberships:
+            p=membership["properties"]; way=str(p["osm_way_id"]); by_route[p["railRouteId"]].append(way); by_way.setdefault(way,[]).append(p["railRouteId"])
+        for route in features["railwayRoutes"]: route["properties"]["memberWayIds"]=by_route.get(route["properties"]["railRouteId"],[])
+        for track in features["railways"]: track["properties"]["railRouteIds"]=by_way.get(str(track["properties"].get("osm_way_id") or track["properties"].get("osm_element_id")),[])
+    if "stations" in layers: features["stations"] = select_bbox_features(_require_cache(root, "stations"), bounds)
     for family in ("historicalRoads", "historicalPosts"):
         if family in layers: features[family] = select_routes(_require_cache(root, family), layers[family], family)
     for family, selected in features.items(): _browser_properties(selected, family)
@@ -211,7 +250,7 @@ def materialize_project(root: Path, project_id: str, output_root: Path | None = 
     for family, relative in OUTPUTS.items():
         (output / relative).write_text(json.dumps(_collection(features.get(family, [])), ensure_ascii=False, separators=(",", ":"))+"\n", encoding="utf-8")
     search = build_search(features); (output / "search/entities.json").write_text(json.dumps(search, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
-    counts = {"modernRoads": len(features.get("modernRoads", [])), "railwayTracks": len(features.get("railways", [])), "stations": len(features.get("stations", [])), "historicalRoadFeatures": len(features.get("historicalRoads", [])), "historicalPosts": len(features.get("historicalPosts", []))}
-    manifest = {"projectId": project_id, "builtAt": datetime.now(timezone.utc).isoformat(), "bounds": bounds, "boundsSource": bounds_source, "sourceLayerFamilies": list(layers), "featureCounts": counts, "inputs": {family: str(path) for family, path in CACHES.items() if family in layers}, "outputs": {**OUTPUTS, "search": "search/entities.json"}}
+    counts = {"modernRoads": len(features.get("modernRoads", [])), "railwayTracks": len(features.get("railways", [])), "railwayRoutes":len(features.get("railwayRoutes",[])), "stations": len(features.get("stations", [])), "historicalRoadFeatures": len(features.get("historicalRoads", [])), "historicalPosts": len(features.get("historicalPosts", []))}
+    manifest = {"projectId": project_id, "builtAt": datetime.now(timezone.utc).isoformat(), "bounds": bounds, "boundsSource": bounds_source, "railwaySelection":layers.get("railways"), "sourceLayerFamilies": list(layers), "featureCounts": counts, "inputs": {family: str(path) for family, path in CACHES.items() if family in layers}, "outputs": {**OUTPUTS, "search": "search/entities.json"}}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     return manifest

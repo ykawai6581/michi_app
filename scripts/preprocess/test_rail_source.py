@@ -49,7 +49,7 @@ class RailSourceTests(unittest.TestCase):
         ]
 
     def test_config_policy_properties_duplicates_and_parallel_tracks(self):
-        tracks, stations = normalize(self.features, POLICY)
+        tracks, stations, routes, memberships = normalize(self.features, POLICY)
         self.assertEqual([t["properties"]["railway"] for t in tracks], ["rail", "subway", "light_rail", "tram"])
         self.assertEqual([t["properties"].get("service") for t in tracks[:3]], ["yard", "siding", "spur"])
         self.assertEqual(tracks[0]["properties"]["usage"], "main")
@@ -59,7 +59,7 @@ class RailSourceTests(unittest.TestCase):
 
     def test_configuration_is_authoritative_for_normalize_and_overpass(self):
         policy = {"includedRailwayValues": ["construction"], "stationRailwayValues": ["stop"]}
-        tracks, stations = normalize(self.features + [feature("node/9", "stop", {"type":"Point", "coordinates":[1,2]})], policy)
+        tracks, stations, routes, memberships = normalize(self.features + [feature("node/9", "stop", {"type":"Point", "coordinates":[1,2]})], policy)
         self.assertEqual([track["properties"]["railway"] for track in tracks], ["construction"])
         self.assertEqual([station["properties"]["railway"] for station in stations], ["stop"])
         query = overpass_query([1,2,3,4], policy)
@@ -70,9 +70,18 @@ class RailSourceTests(unittest.TestCase):
             root = Path(temporary); source = root / "rail.geojson"
             source.write_text(json.dumps({"type":"FeatureCollection", "features":self.features}))
             manifest = run(source, root / "cache", POLICY, configured_bounds=[138.9,35.45,140,35.95], extension=".geojson")
-            self.assertEqual(manifest["featureCounts"], {"tracks":4, "stations":2})
+            self.assertEqual(manifest["featureCounts"], {"tracks":4, "stations":2, "routes":0, "routeMembers":0})
             self.assertEqual(manifest["trackCountsByRailway"], {"light_rail":1, "rail":1, "subway":1, "tram":1})
             self.assertIn("yard, siding and spur", manifest["selection"]["policy"])
+
+    def test_route_relation_is_canonical_and_preserves_all_members(self):
+        ways=[feature(f"way/{i}","rail",{"type":"LineString","coordinates":[[139+i/100,35],[139+i/100,35.1]]},name=name) for i,name in [(21,"京王電鉄京王線"),(22,"京王電鉄京王線;多磨霊園;1番線"),(23,"京王電鉄京王線;多磨霊園;2番線")]]
+        relation={"type":"Feature","id":"relation/100","properties":{"osm_element_type":"relation","osm_element_id":100,"type":"route","route":"railway","name:ja":"京王線","osm_members":[{"type":"way","ref":21,"role":""},{"type":"way","ref":22,"role":"forward"},{"type":"way","ref":23,"role":""}]},"geometry":None}
+        tracks,stations,routes,memberships=normalize([*ways,relation],POLICY)
+        self.assertEqual((len(tracks),len(routes),len(memberships)),(3,1,3))
+        self.assertEqual(routes[0]["properties"]["name:ja"],"京王線")
+        self.assertEqual(len(routes[0]["geometry"]["coordinates"]),3)
+        self.assertEqual([m["properties"]["osm_way_id"] for m in memberships],["21","22","23"])
 
     def test_pbf_layer_discovery_and_multiple_layer_loading(self):
         layers = {

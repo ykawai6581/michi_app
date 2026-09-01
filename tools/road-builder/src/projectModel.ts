@@ -1,6 +1,6 @@
 export const projectIdPattern=/^[a-z0-9][a-z0-9-]*$/
 export type Bounds={mode:'auto';from:'modernRoads';paddingKm:number}|[number,number,number,number]
-export type ProjectConfig={id:string;displayName:string;bounds:Bounds;layers:{modernRoads?:string[];railways?:{mode:'bbox'};stations?:{mode:'bbox'};historicalRoads?:string[];historicalPosts?:string[]}}
+export type ProjectConfig={id:string;displayName:string;bounds:Bounds;layers:{modernRoads?:string[];railways?:{mode:'bbox'}|{mode:'near-modern-roads';distanceKm:number};stations?:{mode:'bbox'};historicalRoads?:string[];historicalPosts?:string[]}}
 export type ProjectLayer='modernRoads'|'railways'|'stations'|'historicalRoads'|'historicalPosts'
 export type ProjectVisibility=Record<ProjectLayer,boolean>
 
@@ -8,7 +8,8 @@ export const emptyProject=():ProjectConfig=>({id:'',displayName:'',bounds:{mode:
 export const initialProjectVisibility=():ProjectVisibility=>({modernRoads:true,railways:true,stations:true,historicalRoads:true,historicalPosts:true})
 export function toggleProjectLayer(project:ProjectConfig,family:ProjectLayer,value?:string):ProjectConfig{
   const layers={...project.layers}
-  if(family==='railways'||family==='stations')layers[family]=layers[family]?undefined:{mode:'bbox'}
+  if(family==='railways')layers[family]=layers[family]?undefined:{mode:'near-modern-roads',distanceKm:3}
+  else if(family==='stations')layers[family]=layers[family]?undefined:{mode:'bbox'}
   else if(value){const selected=layers[family]||[];layers[family]=selected.includes(value)?selected.filter(id=>id!==value):[...selected,value]}
   return{...project,layers}
 }

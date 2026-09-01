@@ -8,7 +8,7 @@
   },
   "layers": {
     "modernRoads": ["tokyo-named-koshu-kaido"],
-    "railways": {"mode": "bbox"},
+    "railways": {"mode": "near-modern-roads", "distanceKm": 3},
     "stations": {"mode": "bbox"},
     "historicalRoads": ["R003"],
     "historicalPosts": ["R003"]
