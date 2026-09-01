@@ -288,6 +288,7 @@ def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
                             "endpointSnapMeters": road.get("display", {}).get(
                                 "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
     branch_config = {**road.get("matching", {}).get("branchPruning", {}),
+                     "n13ClassPriority": road.get("matching", {}).get("n13ClassPriority", []),
                      "endpointSnapMeters": road.get("display", {}).get(
                          "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS),
                      "maximumResidualMeters": road.get("matching", {}).get("branchPruning", {}).get(

@@ -44,7 +44,72 @@ def prune(lines, reference, **settings):
     return MATCH_ROAD.prune_selected_branches(frame, reference, settings)
 
 
+def class_prune(lines, classes, reference, priority, **settings):
+    frame = gpd.GeoDataFrame({
+        "N13_003": classes,
+        "selectionStatus": ["accepted-backbone"] * len(lines),
+        "selectionReason": ["accepted-backbone"] * len(lines),
+        "referenceSampleSupportCount": [10] * len(lines),
+        "backboneMembership": [True] * len(lines),
+        "geometry": lines,
+    }, crs=MATCH_ROAD.METRIC_CRS)
+    return MATCH_ROAD.prune_selected_branches(
+        frame, reference, {"n13ClassPriority": priority, **settings})
+
+
 class BranchPruningTests(unittest.TestCase):
+    def test_selected_shinjuku_stem_is_removed_by_sustained_class_backbone(self):
+        reference = LineString([(0, 0), (300, 0)])
+        retained, rejected, report = class_prune(
+            [LineString([(0, 0), (300, 0)]), LineString([(100, 0), (110, 8), (220, 8)])],
+            ["1", "2"], reference, ["1", "2"])
+        self.assertEqual(set(retained.N13_003), {"1"})
+        self.assertEqual(set(rejected.rejectionReason), {"dominated-fallback-class"})
+        self.assertEqual(rejected.iloc[0].attachmentPosition, "interior")
+        self.assertEqual(report["classDominatedSelectedBranches"], 1)
+
+    def test_western_fallback_transition_keeps_unique_forward_coverage(self):
+        retained, rejected, report = class_prune(
+            [LineString([(0, 0), (180, 0)]), LineString([(170, 0), (400, 0)])],
+            ["1", "2"], LineString([(0, 0), (400, 0)]), ["1", "2"])
+        self.assertEqual(set(retained.N13_003), {"1", "2"})
+        self.assertTrue(rejected.empty)
+        transition = next(item for item in report["branches"] if item.get("n13Class") == "2")
+        self.assertGreater(transition["uniqueForwardCoverageMeters"], 200)
+
+    def test_short_class_three_interior_stem_is_removed(self):
+        retained, rejected, _ = class_prune(
+            [LineString([(0, 0), (500, 0)]), LineString([(250, 0), (260, 6), (330, 6)])],
+            ["1", "3"], LineString([(0, 0), (500, 0)]), ["1", "2", "3"])
+        self.assertEqual(set(retained.N13_003), {"1"})
+        self.assertEqual(rejected.iloc[0].rejectionReason, "dominated-fallback-class")
+
+    def test_short_preferred_island_does_not_suppress_fallback_backbone(self):
+        retained, rejected, report = class_prune(
+            [LineString([(0, 0), (1000, 0)]), LineString([(400, 0), (420, 0)])],
+            ["2", "1"], LineString([(0, 0), (1000, 0)]), ["1", "2"])
+        self.assertEqual(len(retained), 2)
+        self.assertTrue(rejected.empty)
+        self.assertEqual(report["classDominatedSelectedBranches"], 0)
+
+    def test_lower_class_gap_bridge_is_protected(self):
+        retained, rejected, report = class_prune(
+            [LineString([(0, 0), (150, 0)]), LineString([(200, 0), (400, 0)]),
+             LineString([(140, 0), (210, 0)])], ["1", "1", "2"],
+            LineString([(0, 0), (400, 0)]), ["1", "2"])
+        self.assertEqual(len(retained), 3)
+        self.assertTrue(rejected.empty)
+        bridge = next(item for item in report["branches"] if item.get("n13Class") == "2")
+        self.assertGreaterEqual(bridge["coverageLossIfRemoved"], 40)
+
+    def test_distinct_osm_part_protects_lower_class_carriageway(self):
+        reference = MultiLineString([[(0, 0), (200, 0)], [(0, 5), (200, 5)]])
+        retained, rejected, _ = class_prune(
+            [LineString([(0, 0), (200, 0)]), LineString([(0, 5), (200, 5)])],
+            ["1", "2"], reference, ["1", "2"])
+        self.assertEqual(len(retained), 2)
+        self.assertTrue(rejected.empty)
+
     def test_network_output_can_join_rejections_without_duplicate_index_columns(self):
         reference = LineString([(0, 0), (100, 0)])
         lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
