@@ -34,123 +34,83 @@ def select(lines, reference, classes=None, **settings):
     return MATCH_ROAD.select_reference_network(frame, reference, settings)
 
 
-class NetworkSelectionTests(unittest.TestCase):
-    def test_straight_road_rejects_short_t_spur(self):
+class ReferenceOwnershipTests(unittest.TestCase):
+    def test_straight_road_rejects_t_stem(self):
         accepted, diagnostic, _ = select([
-            LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
-            LineString([(50, 0), (50, 20)])], LineString([(0, 0), (100, 0)]))
-        self.assertEqual(len(accepted), 2)
-        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-spur")
+            LineString([(0, 0), (100, 0)]), LineString([(50, 0), (50, 30)])],
+            LineString([(0, 0), (100, 0)]), ["1", "2"], classPriority=["1", "2"])
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0})
+        self.assertEqual(diagnostic.iloc[1].selectionStatus, "rejected-no-owned-run")
 
-    def test_straight_road_rejects_diagonal_spur(self):
-        accepted, diagnostic, _ = select([
-            LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
-            LineString([(50, 0), (65, 12)])], LineString([(0, 0), (100, 0)]))
-        self.assertEqual(len(accepted), 2)
-        self.assertTrue(diagnostic.iloc[2].selectionStatus.startswith("rejected-"))
+    def test_shallow_parallel_stem_owns_no_sustained_run(self):
+        accepted, _, _ = select([LineString([(0, 0), (120, 0)]),
+                                  LineString([(20, 0), (40, 8), (100, 8)])],
+                                 LineString([(0, 0), (120, 0)]), ["1", "2"],
+                                 classPriority=["1", "2"])
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0})
 
-    def test_triangular_excursion_is_rejected_as_redundant_detour(self):
-        lines = [LineString([(0, 0), (25, 0)]), LineString([(25, 0), (50, 0)]),
-                 LineString([(50, 0), (75, 0)]), LineString([(75, 0), (100, 0)]),
-                 LineString([(25, 0), (50, 12)]), LineString([(50, 12), (75, 0)])]
-        accepted, diagnostic, _ = select(lines, LineString([(0, 0), (100, 0)]))
-        self.assertAlmostEqual(accepted.geometry.length.sum(), 100)
-        self.assertTrue(all(value.startswith("rejected-") for value in diagnostic.iloc[4:].selectionStatus))
+    def test_lower_class_fills_unresolved_second_half(self):
+        accepted, _, report = select([LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])],
+                                     LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                     classPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertGreater(report["referencePartInference"][0]["matchedSampleCount"], 15)
 
-    def test_large_rejoining_loop_loses_to_direct_alignment(self):
-        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (80, 0)]),
-                 LineString([(0, 0), (20, 25), (60, 25), (80, 0)])]
-        accepted, diagnostic, _ = select(lines, LineString([(0, 0), (80, 0)]))
-        self.assertAlmostEqual(accepted.geometry.length.sum(), 80)
-        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-detour")
+    def test_lower_overlap_is_emitted_only_for_unresolved_substring(self):
+        accepted, _, _ = select([LineString([(0, 0), (55, 0)]), LineString([(0, 2), (100, 2)])],
+                                LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                classPriority=["1", "2"])
+        lower = accepted[accepted.N13_003 == "2"].iloc[0]
+        self.assertGreater(lower.sourceStartDistanceMeters, 45)
+        self.assertLess(lower.geometry.length, 55)
 
-    def test_curved_legitimate_road_is_retained(self):
-        reference = LineString([(0, 0), (30, 5), (60, 20), (90, 45)])
-        accepted, _, _ = select([LineString([(0, 0), (30, 5)]), LineString([(30, 5), (60, 20), (90, 45)])], reference)
-        self.assertEqual(len(accepted), 2)
+    def test_short_higher_class_island_does_not_lock_samples(self):
+        accepted, _, _ = select([LineString([(48, 0), (52, 0)]), LineString([(0, 1), (100, 1)])],
+                                LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                classPriority=["1", "2"], minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.N13_003), {"2"})
 
-    def test_long_divided_carriageway_retains_parallel_chain(self):
-        reference = MultiLineString([[(0, 0), (300, 0)], [(0, 4), (300, 4)]])
-        lines = [LineString([(0, 0), (150, 0)]), LineString([(150, 0), (300, 0)]),
-                 LineString([(0, 4), (150, 4)]), LineString([(150, 4), (300, 4)])]
-        accepted, diagnostic, report = select(lines, reference)
-        self.assertEqual(len(accepted), 4)
-        self.assertEqual(report["parallelSelectedCount"], 2)
-        self.assertIn("accepted-parallel-osm-supported", set(diagnostic.selectionStatus))
+    def test_multipart_reference_has_independent_winners(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(0, 10), (100, 10)]])
+        accepted, _, _ = select([LineString([(0, 0), (100, 0)]), LineString([(0, 10), (100, 10)])],
+                                reference, ["1", "2"], classPriority=["1", "2"])
+        self.assertEqual(set(accepted.referencePart), {0, 1})
 
-    def test_multiple_oblique_stems_with_progress_are_rejected(self):
-        reference = LineString([(0, 0), (150, 0), (300, 10)])
-        road = [LineString([(0, 0), (100, 0)]), LineString([(100, 0), (200, 3)]),
-                LineString([(200, 3), (300, 10)])]
-        stems = [LineString([(40, 0), (65, 16)]), LineString([(130, .9), (165, 22)]),
-                 LineString([(240, 5.8), (280, 28)])]
-        accepted, diagnostic, _ = select(road + stems, reference)
-        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
-        self.assertTrue(all(status == "rejected-spur" for status in diagnostic.iloc[3:].selectionStatus))
+    def test_selected_run_exposes_required_provenance(self):
+        accepted, diagnostics, _ = select([LineString([(0, 0), (100, 0)])],
+                                          LineString([(0, 0), (100, 0)]), ["1"], classPriority=["1"])
+        required = {"sourceFeatureIndex", "N13_003", "referencePart", "firstOwnedReferenceSample",
+                    "lastOwnedReferenceSample", "ownedReferenceSampleCount", "sourceStartDistanceMeters",
+                    "sourceEndDistanceMeters", "ownedReferenceStartMeters", "ownedReferenceEndMeters"}
+        self.assertTrue(required.issubset(accepted.columns))
+        self.assertEqual(len(diagnostics.attrs["ownershipSamples"]), 21)
 
-    def test_long_connected_false_parallel_has_no_osm_support(self):
-        reference = LineString([(0, 0), (400, 0)])
-        road = [LineString([(0, 0), (200, 0)]), LineString([(200, 0), (400, 0)])]
-        false_parallel = [LineString([(50, 0), (65, 14), (200, 14)]),
-                          LineString([(200, 14), (335, 14), (350, 0)])]
-        accepted, diagnostic, report = select(road + false_parallel, reference)
-        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1})
-        self.assertEqual(report["parallelSelectedCount"], 0)
-        self.assertTrue(all(status in {"rejected-detour", "rejected-redundant-parallel"}
-                            for status in diagnostic.iloc[2:].selectionStatus))
+    def _fixture(self, name):
+        path = Path(__file__).parents[2] / "data/fixtures/road-matching" / name
+        frame = gpd.read_file(path).to_crs(MATCH_ROAD.METRIC_CRS)
+        reference = frame[frame["role"] == "osm-reference"].geometry.union_all()
+        candidates = frame[frame["role"] == "n13-candidate"].copy()
+        candidates["N13_003"] = candidates["N13_003"].astype(str)
+        return candidates, reference
 
-    def test_awkward_connector_is_available_to_ordered_path(self):
-        reference = LineString([(0, 0), (200, 0)])
-        lines = [LineString([(0, 0), (100, 0)]),
-                 LineString([(100, 0), (105, 22), (110, 0)]),
-                 LineString([(110, 0), (200, 0)])]
-        accepted, diagnostic, _ = select(lines, reference)
-        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
-        self.assertTrue(diagnostic.iloc[1].gapRepairMembership)
+    def test_real_shinjuku_fixture_lower_classes_add_no_stems(self):
+        candidates, reference = self._fixture("route20-shinjuku.geojson")
+        class_one = candidates[candidates.N13_003 == "1"]
+        one, _, _ = MATCH_ROAD.select_reference_network(class_one, reference, {"classPriority": ["1"]})
+        all_classes, _, _ = MATCH_ROAD.select_reference_network(
+            candidates, reference, {"classPriority": ["1", "2", "3"]})
+        self.assertEqual(set(all_classes.N13_003), {"1"})
+        self.assertAlmostEqual(all_classes.geometry.length.sum(), one.geometry.length.sum(), places=3)
 
-    def test_internal_gap_is_repaired_through_stage1_graph(self):
-        reference = LineString([(0, 0), (220, 0)])
-        lines = [LineString([(0, 0), (90, 0)]),
-                 LineString([(90, 0), (105, 28), (125, 28), (140, 0)]),
-                 LineString([(140, 0), (220, 0)])]
-        accepted, diagnostic, report = select(lines, reference, maximumSampleDistanceMeters=15)
-        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
-        self.assertTrue(diagnostic.iloc[1].gapRepairMembership)
-        self.assertTrue(report["repairedGaps"] or diagnostic.iloc[1].selectionReason == "accepted-gap-repair")
-
-    def test_short_parallel_slip_detour_is_rejected(self):
-        reference = LineString([(0, 0), (200, 0)])
-        lines = [LineString([(0, 0), (100, 0)]), LineString([(100, 0), (200, 0)]),
-                 LineString([(60, 0), (80, 5), (110, 5), (130, 0)])]
-        accepted, diagnostic, _ = select(lines, reference)
-        self.assertEqual(len(accepted), 2)
-        self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-detour")
-
-    def test_class_transition_does_not_break_backbone(self):
-        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (70, 0)]), LineString([(70, 0), (100, 0)])]
-        accepted, _, _ = select(lines, LineString([(0, 0), (100, 0)]), ["2", "3", "2"])
-        self.assertEqual(list(accepted.N13_003), ["2", "3", "2"])
-
-    def test_tiny_endpoint_gap_uses_existing_snap_tolerance(self):
-        lines = [LineString([(0, 0), (50, 0)]), LineString([(51, 0), (100, 0)])]
-        accepted, _, _ = select(lines, LineString([(0, 0), (100, 0)]), endpointSnapMeters=2)
-        self.assertEqual(len(accepted), 2)
-        _, report = stitch(list(accepted.geometry), LineString([(0, 0), (100, 0)]), 2)
-        self.assertEqual(report["displayChainCount"], 1)
-
-    def test_disconnected_reference_components_are_not_bridged(self):
-        reference = MultiLineString([[(0, 0), (100, 0)], [(1000, 0), (1100, 0)]])
-        lines = [LineString([(0, 0), (100, 0)]), LineString([(1000, 0), (1100, 0)])]
-        accepted, diagnostic, _ = select(lines, reference)
-        self.assertEqual(len(accepted), 2)
-        self.assertEqual(set(diagnostic.referencePart), {0, 1})
-
-    def test_source_boundary_terminal_is_not_pruned_as_spur(self):
-        reference = LineString([(0, 0), (150, 0)])
-        lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])]
-        accepted, diagnostic, _ = select(lines, reference)
-        self.assertEqual(len(accepted), 2)
-        self.assertTrue(all(diagnostic.selectionStatus == "accepted-backbone"))
+    def test_western_fixture_lower_class_continues_unresolved_route(self):
+        candidates, reference = self._fixture("route20-western.geojson")
+        one, _, one_report = MATCH_ROAD.select_reference_network(
+            candidates[candidates.N13_003 == "1"], reference, {"classPriority": ["1"]})
+        all_classes, _, all_report = MATCH_ROAD.select_reference_network(
+            candidates, reference, {"classPriority": ["1", "2", "3"]})
+        self.assertLess(one_report["referencePartInference"][0]["matchedSampleCount"],
+                        all_report["referencePartInference"][0]["matchedSampleCount"])
+        self.assertEqual(set(all_classes.N13_003), {"1", "2"})
 
 
 class DisplayChainTests(unittest.TestCase):

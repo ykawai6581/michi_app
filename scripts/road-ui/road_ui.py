@@ -282,13 +282,14 @@ def preview_match(draft: dict, sources: Path = SOURCES) -> dict:
     candidates = MATCHER.load_n13_candidates(road, n13, reference)
     stage1, measured = MATCHER.match_n13(candidates, reference, road)
     selected, diagnostics, report = MATCHER.select_reference_network(
-        stage1, reference, {**road.get("networkSelection", {}),
+        stage1, reference, {**road.get("networkSelection", {}), "classPriority": road["n13"]["classifications"],
                             "endpointSnapMeters": road.get("display", {}).get(
                                 "endpointSnapMeters", MATCHER.DEFAULT_ENDPOINT_SNAP_METERS)})
+    ownership = diagnostics.attrs.get("ownershipSamples", gpd.GeoDataFrame(geometry=[], crs=MATCHER.METRIC_CRS))
     return {"reference": _geojson(reference), "referenceExcluded": _geojson(excluded),
             "candidates": _geojson(measured),
             "residualPass": _geojson(stage1), "selected": _geojson(selected),
-            "diagnostics": _geojson(diagnostics), "report": {"networkSelection": report,
+            "diagnostics": _geojson(diagnostics), "ownership": _geojson(ownership), "report": {"networkSelection": report,
             "osmReference": {**provenance, **reference_diagnostics}, "candidateCount": len(measured),
             "residualPassCount": len(stage1), "selectedFeatureCount": len(selected)}}
 

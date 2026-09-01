@@ -7,10 +7,10 @@ export type StatutoryNetworkChoice='national'|'prefectural'|'custom'
 export const statutoryNetworkChoice=(network?:string):StatutoryNetworkChoice=>network==='JP:national'?'national':network==='JP:prefectural'?'prefectural':'custom'
 export const applyStatutoryNetworkChoice=(reference:Road['reference'],choice:StatutoryNetworkChoice):Road['reference']=>({...reference,network:choice==='national'?'JP:national':choice==='prefectural'?'JP:prefectural':reference.network||''})
 
-export const diagnosticLayerIds=['rejected','candidates','referenceExcluded','reference','selected'] as const
+export const diagnosticLayerIds=['rejected','candidates','referenceExcluded','reference','ownership','selected'] as const
 export type DiagnosticLayerId=typeof diagnosticLayerIds[number]
 export type LayerVisibility=Record<DiagnosticLayerId,boolean>
-export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:true,selected:true,candidates:false,rejected:false})
+export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:true,ownership:true,selected:true,candidates:false,rejected:false})
 export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
 export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
 
