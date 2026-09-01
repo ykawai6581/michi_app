@@ -56,6 +56,8 @@ DEFAULT_NETWORK_SELECTION = {
     # same route interval, not evidence for another carriageway.
     "crossClassParallelSearchMeters": 50.0,
     "crossClassParallelMinimumSamples": 6,
+    "continuityMaximumIntermediateFeatures": 2,
+    "continuityReferenceWindowBufferMeters": 10.0,
     "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
@@ -959,6 +961,181 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     return accepted, frame, report
 
 
+def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates: gpd.GeoDataFrame,
+                                   osm_reference, config: dict | None = None):
+    """Recover unambiguous source-native pieces between consecutive owned runs."""
+    settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
+    if selected.empty:
+        return selected.copy(), {"continuityConnectorCount": 0,
+                                 "continuityConnectorLengthMeters": 0.0,
+                                 "continuityUnresolvedGapCount": 0, "continuityConnectors": []}
+    tolerance = float(settings["endpointSnapMeters"])
+    corridor = float(settings["maximumSampleDistanceMeters"])
+    maximum_length = float(settings["maximumGapConnectorMeters"])
+    maximum_detour = float(settings["maximumGapDetourRatio"])
+    maximum_edges = int(settings.get("continuityMaximumIntermediateFeatures", 2))
+    window_buffer = float(settings.get("continuityReferenceWindowBufferMeters",
+                                       settings["progressSampleMeters"] * 2))
+    parts = _ordered_reference_parts(osm_reference)
+    source = stage1_candidates.copy()
+    source["_connectorSourceFeatureIndex"] = (source["sourceFeatureIndex"]
+                                               if "sourceFeatureIndex" in source else source.index)
+    exploded = source.explode(index_parts=True)
+    atom_indices = (exploded.index.get_level_values(-1).to_numpy()
+                    if isinstance(exploded.index, pd.MultiIndex) else np.zeros(len(exploded), dtype=int))
+    source = exploded.reset_index(drop=True)
+    source["sourceFeatureIndex"] = source.pop("_connectorSourceFeatureIndex")
+    if "sourceAtomIndex" not in source:
+        source["sourceAtomIndex"] = atom_indices
+    source_classes = source.N13_003.astype(str).tolist()
+    source_geometries = list(source.geometry)
+    source_index = source.geometry.sindex
+    result = selected.copy().reset_index(drop=True)
+    decisions = []
+    connector_rows = []
+    unresolved = 0
+
+    def atom(row):
+        matches = source[(source.sourceFeatureIndex == row.sourceFeatureIndex)
+                         & (source.sourceAtomIndex == row.sourceAtomIndex)]
+        return int(matches.index[0]) if not matches.empty else None
+
+    def extend(row_index, position):
+        parent = source_geometries[atom(result.loc[row_index])]
+        start = min(float(result.at[row_index, "sourceStartDistanceMeters"]), position)
+        end = max(float(result.at[row_index, "sourceEndDistanceMeters"]), position)
+        result.at[row_index, "sourceStartDistanceMeters"] = start
+        result.at[row_index, "sourceEndDistanceMeters"] = end
+        result.at[row_index, "geometry"] = substring(parent, start, end)
+
+    for part_index, reference_part in enumerate(parts):
+        ordered = list(result[result.referencePart == part_index].sort_values(
+            ["ownedReferenceStartMeters", "ownedReferenceEndMeters"]).index)
+        for upstream_index, downstream_index in zip(ordered, ordered[1:]):
+            if upstream_index not in result.index or downstream_index not in result.index:
+                continue
+            upstream = result.loc[upstream_index]
+            downstream = result.loc[downstream_index]
+            gap_start = float(upstream.ownedReferenceEndMeters)
+            gap_end = float(downstream.ownedReferenceStartMeters)
+            gap = max(0.0, gap_end - gap_start)
+            if gap <= 1e-9:
+                continue
+            base = {"upstreamSourceFeatureIndex": int(upstream.sourceFeatureIndex),
+                    "downstreamSourceFeatureIndex": int(downstream.sourceFeatureIndex),
+                    "referencePart": part_index, "referenceGapStartMeters": round(gap_start, 3),
+                    "referenceGapEndMeters": round(gap_end, 3), "referenceGapMeters": round(gap, 3)}
+            if gap > maximum_length:
+                unresolved += 1
+                decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+                                  "decision": "unresolved-gap-too-long"})
+                continue
+            upstream_atom, downstream_atom = atom(upstream), atom(downstream)
+            if upstream_atom is None or downstream_atom is None:
+                unresolved += 1
+                decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+                                  "decision": "unresolved-missing-parent"})
+                continue
+            if upstream_atom == downstream_atom:
+                source_gap = max(0.0, float(downstream.sourceStartDistanceMeters)
+                                 - float(upstream.sourceEndDistanceMeters))
+                if source_gap <= maximum_length and source_gap / max(gap, 1.0) <= maximum_detour:
+                    extend(upstream_index, float(downstream.sourceStartDistanceMeters))
+                    extend(upstream_index, float(downstream.sourceEndDistanceMeters))
+                    result = result.drop(index=downstream_index)
+                    decisions.append({**base, "connectorSourceFeatureIndices": [],
+                                      "connectorClasses": [str(upstream.N13_003)],
+                                      "connectorLengthMeters": round(source_gap, 3),
+                                      "connectorDetourRatio": round(source_gap / max(gap, 1.0), 3),
+                                      "decision": "accepted-same-source-range"})
+                    continue
+            direct = _source_junctions(source_geometries[upstream_atom],
+                                       source_geometries[downstream_atom], tolerance)
+            if direct:
+                first, second = min(direct, key=lambda pair:
+                    abs(pair[0] - float(upstream.sourceEndDistanceMeters))
+                    + abs(pair[1] - float(downstream.sourceStartDistanceMeters)))
+                extend(upstream_index, first)
+                extend(downstream_index, second)
+                decisions.append({**base, "connectorSourceFeatureIndices": [],
+                                  "connectorClasses": sorted({str(upstream.N13_003), str(downstream.N13_003)}),
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": 0.0,
+                                  "decision": "accepted-direct-source-junction"})
+                continue
+
+            gap_line = substring(reference_part, max(0.0, gap_start - window_buffer),
+                                 min(reference_part.length, gap_end + window_buffer))
+            nearby = list(map(int, source_index.query(gap_line.buffer(corridor))))
+            allowed_classes = {str(upstream.N13_003), str(downstream.N13_003)}
+            selected_atoms = {atom(row) for _, row in result.iterrows()}
+            pool = []
+            for edge in nearby:
+                geometry = source_geometries[edge]
+                projections = [float(reference_part.project(Point(coordinate))) for coordinate in geometry.coords]
+                if (edge not in selected_atoms and source_classes[edge] in allowed_classes
+                        and geometry.distance(gap_line) <= corridor
+                        and min(projections) >= gap_start - window_buffer
+                        and max(projections) <= gap_end + window_buffer):
+                    pool.append(edge)
+
+            paths = []
+            def search(current, path):
+                if len(path) > maximum_edges:
+                    return
+                if _source_junctions(source_geometries[current], source_geometries[downstream_atom], tolerance):
+                    paths.append(path.copy())
+                if len(path) == maximum_edges:
+                    return
+                for following in pool:
+                    if following not in path and _source_junctions(
+                            source_geometries[current], source_geometries[following], tolerance):
+                        search(following, [*path, following])
+            for edge in pool:
+                if _source_junctions(source_geometries[upstream_atom], source_geometries[edge], tolerance):
+                    search(edge, [edge])
+            plausible = []
+            for path in paths:
+                length = sum(source_geometries[edge].length for edge in path)
+                ratio = length / max(gap, 1.0)
+                if length <= maximum_length and ratio <= maximum_detour:
+                    plausible.append((path, length, ratio))
+            if len(plausible) != 1:
+                unresolved += 1
+                decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+                                  "decision": "unresolved-ambiguous" if plausible else "unresolved-no-path"})
+                continue
+            path, length, ratio = plausible[0]
+            first_junction = _source_junctions(source_geometries[upstream_atom], source_geometries[path[0]], tolerance)[0]
+            last_junction = _source_junctions(source_geometries[path[-1]], source_geometries[downstream_atom], tolerance)[0]
+            extend(upstream_index, first_junction[0])
+            extend(downstream_index, last_junction[1])
+            for edge in path:
+                row = source.loc[edge].copy()
+                row["selectionStatus"] = row["selectionReason"] = "accepted-continuity-connector"
+                row["referencePart"] = part_index
+                row["ownedReferenceStartMeters"] = gap_start
+                row["ownedReferenceEndMeters"] = gap_end
+                connector_rows.append(row)
+            decisions.append({**base,
+                              "connectorSourceFeatureIndices": [int(source.at[edge, "sourceFeatureIndex"]) for edge in path],
+                              "connectorClasses": sorted({source_classes[edge] for edge in path}),
+                              "connectorLengthMeters": round(length, 3),
+                              "connectorDetourRatio": round(ratio, 3), "decision": "accepted-connector"})
+    if connector_rows:
+        result = gpd.GeoDataFrame(pd.concat(
+            [result, gpd.GeoDataFrame(connector_rows, crs=selected.crs)], ignore_index=True), crs=selected.crs)
+    connector_length = sum(item["connectorLengthMeters"] for item in decisions
+                           if item["decision"] in {"accepted-connector", "accepted-same-source-range"})
+    connector_count = sum(item["decision"] in {"accepted-connector", "accepted-same-source-range"}
+                          for item in decisions)
+    return result, {"continuityConnectorCount": connector_count,
+                    "continuityConnectorLengthMeters": round(connector_length, 3),
+                    "continuityUnresolvedGapCount": unresolved, "continuityConnectors": decisions}
+
+
 def write_selection_diagnostics(frame: gpd.GeoDataFrame, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     frame.to_crs("EPSG:4326").to_file(output, driver="GeoJSON")
@@ -1030,6 +1207,14 @@ def main() -> None:
     selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
     if selected.empty:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
+    selected, connector_report = connect_adjacent_selected_runs(selected, stage1, reference, network_config)
+    network_report.update(connector_report)
+    connector_ids = set(selected.loc[selected.selectionStatus == "accepted-continuity-connector",
+                                     "sourceFeatureIndex"])
+    if connector_ids:
+        connector_mask = selection_diagnostics.sourceFeatureIndex.isin(connector_ids)
+        selection_diagnostics.loc[connector_mask, ["selectionStatus", "selectionReason"]] = \
+            "accepted-continuity-connector"
     diagnostic_output = args.diagnostics or Path("data/diagnostics") / f"{road['id']}-selection.geojson"
     write_selection_diagnostics(selection_diagnostics, diagnostic_output)
     for road_class, values in class_diagnostics.items():

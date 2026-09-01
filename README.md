@@ -337,6 +337,12 @@ and parallel. Internal unmatched sample runs are repaired through the complete S
 exists, while unmatched leading/trailing samples are treated as source-coverage termination. Original N13 vertices
 remain the public geometry; only the existing display endpoint snap is applied afterward.
 
+After ownership is final, a gap-local continuity pass inspects consecutive accepted runs in OSM reference order. It
+may merge nearby ranges from the same original N13 atom, extend parents to an existing direct source junction, or
+restore a unique, short Stage-1 source path confined to the missing reference interval. Connector classes are limited
+to the adjacent accepted classes; ambiguous, off-corridor, or excessive-detour paths remain unresolved. This pass
+never draws new geometry and does not participate in road identity or ownership selection.
+
 Every build writes all residual-shortlisted candidates and their selection reasons to the gitignored diagnostic
 GeoJSON. To validate the two current named roads with a local cache (including N13 class 3), run:
 
