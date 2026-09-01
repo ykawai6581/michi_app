@@ -85,6 +85,51 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertTrue(required.issubset(accepted.columns))
         self.assertEqual(len(diagnostics.attrs["ownershipSamples"]), 21)
 
+    def test_connected_parents_restore_artificial_substring_gap(self):
+        accepted, _, report = select([LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])],
+                                     LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                     classPriority=["1", "2"], endpointSnapMeters=2)
+        first, second = accepted.sort_values("ownedReferenceStartMeters").geometry
+        self.assertLessEqual(first.distance(second), 1e-9)
+        self.assertGreaterEqual(report["junctionExtensionsApplied"], 1)
+
+    def test_true_source_gap_is_not_invented(self):
+        accepted, _, report = select([LineString([(0, 0), (48, 0)]), LineString([(54, 0), (100, 0)])],
+                                     LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                     classPriority=["1", "2"], endpointSnapMeters=2)
+        first, second = accepted.sort_values("ownedReferenceStartMeters").geometry
+        self.assertAlmostEqual(first.distance(second), 6)
+        self.assertGreaterEqual(report["sourceDisconnectedRunTransitions"], 1)
+
+    def test_real_class_transition_uses_source_junction(self):
+        accepted, _, _ = select([LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])],
+                                LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                classPriority=["1", "2"])
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertTrue(all(accepted.continuityValid))
+
+    def test_disconnected_lower_class_interior_is_reassigned(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 2), (50, 2)]),
+                 LineString([(50, 2), (60, 2)]), LineString([(60, 0), (100, 0)]),
+                 LineString([(43, -1), (57, -1)])]
+        accepted, ownership, _ = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1", "1", "1", "1", "3"],
+            classPriority=["1", "3"], progressSampleMeters=2,
+            minimumOwnedReferenceSamples=7, maximumSampleDistanceMeters=3,
+            endpointSnapMeters=2)
+        self.assertEqual(set(accepted.N13_003), {"1"})
+        samples = ownership.attrs["ownershipSamples"]
+        self.assertTrue(samples.reassignedFromSourceFeatureIndex.notna().any())
+
+    def test_run_diagnostics_expose_source_connectivity(self):
+        accepted, _, _ = select([LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])],
+                                LineString([(0, 0), (100, 0)]), ["1", "2"],
+                                classPriority=["1", "2"])
+        required = {"runPosition", "upstreamSourceConnected", "downstreamSourceConnected",
+                    "continuityValid", "sourceRangeBeforeExtension", "sourceRangeAfterExtension",
+                    "junctionExtensionMeters", "reassignedFromSourceFeatureIndex"}
+        self.assertTrue(required.issubset(accepted.columns))
+
     def _fixture(self, name):
         path = Path(__file__).parents[2] / "data/fixtures/road-matching" / name
         frame = gpd.read_file(path).to_crs(MATCH_ROAD.METRIC_CRS)

@@ -47,6 +47,9 @@ DEFAULT_NETWORK_SELECTION = {
     "classPriority": None,
     "minimumOwnedReferenceSamples": 3,
     "ownershipTransitionSamples": 1,
+    "maximumOwnershipBridgeSamples": 2,
+    "maximumJunctionExtensionMeters": 35.0,
+    "ownershipContinuityIterations": 4,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
@@ -577,84 +580,246 @@ def _sample_reference(part: LineString, interval: float) -> tuple[np.ndarray, li
     return offsets, [part.interpolate(float(offset)) for offset in offsets]
 
 
-def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
-    """Reconstruct N13 substrings solely from ownership of OSM samples.
+def _ownership_runs(owners: list[int | None]) -> list[dict]:
+    """Group an ownership sequence; unmatched samples remain explicit gaps."""
+    runs = []
+    index = 0
+    while index < len(owners):
+        edge = owners[index]
+        end = index + 1
+        while end < len(owners) and owners[end] == edge:
+            end += 1
+        if edge is not None:
+            runs.append({"edge": edge, "start": index, "end": end})
+        index = end
+    return runs
 
-    Classes run in priority order.  A lower class never gets a candidate state
-    for a confidently resolved sample; consequently connectivity cannot pull a
-    stem or connector into the result.  Short ownership islands are discarded
-    before their samples are resolved, allowing a lower class to explain them.
-    """
+
+def _source_junctions(first: LineString, second: LineString, tolerance: float) -> list[tuple[float, float]]:
+    """Return endpoint-to-line-interior junction positions on complete atoms."""
+    junctions = []
+    for distance, coordinate in ((0.0, first.coords[0]), (first.length, first.coords[-1])):
+        point = Point(coordinate)
+        if point.distance(second) <= tolerance:
+            junctions.append((distance, float(second.project(point))))
+    for distance, coordinate in ((0.0, second.coords[0]), (second.length, second.coords[-1])):
+        point = Point(coordinate)
+        if point.distance(first) <= tolerance:
+            junctions.append((float(first.project(point)), distance))
+    return list(dict.fromkeys((round(a, 9), round(b, 9)) for a, b in junctions))
+
+
+def _neighbor_runs(runs: list[dict], index: int, maximum_gap: int) -> tuple[dict | None, dict | None]:
+    previous = runs[index - 1] if index else None
+    following = runs[index + 1] if index + 1 < len(runs) else None
+    if previous and runs[index]["start"] - previous["end"] > maximum_gap:
+        previous = None
+    if following and following["start"] - runs[index]["end"] > maximum_gap:
+        following = None
+    return previous, following
+
+
+def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
+    """Select exact N13 substrings justified by OSM samples, then restore source junctions."""
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
-    frame = stage1.explode(index_parts=True).reset_index().rename(
-        columns={"level_0": "sourceFeatureIndex", "level_1": "sourceAtomIndex", "index": "sourceFeatureIndex"})
+    source = stage1.copy()
+    source["_ownershipSourceFeatureIndex"] = (source["sourceFeatureIndex"] if "sourceFeatureIndex" in source
+                                               else source.index)
+    exploded = source.explode(index_parts=True)
+    atom_indices = (exploded.index.get_level_values(-1).to_numpy()
+                    if isinstance(exploded.index, pd.MultiIndex) else np.zeros(len(exploded), dtype=int))
+    frame = exploded.reset_index(drop=True)
+    frame["sourceFeatureIndex"] = frame.pop("_ownershipSourceFeatureIndex")
     if "sourceAtomIndex" not in frame:
-        frame["sourceAtomIndex"] = 0
+        frame["sourceAtomIndex"] = atom_indices
     parts = _ordered_reference_parts(reference)
     interval = float(settings["progressSampleMeters"])
     maximum_distance = float(settings["maximumSampleDistanceMeters"])
     maximum_angle = float(settings["maximumOrientationMismatchDegrees"])
     minimum_run = int(settings["minimumOwnedReferenceSamples"])
-    configured = settings.get("classPriority")
-    classes = [str(value) for value in configured] if configured else list(dict.fromkeys(frame.N13_003.astype(str)))
+    maximum_bridge = int(settings["maximumOwnershipBridgeSamples"])
+    tolerance = float(settings["endpointSnapMeters"])
+    classes = ([str(value) for value in settings["classPriority"]] if settings.get("classPriority")
+               else list(dict.fromkeys(frame.N13_003.astype(str))))
+    rank = {road_class: index for index, road_class in enumerate(classes)}
     samples_by_part = [_sample_reference(part, interval) for part in parts]
     owners = [[None] * len(points) for _, points in samples_by_part]
-    owner_costs = [[None] * len(points) for _, points in samples_by_part]
+    reassigned_from = [[None] * len(points) for _, points in samples_by_part]
 
-    # Each pass proposes ownership only in unresolved domains. Staying on the
-    # same source atom is a small prior, never a way to make a distant atom fit.
+    def candidates(part_index, sample_index, excluded=frozenset()):
+        sample = samples_by_part[part_index][1][sample_index]
+        reference_vector = _local_orientation(parts[part_index], sample, interval)
+        choices = []
+        for edge, row in frame.iterrows():
+            if edge in excluded:
+                continue
+            distance = float(row.geometry.distance(sample))
+            if distance > maximum_distance:
+                continue
+            mismatch = _angle_difference(_local_orientation(row.geometry, sample, interval), reference_vector)
+            if mismatch <= maximum_angle:
+                choices.append((rank.get(str(row.N13_003), len(rank)),
+                                distance + mismatch * float(settings["orientationCostWeight"]), edge))
+        return sorted(choices)
+
+    # Hierarchical provisional ownership. A class only sees unresolved samples.
     for road_class in classes:
-        class_edges = list(frame.index[frame.N13_003.astype(str) == road_class])
-        for part_index, (offsets, samples) in enumerate(samples_by_part):
+        for part_index, (_, samples) in enumerate(samples_by_part):
             proposals = [None] * len(samples)
-            costs = [None] * len(samples)
             previous = None
-            for sample_index, sample in enumerate(samples):
+            for sample_index in range(len(samples)):
                 if owners[part_index][sample_index] is not None:
                     previous = None
                     continue
-                reference_vector = _local_orientation(parts[part_index], sample, interval)
-                choices = []
-                for edge in class_edges:
-                    line = frame.at[edge, "geometry"]
-                    distance = float(line.distance(sample))
-                    if distance > maximum_distance:
-                        continue
-                    mismatch = _angle_difference(_local_orientation(line, sample, interval), reference_vector)
-                    if mismatch > maximum_angle:
-                        continue
-                    cost = distance + mismatch * float(settings["orientationCostWeight"])
-                    if edge == previous:
-                        cost -= min(float(settings["edgeSwitchCost"]), 2.0)
-                    elif previous is not None and line.distance(frame.at[previous, "geometry"]) > float(
-                            settings["endpointSnapMeters"]):
-                        # Connectivity only breaks ties between already valid
-                        # owners; it can never admit geometry outside the
-                        # distance/orientation gates above.
-                        cost += float(settings["edgeSwitchCost"])
-                    choices.append((cost, edge))
+                choices = [choice for choice in candidates(part_index, sample_index)
+                           if str(frame.at[choice[2], "N13_003"]) == road_class]
                 if choices:
-                    cost, edge = min(choices)
-                    proposals[sample_index], costs[sample_index], previous = edge, cost, edge
+                    adjusted = [(cost - (min(float(settings["edgeSwitchCost"]), 2.0) if edge == previous else 0), edge)
+                                for _, cost, edge in choices]
+                    _, edge = min(adjusted)
+                    proposals[sample_index] = previous = edge
                 else:
                     previous = None
-            index = 0
-            while index < len(proposals):
-                edge = proposals[index]
-                if edge is None:
-                    index += 1
-                    continue
-                end = index + 1
-                while end < len(proposals) and proposals[end] == edge:
-                    end += 1
-                if end - index >= minimum_run:
-                    owners[part_index][index:end] = proposals[index:end]
-                    owner_costs[part_index][index:end] = costs[index:end]
-                index = end
+            for run in _ownership_runs(proposals):
+                if run["end"] - run["start"] >= minimum_run:
+                    owners[part_index][run["start"]:run["end"]] = proposals[run["start"]:run["end"]]
 
-    runs = []
+    # Complete source atoms validate ownership; they never create candidate ownership.
+    for _ in range(int(settings["ownershipContinuityIterations"])):
+        changed = False
+        for part_index, part_owners in enumerate(owners):
+            runs = _ownership_runs(part_owners)
+            for run_index, run in enumerate(runs):
+                previous, following = _neighbor_runs(runs, run_index, maximum_bridge)
+                edge = run["edge"]
+                edge_rank = rank.get(str(frame.at[edge, "N13_003"]), len(rank))
+                lower_than_neighbor = any(
+                    edge_rank > rank.get(str(frame.at[neighbor["edge"], "N13_003"]), len(rank))
+                    for neighbor in (previous, following) if neighbor)
+                if not lower_than_neighbor:
+                    continue
+                upstream = previous is None or bool(_source_junctions(
+                    frame.at[previous["edge"], "geometry"], frame.at[edge, "geometry"], tolerance))
+                downstream = following is None or bool(_source_junctions(
+                    frame.at[edge, "geometry"], frame.at[following["edge"], "geometry"], tolerance))
+                # Interior lower-class substitutions and bridges need both handoffs;
+                # route-start/end continuations only have the available handoff.
+                if upstream and downstream:
+                    continue
+                for sample_index in range(run["start"], run["end"]):
+                    alternatives = candidates(part_index, sample_index, {edge})
+                    def handoff_penalty(choice):
+                        candidate_edge = choice[2]
+                        candidate_line = frame.at[candidate_edge, "geometry"]
+                        missing = 0
+                        if previous and candidate_edge != previous["edge"] and not _source_junctions(
+                                frame.at[previous["edge"], "geometry"], candidate_line, tolerance):
+                            missing += 1
+                        if following and candidate_edge != following["edge"] and not _source_junctions(
+                                candidate_line, frame.at[following["edge"], "geometry"], tolerance):
+                            missing += 1
+                        return missing, choice[0], choice[1], choice[2]
+                    replacement = min(alternatives, key=handoff_penalty)[2] if alternatives else None
+                    reassigned_from[part_index][sample_index] = int(frame.at[edge, "sourceFeatureIndex"])
+                    part_owners[sample_index] = replacement
+                changed = True
+        if not changed:
+            break
+
+    # Heal a tiny disturbance on one original atom before extracting substrings.
+    for part_owners in owners:
+        runs = _ownership_runs(part_owners)
+        for left_index, left in enumerate(runs):
+            for right in runs[left_index + 1:]:
+                if right["edge"] == left["edge"]:
+                    if right["start"] - left["end"] <= maximum_bridge:
+                        part_owners[left["end"]:right["start"]] = [left["edge"]] * (right["start"] - left["end"])
+                    break
+
+    run_rows = []
+    connected_transitions = disconnected_transitions = extensions = 0
+    for part_index, (offsets, samples) in enumerate(samples_by_part):
+        runs = _ownership_runs(owners[part_index])
+        for run_index, run in enumerate(runs):
+            edge = run["edge"]
+            line = frame.at[edge, "geometry"]
+            projected = [float(line.project(samples[i])) for i in range(run["start"], run["end"])]
+            run["entryProject"] = projected[0]
+            run["exitProject"] = projected[-1]
+            run["sourceStart"] = max(0.0, min(projected) - interval / 2)
+            run["sourceEnd"] = min(float(line.length), max(projected) + interval / 2)
+            run["before"] = (run["sourceStart"], run["sourceEnd"])
+            run["upstream"] = run_index == 0
+            run["downstream"] = run_index == len(runs) - 1
+        for run_index in range(len(runs) - 1):
+            first, second = runs[run_index], runs[run_index + 1]
+            if second["start"] - first["end"] > maximum_bridge:
+                disconnected_transitions += 1
+                continue
+            if first["edge"] == second["edge"]:
+                junctions = [(first["sourceEnd"], second["sourceStart"])]
+            else:
+                junctions = _source_junctions(frame.at[first["edge"], "geometry"],
+                                               frame.at[second["edge"], "geometry"], tolerance)
+            if not junctions:
+                disconnected_transitions += 1
+                continue
+            junction = min(junctions, key=lambda value: abs(value[0] - first["exitProject"])
+                           + abs(value[1] - second["entryProject"]))
+            first_extension = abs(junction[0] - first["exitProject"])
+            second_extension = abs(junction[1] - second["entryProject"])
+            if max(first_extension, second_extension) > float(settings["maximumJunctionExtensionMeters"]):
+                disconnected_transitions += 1
+                continue
+            first["sourceStart"] = min(first["sourceStart"], junction[0])
+            first["sourceEnd"] = max(first["sourceEnd"], junction[0])
+            second["sourceStart"] = min(second["sourceStart"], junction[1])
+            second["sourceEnd"] = max(second["sourceEnd"], junction[1])
+            first["downstream"] = second["upstream"] = True
+            connected_transitions += 1
+            if first_extension > 1e-9 or second_extension > 1e-9:
+                extensions += 1
+        for run_index, run in enumerate(runs):
+            edge = run["edge"]
+            before = run["before"]
+            geometry = substring(frame.at[edge, "geometry"], run["sourceStart"], run["sourceEnd"])
+            if geometry.geom_type != "LineString" or geometry.length <= 0:
+                continue
+            row = frame.loc[edge].copy()
+            row["geometry"] = geometry
+            row["referencePart"] = part_index
+            row["firstOwnedReferenceSample"] = run["start"]
+            row["lastOwnedReferenceSample"] = run["end"] - 1
+            row["ownedReferenceSampleCount"] = run["end"] - run["start"]
+            row["ownedReferenceStartMeters"] = float(offsets[run["start"]])
+            row["ownedReferenceEndMeters"] = float(offsets[run["end"] - 1])
+            row["sourceStartDistanceMeters"] = run["sourceStart"]
+            row["sourceEndDistanceMeters"] = run["sourceEnd"]
+            row["runPosition"] = ("start continuation" if run["start"] <= maximum_bridge else
+                                  "end continuation" if len(owners[part_index]) - run["end"] <= maximum_bridge
+                                  else "interior")
+            row["upstreamSourceConnected"] = bool(run["upstream"])
+            row["downstreamSourceConnected"] = bool(run["downstream"])
+            row["continuityValid"] = bool(run["upstream"] and run["downstream"])
+            row["sourceRangeBeforeExtension"] = json.dumps([round(value, 3) for value in before])
+            row["sourceRangeAfterExtension"] = json.dumps(
+                [round(run["sourceStart"], 3), round(run["sourceEnd"], 3)])
+            row["junctionExtensionMeters"] = round(
+                abs(run["sourceStart"] - before[0]) + abs(run["sourceEnd"] - before[1]), 3)
+            sources = {reassigned_from[part_index][i] for i in range(run["start"], run["end"])
+                       if reassigned_from[part_index][i] is not None}
+            row["reassignedFromSourceFeatureIndex"] = ",".join(map(str, sorted(sources))) if sources else None
+            row["selectionStatus"] = row["selectionReason"] = "accepted-owned-samples"
+            run_rows.append(row)
+
+    accepted = gpd.GeoDataFrame(run_rows, crs=METRIC_CRS) if run_rows else frame.iloc[0:0].copy()
+    owned_edges = {run["edge"] for part in owners for run in _ownership_runs(part)}
+    frame["selectionStatus"] = ["accepted-owned-samples" if edge in owned_edges else "rejected-no-owned-run"
+                                for edge in frame.index]
+    frame["selectionReason"] = frame["selectionStatus"]
+    frame["ownedReferenceSampleCount"] = [sum(owner == edge for part in owners for owner in part) for edge in frame.index]
     ownership_features = []
     for part_index, (offsets, samples) in enumerate(samples_by_part):
         for sample_index, (offset, sample) in enumerate(zip(offsets, samples)):
@@ -662,60 +827,24 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             road_class = str(frame.at[edge, "N13_003"]) if edge is not None else None
             ownership_features.append({"type": "Feature", "properties": {
                 "referencePart": part_index, "referenceSample": sample_index,
-                "referenceDistanceMeters": round(float(offset), 3),
-                "ownershipClass": road_class, "ownershipStatus": f"class-{road_class}" if road_class else "unmatched",
+                "referenceDistanceMeters": round(float(offset), 3), "ownershipClass": road_class,
+                "ownershipStatus": f"class-{road_class}" if road_class else "unmatched",
                 "sourceFeatureIndex": int(frame.at[edge, "sourceFeatureIndex"]) if edge is not None else None,
+                "reassignedFromSourceFeatureIndex": reassigned_from[part_index][sample_index],
             }, "geometry": mapping(sample)})
-        index = 0
-        while index < len(owners[part_index]):
-            edge = owners[part_index][index]
-            if edge is None:
-                index += 1
-                continue
-            end = index + 1
-            while end < len(owners[part_index]) and owners[part_index][end] == edge:
-                end += 1
-            line = frame.at[edge, "geometry"]
-            projected = [float(line.project(samples[i])) for i in range(index, end)]
-            source_start = max(0.0, min(projected) - interval / 2)
-            source_end = min(float(line.length), max(projected) + interval / 2)
-            geometry = substring(line, source_start, source_end)
-            if geometry.geom_type == "LineString" and geometry.length > 0:
-                row = frame.loc[edge].copy()
-                row["geometry"] = geometry
-                row["referencePart"] = part_index
-                row["firstOwnedReferenceSample"] = index
-                row["lastOwnedReferenceSample"] = end - 1
-                row["ownedReferenceSampleCount"] = end - index
-                row["ownedReferenceStartMeters"] = float(offsets[index])
-                row["ownedReferenceEndMeters"] = float(offsets[end - 1])
-                row["sourceStartDistanceMeters"] = source_start
-                row["sourceEndDistanceMeters"] = source_end
-                row["selectionStatus"] = "accepted-owned-samples"
-                row["selectionReason"] = "accepted-owned-samples"
-                runs.append(row)
-            index = end
-    accepted = gpd.GeoDataFrame(runs, crs=METRIC_CRS) if runs else frame.iloc[0:0].copy()
-    owned_edges = set(accepted.index) if not accepted.empty else set()
-    frame["selectionStatus"] = ["accepted-owned-samples" if edge in owned_edges else "rejected-no-owned-run" for edge in frame.index]
-    frame["selectionReason"] = frame["selectionStatus"]
-    frame["ownedReferenceSampleCount"] = [sum(owner == edge for part in owners for owner in part) for edge in frame.index]
     counts = Counter(frame.selectionReason)
-    report = {
-        "stage1CandidateCount": len(frame),
-        "ownershipRunCount": len(accepted),
-        "backboneSelectedCount": len(accepted),
-        "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
-        "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
-        "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
-        "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
-        "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
-        "referencePartInference": [{"referencePart": index, "sampleCount": len(owners[index]),
-            "matchedSampleCount": sum(owner is not None for owner in owners[index])}
-            for index in range(len(parts))],
-        "repairedGaps": [],
-        "parameters": settings,
-    }
+    report = {"stage1CandidateCount": len(frame), "ownershipRunCount": len(accepted),
+              "sourceConnectedRunTransitions": connected_transitions,
+              "sourceDisconnectedRunTransitions": disconnected_transitions,
+              "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
+              "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
+              "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
+              "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
+              "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
+              "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
+              "referencePartInference": [{"referencePart": index, "sampleCount": len(owners[index]),
+                  "matchedSampleCount": sum(owner is not None for owner in owners[index])}
+                  for index in range(len(parts))], "repairedGaps": [], "parameters": settings}
     frame.attrs["ownershipSamples"] = gpd.GeoDataFrame.from_features(ownership_features, crs=METRIC_CRS)
     return accepted, frame, report
 
