@@ -58,6 +58,7 @@ DEFAULT_NETWORK_SELECTION = {
     "crossClassParallelMinimumSamples": 6,
     "continuityMaximumIntermediateFeatures": 2,
     "continuityReferenceWindowBufferMeters": 10.0,
+    "continuityCorridorSafetyMarginMeters": 5.0,
     "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
@@ -622,6 +623,36 @@ def _source_junctions(first: LineString, second: LineString, tolerance: float) -
     return list(dict.fromkeys((round(a, 9), round(b, 9)) for a, b in junctions))
 
 
+def _edge_adjacency(edges: list[int], geometries: list[LineString], tolerance: float) -> dict[int, set[int]]:
+    """Build reasoning-only topology for a small, already gap-local edge set."""
+    adjacency = {edge: set() for edge in edges}
+    for position, first in enumerate(edges):
+        for second in edges[position + 1:]:
+            if _source_junctions(geometries[first], geometries[second], tolerance):
+                adjacency[first].add(second)
+                adjacency[second].add(first)
+    return adjacency
+
+
+def _graph_path(adjacency: dict[int, set[int]], start: int, finish: int,
+                maximum_intermediate: int) -> list[list[int]]:
+    """Return bounded simple paths in an already gap-local source graph."""
+    paths = []
+
+    def visit(edge, path):
+        if len(path) - 2 > maximum_intermediate:
+            return
+        if edge == finish:
+            paths.append(path)
+            return
+        for following in adjacency.get(edge, ()):
+            if following not in path:
+                visit(following, [*path, following])
+
+    visit(start, [start])
+    return paths
+
+
 def _neighbor_runs(runs: list[dict], index: int, maximum_gap: int) -> tuple[dict | None, dict | None]:
     previous = runs[index - 1] if index else None
     following = runs[index + 1] if index + 1 < len(runs) else None
@@ -968,9 +999,13 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
     if selected.empty:
         return selected.copy(), {"continuityConnectorCount": 0,
                                  "continuityConnectorLengthMeters": 0.0,
-                                 "continuityUnresolvedGapCount": 0, "continuityConnectors": []}
+                                 "continuityUnresolvedGapCount": 0, "ownershipGapCount": 0,
+                                 "directSourceJunctionCount": 0, "sameSourceMergeCount": 0,
+                                 "connectorGraphSearchCount": 0, "connectorCandidateEdgeCount": 0,
+                                 "continuityConnectors": []}
     tolerance = float(settings["endpointSnapMeters"])
-    corridor = float(settings["maximumSampleDistanceMeters"])
+    corridor = (float(settings["maximumSampleDistanceMeters"])
+                + float(settings["continuityCorridorSafetyMarginMeters"]))
     maximum_length = float(settings["maximumGapConnectorMeters"])
     maximum_detour = float(settings["maximumGapDetourRatio"])
     maximum_edges = int(settings.get("continuityMaximumIntermediateFeatures", 2))
@@ -994,6 +1029,11 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
     decisions = []
     connector_rows = []
     unresolved = 0
+    ownership_gap_count = 0
+    direct_junction_count = 0
+    same_source_merge_count = 0
+    graph_search_count = 0
+    connector_candidate_edge_count = 0
 
     def atom(row):
         matches = source[(source.sourceFeatureIndex == row.sourceFeatureIndex)
@@ -1021,6 +1061,7 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
             gap = max(0.0, gap_end - gap_start)
             if gap <= 1e-9:
                 continue
+            ownership_gap_count += 1
             base = {"upstreamSourceFeatureIndex": int(upstream.sourceFeatureIndex),
                     "downstreamSourceFeatureIndex": int(downstream.sourceFeatureIndex),
                     "referencePart": part_index, "referenceGapStartMeters": round(gap_start, 3),
@@ -1050,6 +1091,7 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                                       "connectorLengthMeters": round(source_gap, 3),
                                       "connectorDetourRatio": round(source_gap / max(gap, 1.0), 3),
                                       "decision": "accepted-same-source-range"})
+                    same_source_merge_count += 1
                     continue
             direct = _source_junctions(source_geometries[upstream_atom],
                                        source_geometries[downstream_atom], tolerance)
@@ -1063,6 +1105,7 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                                   "connectorClasses": sorted({str(upstream.N13_003), str(downstream.N13_003)}),
                                   "connectorLengthMeters": 0.0, "connectorDetourRatio": 0.0,
                                   "decision": "accepted-direct-source-junction"})
+                direct_junction_count += 1
                 continue
 
             gap_line = substring(reference_part, max(0.0, gap_start - window_buffer),
@@ -1079,33 +1122,31 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                         and min(projections) >= gap_start - window_buffer
                         and max(projections) <= gap_end + window_buffer):
                     pool.append(edge)
-
-            paths = []
-            def search(current, path):
-                if len(path) > maximum_edges:
-                    return
-                if _source_junctions(source_geometries[current], source_geometries[downstream_atom], tolerance):
-                    paths.append(path.copy())
-                if len(path) == maximum_edges:
-                    return
-                for following in pool:
-                    if following not in path and _source_junctions(
-                            source_geometries[current], source_geometries[following], tolerance):
-                        search(following, [*path, following])
-            for edge in pool:
-                if _source_junctions(source_geometries[upstream_atom], source_geometries[edge], tolerance):
-                    search(edge, [edge])
+            graph_search_count += 1
+            connector_candidate_edge_count += len(pool)
+            local_edges = [upstream_atom, *pool, downstream_atom]
+            adjacency = _edge_adjacency(local_edges, source_geometries, tolerance)
+            graph_paths = _graph_path(adjacency, upstream_atom, downstream_atom, maximum_edges)
             plausible = []
-            for path in paths:
+            for graph_path in graph_paths:
+                path = graph_path[1:-1]
                 length = sum(source_geometries[edge].length for edge in path)
                 ratio = length / max(gap, 1.0)
-                if length <= maximum_length and ratio <= maximum_detour:
+                midpoints = [float(reference_part.project(geometry.interpolate(geometry.length / 2)))
+                             for geometry in (source_geometries[edge] for edge in path)]
+                monotonic = all(second + window_buffer >= first
+                                for first, second in zip(midpoints, midpoints[1:]))
+                progress = sum(abs(float(reference_part.project(Point(geometry.coords[-1])))
+                                   - float(reference_part.project(Point(geometry.coords[0]))))
+                               for geometry in (source_geometries[edge] for edge in path))
+                if (length <= maximum_length and ratio <= maximum_detour and monotonic
+                        and progress / max(length, 1.0) >= float(settings["minimumProgressRatio"])):
                     plausible.append((path, length, ratio))
             if len(plausible) != 1:
                 unresolved += 1
                 decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
                                   "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
-                                  "decision": "unresolved-ambiguous" if plausible else "unresolved-no-path"})
+                                  "decision": "unresolved-ambiguous" if len(plausible) > 1 else "unresolved-no-path"})
                 continue
             path, length, ratio = plausible[0]
             first_junction = _source_junctions(source_geometries[upstream_atom], source_geometries[path[0]], tolerance)[0]
@@ -1133,7 +1174,13 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                           for item in decisions)
     return result, {"continuityConnectorCount": connector_count,
                     "continuityConnectorLengthMeters": round(connector_length, 3),
-                    "continuityUnresolvedGapCount": unresolved, "continuityConnectors": decisions}
+                    "continuityUnresolvedGapCount": unresolved,
+                    "ownershipGapCount": ownership_gap_count,
+                    "directSourceJunctionCount": direct_junction_count,
+                    "sameSourceMergeCount": same_source_merge_count,
+                    "connectorGraphSearchCount": graph_search_count,
+                    "connectorCandidateEdgeCount": connector_candidate_edge_count,
+                    "continuityConnectors": decisions}
 
 
 def write_selection_diagnostics(frame: gpd.GeoDataFrame, output: Path) -> None:

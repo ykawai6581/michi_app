@@ -133,6 +133,9 @@ class ReferenceOwnershipTests(unittest.TestCase):
         connectors = connected[connected.selectionStatus == "accepted-continuity-connector"]
         self.assertEqual(set(connectors.sourceFeatureIndex), {1})
         self.assertEqual(report["continuityConnectorCount"], 1)
+        self.assertEqual(report["ownershipGapCount"], 1)
+        self.assertEqual(report["connectorGraphSearchCount"], 1)
+        self.assertEqual(report["connectorCandidateEdgeCount"], 1)
         self.assertAlmostEqual(connected.geometry.union_all().length, 100)
 
     def test_wrong_class_connector_is_not_reintroduced(self):
@@ -143,6 +146,15 @@ class ReferenceOwnershipTests(unittest.TestCase):
             classPriority=["1", "3"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
         self.assertNotIn("accepted-continuity-connector", set(connected.selectionStatus))
         self.assertGreater(report["continuityUnresolvedGapCount"], 0)
+
+    def test_direct_parent_junction_uses_no_graph_search(self):
+        connected, report = self.connect(
+            [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (100, 0)])],
+            LineString([(0, 0), (100, 0)]), ["1", "1"],
+            classPriority=["1"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
+        self.assertEqual(report["directSourceJunctionCount"], 1)
+        self.assertEqual(report["connectorGraphSearchCount"], 0)
+        self.assertAlmostEqual(connected.geometry.union_all().length, 100)
 
     def test_selected_run_exposes_required_provenance(self):
         accepted, diagnostics, _ = select([LineString([(0, 0), (100, 0)])],
