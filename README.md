@@ -327,9 +327,13 @@ monotonicity, and orientation are soft costs rather than hard per-feature eligib
 edge remains available when it is needed between strong road sections. The reasoning graph detects both endpoint
 connections and endpoints meeting another edge's interior without changing source coordinates.
 
-An alternate N13 chain is accepted as a parallel carriageway only when a distinct OSM reference part selects it;
-a neighboring frontage road following the same single OSM centerline is not promoted merely because it is long and
-parallel. Internal unmatched sample runs are repaired through the complete Stage-1 graph when a bounded connector
+An alternate N13 chain is accepted as a parallel carriageway only when a distinct OSM reference part selects it.
+Same-class selections on sustained parallel reference parts remain independent carriageways. Sustained selections
+of different classes on nearby parallel parts instead compete for the same route interval: configured class priority
+wins before source continuity and residual evidence are considered. The run-length guard permits a short overlap at
+a genuine longitudinal class handoff, and a lower-priority class can still continue beyond the end of the preferred
+class. A neighboring frontage road following the same single OSM centerline is not promoted merely because it is long
+and parallel. Internal unmatched sample runs are repaired through the complete Stage-1 graph when a bounded connector
 exists, while unmatched leading/trailing samples are treated as source-coverage termination. Original N13 vertices
 remain the public geometry; only the existing display endpoint snap is applied afterward.
 

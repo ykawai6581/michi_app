@@ -76,6 +76,35 @@ class ReferenceOwnershipTests(unittest.TestCase):
                                 reference, ["1", "2"], classPriority=["1", "2"])
         self.assertEqual(set(accepted.referencePart), {0, 1})
 
+    def test_same_class_parallel_carriageways_keep_independent_owners(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(0, 8), (100, 8)]])
+        accepted, _, report = select(
+            [LineString([(0, 0), (100, 0)]), LineString([(0, 8), (100, 8)])],
+            reference, ["1", "1"], classPriority=["1"])
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1})
+        self.assertEqual(report["crossClassParallelRejectedSampleCount"], 0)
+
+    def test_cross_class_parallel_part_is_rejected_even_when_beyond_candidate_radius(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(0, 40), (100, 40)]])
+        accepted, ownership, report = select(
+            [LineString([(0, 0), (100, 0)]), LineString([(0, 40), (100, 40)])],
+            reference, ["1", "3"], classPriority=["1", "3"],
+            maximumSampleDistanceMeters=35, crossClassParallelSearchMeters=50)
+        self.assertEqual(set(accepted.N13_003), {"1"})
+        self.assertGreater(report["crossClassParallelRejectedSampleCount"], 0)
+        samples = ownership.attrs["ownershipSamples"]
+        self.assertFalse((samples.ownershipClass == "3").any())
+
+    def test_short_cross_class_parallel_overlap_is_allowed_at_handoff(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(45, 40), (55, 40)]])
+        accepted, _, report = select(
+            [LineString([(0, 0), (50, 0)]), LineString([(45, 40), (100, 40)])],
+            reference, ["1", "2"], classPriority=["1", "2"],
+            progressSampleMeters=5, maximumSampleDistanceMeters=35,
+            crossClassParallelSearchMeters=50, crossClassParallelMinimumSamples=4)
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertEqual(report["crossClassParallelRejectedSampleCount"], 0)
+
     def test_selected_run_exposes_required_provenance(self):
         accepted, diagnostics, _ = select([LineString([(0, 0), (100, 0)])],
                                           LineString([(0, 0), (100, 0)]), ["1"], classPriority=["1"])

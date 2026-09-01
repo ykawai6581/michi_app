@@ -51,6 +51,11 @@ DEFAULT_NETWORK_SELECTION = {
     "maximumOwnershipBridgeSamples": 2,
     "maximumJunctionExtensionMeters": 35.0,
     "ownershipContinuityIterations": 4,
+    # Separate OSM parts may be the two sides of a divided road.  A sustained
+    # cross-class match across nearby, parallel parts is competition for the
+    # same route interval, not evidence for another carriageway.
+    "crossClassParallelSearchMeters": 50.0,
+    "crossClassParallelMinimumSamples": 6,
     "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
@@ -654,6 +659,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     samples_by_part = [_sample_reference(part, interval) for part in parts]
     owners = [[None] * len(points) for _, points in samples_by_part]
     reassigned_from = [[None] * len(points) for _, points in samples_by_part]
+    cross_class_parallel_rejections = 0
     geometries = list(frame.geometry)
     edge_classes = frame.N13_003.astype(str).tolist()
     source_feature_indices = frame.sourceFeatureIndex.tolist()
@@ -763,6 +769,55 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 changed = True
         if not changed:
             break
+
+    # Reference parts are deliberately solved independently so that two real
+    # carriageways can choose two distinct N13 atoms.  Reconcile only sustained
+    # *cross-class* ownership on nearby parallel parts afterwards.  In
+    # particular, do not deduplicate same-class winners: those are the normal
+    # divided-road case.  Requiring a run also leaves the small geometric
+    # overlap around a genuine longitudinal class handoff alone.
+    parallel_distance = float(settings["crossClassParallelSearchMeters"])
+    parallel_minimum = int(settings["crossClassParallelMinimumSamples"])
+    conflict_masks = [[False] * len(points) for _, points in samples_by_part]
+    for part_index, (_, samples) in enumerate(samples_by_part):
+        for sample_index, sample in enumerate(samples):
+            edge = owners[part_index][sample_index]
+            if edge is None:
+                continue
+            edge_rank = rank.get(edge_classes[edge], len(rank))
+            for other_part, (_, other_samples) in enumerate(samples_by_part):
+                if other_part == part_index:
+                    continue
+                nearby = [index for index, other in enumerate(other_samples)
+                          if sample.distance(other) <= parallel_distance]
+                for other_index in nearby:
+                    other_edge = owners[other_part][other_index]
+                    if other_edge is None or edge_classes[other_edge] == edge_classes[edge]:
+                        continue
+                    mismatch = _angle_difference(reference_vectors[part_index][sample_index],
+                                                 reference_vectors[other_part][other_index])
+                    if (mismatch <= maximum_angle
+                            and edge_rank > rank.get(edge_classes[other_edge], len(rank))):
+                        conflict_masks[part_index][sample_index] = True
+                        break
+                if conflict_masks[part_index][sample_index]:
+                    break
+    for part_index, mask in enumerate(conflict_masks):
+        start = 0
+        while start < len(mask):
+            if not mask[start]:
+                start += 1
+                continue
+            end = start + 1
+            while end < len(mask) and mask[end]:
+                end += 1
+            if end - start >= parallel_minimum:
+                for sample_index in range(start, end):
+                    edge = owners[part_index][sample_index]
+                    reassigned_from[part_index][sample_index] = int(source_feature_indices[edge])
+                    owners[part_index][sample_index] = None
+                    cross_class_parallel_rejections += 1
+            start = end
 
     # Heal a tiny disturbance on one original atom before extracting substrings.
     for part_owners in owners:
@@ -879,6 +934,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "sourceConnectedRunTransitions": connected_transitions,
               "sourceDisconnectedRunTransitions": disconnected_transitions,
               "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
+              "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
               "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
               "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
