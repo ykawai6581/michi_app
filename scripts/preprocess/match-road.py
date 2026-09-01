@@ -679,7 +679,13 @@ def _interval_unique_length(part: int, low: float, high: float, excluded: set[in
 def prune_selected_branches(selected_n13, osm_reference, config: dict | None = None):
     """Conservatively remove poor-progress source branches after network selection."""
     settings = {**DEFAULT_BRANCH_PRUNING, **(config or {})}
-    frame = selected_n13.explode(index_parts=False).reset_index().rename(columns={"index": "sourceFeatureIndex"})
+    frame = selected_n13.explode(index_parts=False).copy()
+    # Network selection already supplies sourceFeatureIndex. Preserve it rather
+    # than creating a duplicate-named column: duplicate columns make pandas
+    # concat/reindex fail when branch rejections join the diagnostics layer.
+    if "sourceFeatureIndex" not in frame.columns:
+        frame["sourceFeatureIndex"] = frame.index
+    frame = frame.reset_index(drop=True)
     empty_report = {"candidateBranches": 0, "rejectedBranches": 0, "retainedAlternativePaths": 0,
                     "protectedUniqueCoverageBranches": 0, "iterations": 0, "branches": []}
     if frame.empty or not settings["enabled"]:

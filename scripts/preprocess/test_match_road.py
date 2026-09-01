@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import geopandas as gpd
+import pandas as pd
 from shapely.geometry import LineString, MultiLineString
 
 
@@ -44,6 +45,29 @@ def prune(lines, reference, **settings):
 
 
 class BranchPruningTests(unittest.TestCase):
+    def test_network_output_can_join_rejections_without_duplicate_index_columns(self):
+        reference = LineString([(0, 0), (100, 0)])
+        lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
+                 LineString([(50, 0), (55, 8), (58, 20)])]
+        stage1 = gpd.GeoDataFrame({
+            "N13_003": ["2"] * 3,
+            "match_min_m": [line.distance(reference) for line in lines],
+            "match_median_m": [line.distance(reference) for line in lines],
+            "match_p90_m": [line.distance(reference) for line in lines],
+            "geometry": lines,
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        network, diagnostics, _ = MATCH_ROAD.select_reference_network(stage1, reference)
+        # Model a post-selection spur, while retaining the exact selector schema
+        # that previously triggered "Reindexing only valid with uniquely valued Index objects".
+        selected = pd.concat([network, stage1.iloc[[2]].assign(
+            sourceFeatureIndex=2, selectionStatus="accepted-gap-repair",
+            selectionReason="accepted-gap-repair")], ignore_index=True)
+        retained, rejected, _ = MATCH_ROAD.prune_selected_branches(
+            gpd.GeoDataFrame(selected, crs=stage1.crs), reference)
+        combined = pd.concat([diagnostics, rejected], ignore_index=True)
+        self.assertTrue(combined.columns.is_unique)
+        self.assertEqual(set(retained.sourceFeatureIndex), {0, 1})
+
     def test_case_a_dangling_spur_is_removed_after_selection(self):
         lines = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
                  LineString([(50, 0), (55, 8), (58, 20)])]
