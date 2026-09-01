@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import heapq
 import json
 import math
+import time
 import warnings
 from collections import Counter
 from pathlib import Path
@@ -16,7 +16,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, MultiLineString, Point, box, mapping
-from shapely.ops import linemerge, unary_union
+from shapely.ops import linemerge, substring, unary_union
 
 REGISTRY = Path("data/roads/registry.json")
 SOURCE_CONFIG = Path("data/roads/sources.json")
@@ -42,6 +42,16 @@ DEFAULT_NETWORK_SELECTION = {
     "orientationCostWeight": 0.2,
     "progressCostWeight": 8.0,
     "monotonicityCostWeight": 8.0,
+    # Reference-sample ownership is intentionally configured independently of
+    # the old edge-network scoring knobs retained above for registry backwards
+    # compatibility.
+    "classPriority": None,
+    "minimumOwnedReferenceSamples": 3,
+    "ownershipTransitionSamples": 1,
+    "maximumOwnershipBridgeSamples": 2,
+    "maximumJunctionExtensionMeters": 35.0,
+    "ownershipContinuityIterations": 4,
+    "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
 
@@ -482,7 +492,11 @@ def load_n13_candidates(road: dict, source: Path, reference=None) -> gpd.GeoData
     corridor = None
     filter_bounds = None
     if reference is not None:
-        corridor_meters = float(road.get("matching", {}).get("spatialShortlistMeters", 50))
+        matching = road.get("matching", {})
+        ownership_distance = float(road.get("networkSelection", {}).get(
+            "maximumSampleDistanceMeters", DEFAULT_NETWORK_SELECTION["maximumSampleDistanceMeters"]))
+        derived_shortlist = ownership_distance + float(matching.get("shortlistSafetyMarginMeters", 5))
+        corridor_meters = max(ownership_distance, float(matching.get("spatialShortlistMeters", derived_shortlist)))
         corridor = reference.buffer(corridor_meters)
         filter_bounds = gpd.GeoSeries([corridor], crs=METRIC_CRS).to_crs("EPSG:4326").total_bounds
     for road_class in road_classes:
@@ -559,62 +573,6 @@ def _angle_difference(a: np.ndarray, b: np.ndarray) -> float:
     return min(angle, 180 - angle)
 
 
-def _progression_metrics(line: LineString, reference_parts: list[LineString], interval: float) -> dict:
-    """Project ordered N13 samples to the closest OSM part and measure route progress."""
-    offsets = np.unique(np.append(np.arange(0, line.length, interval), line.length))
-    samples = [line.interpolate(float(offset)) for offset in offsets]
-    middle = line.interpolate(line.length / 2)
-    part_index, part = min(enumerate(reference_parts), key=lambda item: item[1].distance(middle))
-    chainages = np.asarray([part.project(point) for point in samples])
-    deltas = np.diff(chainages)
-    positive = float(deltas[deltas > 0].sum()); negative = float(-deltas[deltas < 0].sum())
-    travelled = positive + negative
-    monotonicity = max(positive, negative) / travelled if travelled > 1e-9 else 0.0
-    progress = abs(float(chainages[-1] - chainages[0]))
-    span = float(chainages.max() - chainages.min())
-    orientation = []
-    for index in range(len(samples) - 1):
-        vector = np.asarray(samples[index + 1].coords[0]) - np.asarray(samples[index].coords[0])
-        chainage = (chainages[index] + chainages[index + 1]) / 2
-        epsilon = min(max(interval / 2, .5), max(part.length / 2, .5))
-        before = part.interpolate(max(0, chainage - epsilon)); after = part.interpolate(min(part.length, chainage + epsilon))
-        orientation.append(_angle_difference(vector, np.asarray(after.coords[0]) - np.asarray(before.coords[0])))
-    return {
-        "referencePart": part_index,
-        "referenceStartMeters": float(chainages[0]), "referenceEndMeters": float(chainages[-1]),
-        "referenceSpanMeters": span, "referenceProgressMeters": progress,
-        "progressRatio": progress / line.length if line.length else 0.0,
-        "chainageMonotonicity": monotonicity,
-        "orientationMismatchDegrees": float(np.median(orientation)) if orientation else 90.0,
-    }
-
-
-def _edge_adjacency(lines: list[LineString], tolerance: float) -> dict[int, set[int]]:
-    """Build logical N13 topology, including endpoint-to-line-interior junctions.
-
-    This graph is reasoning-only: detecting a junction never splits, moves, or
-    otherwise changes the source geometry used for display.
-    """
-    adjacency = {edge: set() for edge in range(len(lines))}
-    endpoints = [(edge, Point(coordinate)) for edge, line in enumerate(lines)
-                 for coordinate in (line.coords[0], line.coords[-1])]
-    for edge, endpoint in endpoints:
-        for other, line in enumerate(lines):
-            if edge != other and endpoint.distance(line) <= tolerance:
-                adjacency[edge].add(other)
-                adjacency[other].add(edge)
-    return adjacency
-
-
-def _edge_cost(row) -> float:
-    """Cost physical distance, residual, turning mismatch, and unproductive travel."""
-    ratio = max(float(row.progressRatio), .05)
-    return float(row.geometry.length) * (1 + float(row.match_median_m) / 25
-                                         + float(row.orientationMismatchDegrees) / 90
-                                         + (1 / ratio - 1) * 1.5
-                                         + (1 - float(row.chainageMonotonicity)) * 2)
-
-
 def _local_orientation(line: LineString, point: Point, interval: float) -> np.ndarray:
     position = line.project(point)
     epsilon = min(max(interval / 2, .5), max(line.length / 2, .5))
@@ -623,243 +581,313 @@ def _local_orientation(line: LineString, point: Point, interval: float) -> np.nd
     return np.asarray(after.coords[0]) - np.asarray(before.coords[0])
 
 
-def _graph_path(start: int, goal: int, frame, adjacency, maximum_length: float,
-                cache: dict[tuple[int, int, float], tuple[float, list[int]]]) -> tuple[float, list[int]]:
-    """Return a bounded source-edge route; all progression penalties remain soft."""
-    key = (start, goal, maximum_length)
-    if key in cache:
-        return cache[key]
-    if start == goal:
-        return 0.0, [start]
-    queue = [(0.0, start, [start])]
-    best = {start: 0.0}
-    while queue:
-        length, edge, path = heapq.heappop(queue)
-        if edge == goal:
-            cache[key] = (length, path)
-            cache[(goal, start, maximum_length)] = (length, list(reversed(path)))
-            return length, path
-        if length > best.get(edge, float("inf")):
-            continue
-        for other in adjacency[edge]:
-            # Reaching the goal's junction does not imply traversing its full
-            # source geometry; only intermediate connector edges add length.
-            candidate = length + (0.0 if other == goal else float(frame.iloc[other].geometry.length))
-            if candidate <= maximum_length and candidate < best.get(other, float("inf")):
-                best[other] = candidate
-                heapq.heappush(queue, (candidate, other, path + [other]))
-    cache[key] = (float("inf"), [])
-    return cache[key]
-
-
 def _sample_reference(part: LineString, interval: float) -> tuple[np.ndarray, list[Point]]:
     offsets = np.unique(np.append(np.arange(0, part.length, interval), part.length))
     return offsets, [part.interpolate(float(offset)) for offset in offsets]
 
 
-def _infer_reference_sequence(part_index: int, part: LineString, frame, adjacency, settings,
-                              path_cache) -> dict:
-    """Viterbi inference over ordered OSM samples and nearby N13 source edges."""
-    offsets, samples = _sample_reference(part, float(settings["progressSampleMeters"]))
-    maximum_distance = float(settings["maximumSampleDistanceMeters"])
-    states: list[list[int | None]] = []
-    emissions: list[dict[int | None, float]] = []
-    support: dict[int, list[float]] = {edge: [] for edge in frame.index}
-    for offset, sample in zip(offsets, samples):
-        osm_vector = _local_orientation(part, sample, float(settings["progressSampleMeters"]))
-        nearby = []
-        costs: dict[int | None, float] = {None: float(settings["unmatchedSampleCost"])}
-        for edge, line in enumerate(frame.geometry):
-            distance = float(line.distance(sample))
-            if distance > maximum_distance:
-                continue
-            mismatch = _angle_difference(_local_orientation(line, sample, float(settings["progressSampleMeters"])),
-                                         osm_vector)
-            # Former hard eligibility metrics are deliberately soft. A poor
-            # local edge can win when graph continuity and reference coverage
-            # make it the necessary explanation for this sample.
-            progress_penalty = max(0.0, float(settings["minimumProgressRatio"]) - float(frame.iloc[edge].progressRatio))
-            monotonicity_penalty = max(0.0, float(settings["minimumChainageMonotonicity"])
-                                       - float(frame.iloc[edge].chainageMonotonicity))
-            orientation_excess = max(0.0, mismatch - float(settings["maximumOrientationMismatchDegrees"]))
-            costs[edge] = (distance + mismatch * float(settings["orientationCostWeight"])
-                           + progress_penalty * float(settings["progressCostWeight"])
-                           + monotonicity_penalty * float(settings["monotonicityCostWeight"])
-                           + orientation_excess * float(settings["orientationCostWeight"]))
-            nearby.append(edge)
-            support[edge].append(float(offset))
-        states.append(nearby + [None])
-        emissions.append(costs)
-
-    supported_samples = [index for index, candidates in enumerate(states) if len(candidates) > 1]
-    if not supported_samples:
-        return {"part": part_index, "offsets": offsets, "states": [None] * len(samples),
-                "paths": [], "support": support, "emissions": emissions, "cost": 0.0,
-                "activeRange": None, "repairedGaps": []}
-    first, last = min(supported_samples), max(supported_samples)
-    costs = {state: emissions[first][state] for state in states[first]}
-    histories = {state: [] for state in states[first]}
-    connector_histories = {state: [] for state in states[first]}
-    for sample_index in range(first + 1, last + 1):
-        next_costs = {}
-        next_histories = {}
-        next_connectors = {}
-        chainage_step = max(float(offsets[sample_index] - offsets[sample_index - 1]), 1.0)
-        for current in states[sample_index]:
-            best_choice = None
-            for previous, previous_cost in costs.items():
-                connector = []
-                if current is None or previous is None:
-                    transition = 0.0 if current == previous else float(settings["edgeSwitchCost"])
-                elif current == previous:
-                    transition = 0.0
-                else:
-                    length, connector = _graph_path(previous, current, frame, adjacency,
-                                                    float(settings["maximumTransitionPathMeters"]), path_cache)
-                    if not connector:
-                        transition = float(settings["disconnectedTransitionCost"])
-                    else:
-                        # Switching and graph travel are penalized, but an awkward
-                        # connector is never excluded by per-edge orientation/progress.
-                        transition = float(settings["edgeSwitchCost"]) + max(0.0, length - chainage_step)
-                    previous_chainage = float(frame.iloc[previous].referenceEndMeters)
-                    current_chainage = float(frame.iloc[current].referenceEndMeters)
-                    if current_chainage + chainage_step < previous_chainage:
-                        transition += previous_chainage - current_chainage
-                candidate = previous_cost + transition + emissions[sample_index][current]
-                if best_choice is None or candidate < best_choice[0]:
-                    best_choice = (candidate, previous, connector)
-            next_costs[current] = best_choice[0]
-            next_histories[current] = histories[best_choice[1]] + [best_choice[1]]
-            next_connectors[current] = connector_histories[best_choice[1]] + [best_choice[2]]
-        costs, histories, connector_histories = next_costs, next_histories, next_connectors
-    final = min(costs, key=costs.get)
-    sequence = histories[final] + [final]
-    full_sequence = [None] * first + sequence + [None] * (len(samples) - last - 1)
-    return {"part": part_index, "offsets": offsets, "states": full_sequence,
-            "support": support, "emissions": emissions, "cost": float(costs[final]),
-            "activeRange": (first, last), "transitionConnectors": connector_histories[final],
-            "repairedGaps": []}
-
-
-def _repair_internal_gaps(inference: dict, frame, adjacency, settings, path_cache) -> set[int]:
-    """Connect selected states across internal unmatched sample runs when plausible."""
-    repaired = set()
-    states = inference["states"]
+def _ownership_runs(owners: list[int | None]) -> list[dict]:
+    """Group an ownership sequence; unmatched samples remain explicit gaps."""
+    runs = []
     index = 0
-    while index < len(states):
-        if states[index] is not None:
-            index += 1
-            continue
-        start = index
-        while index < len(states) and states[index] is None:
-            index += 1
-        if start == 0 or index == len(states):
-            continue  # legitimate termination: never repair beyond supported coverage
-        left, right = states[start - 1], states[index]
-        gap_length = float(inference["offsets"][index] - inference["offsets"][start - 1])
-        maximum = min(float(settings["maximumGapConnectorMeters"]),
-                      gap_length * float(settings["maximumGapDetourRatio"]))
-        connector_length, connector = _graph_path(left, right, frame, adjacency, maximum, path_cache)
-        if connector and connector_length <= maximum:
-            repaired.update(connector)
-            inference["repairedGaps"].append({
-                "referencePart": inference["part"],
-                "startMeters": round(float(inference["offsets"][start]), 3),
-                "endMeters": round(float(inference["offsets"][index - 1]), 3),
-                "connectorLengthMeters": round(connector_length, 3),
-                "sourceEdges": connector,
-            })
-    return repaired
+    while index < len(owners):
+        edge = owners[index]
+        end = index + 1
+        while end < len(owners) and owners[end] == edge:
+            end += 1
+        if edge is not None:
+            runs.append({"edge": edge, "start": index, "end": end})
+        index = end
+    return runs
+
+
+def _source_junctions(first: LineString, second: LineString, tolerance: float) -> list[tuple[float, float]]:
+    """Return endpoint-to-line-interior junction positions on complete atoms."""
+    junctions = []
+    for distance, coordinate in ((0.0, first.coords[0]), (first.length, first.coords[-1])):
+        point = Point(coordinate)
+        if point.distance(second) <= tolerance:
+            junctions.append((distance, float(second.project(point))))
+    for distance, coordinate in ((0.0, second.coords[0]), (second.length, second.coords[-1])):
+        point = Point(coordinate)
+        if point.distance(first) <= tolerance:
+            junctions.append((float(first.project(point)), distance))
+    return list(dict.fromkeys((round(a, 9), round(b, 9)) for a, b in junctions))
+
+
+def _neighbor_runs(runs: list[dict], index: int, maximum_gap: int) -> tuple[dict | None, dict | None]:
+    previous = runs[index - 1] if index else None
+    following = runs[index + 1] if index + 1 < len(runs) else None
+    if previous and runs[index]["start"] - previous["end"] > maximum_gap:
+        previous = None
+    if following and following["start"] - runs[index]["end"] > maximum_gap:
+        following = None
+    return previous, following
 
 
 def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict | None = None):
-    """Infer the source-edge sequence that best explains ordered OSM samples."""
+    """Select exact N13 substrings justified by OSM samples, then restore source junctions."""
+    started = time.perf_counter()
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
-    frame = stage1.explode(index_parts=False).reset_index().rename(columns={"index": "sourceFeatureIndex"})
+    source = stage1.copy()
+    source["_ownershipSourceFeatureIndex"] = (source["sourceFeatureIndex"] if "sourceFeatureIndex" in source
+                                               else source.index)
+    exploded = source.explode(index_parts=True)
+    atom_indices = (exploded.index.get_level_values(-1).to_numpy()
+                    if isinstance(exploded.index, pd.MultiIndex) else np.zeros(len(exploded), dtype=int))
+    frame = exploded.reset_index(drop=True)
+    frame["sourceFeatureIndex"] = frame.pop("_ownershipSourceFeatureIndex")
+    if "sourceAtomIndex" not in frame:
+        frame["sourceAtomIndex"] = atom_indices
     parts = _ordered_reference_parts(reference)
-    metrics = [_progression_metrics(line, parts, float(settings["progressSampleMeters"])) for line in frame.geometry]
-    for key in metrics[0]:
-        frame[key] = [value[key] for value in metrics]
-    frame["selectionStatus"] = "rejected-disconnected"; frame["selectionReason"] = "rejected-disconnected"
-    frame["routeCost"] = [_edge_cost(row) for _, row in frame.iterrows()]
-    adjacency = _edge_adjacency(list(frame.geometry), float(settings["endpointSnapMeters"]))
-    path_cache = {}
-    inferences = [_infer_reference_sequence(index, part, frame, adjacency, settings, path_cache)
-                  for index, part in enumerate(parts)]
-    membership: dict[int, set[int]] = {edge: set() for edge in frame.index}
-    gap_repair: set[int] = set()
-    sample_support = Counter()
-    minimum_emission = {edge: float("inf") for edge in frame.index}
-    for inference in inferences:
-        for edge, offsets in inference["support"].items():
-            sample_support[edge] += len(offsets)
-        for sample_index, state in enumerate(inference["states"]):
-            if state is not None:
-                membership[state].add(inference["part"])
-                minimum_emission[state] = min(minimum_emission[state], inference["emissions"][sample_index][state])
-        for connector in inference.get("transitionConnectors", []):
-            # Intermediate edges explain graph continuity rather than an
-            # emission at one reference sample; expose them as gap repairs.
-            gap_repair.update(connector[1:-1])
-        gap_repair.update(_repair_internal_gaps(inference, frame, adjacency, settings, path_cache))
-    selected = {edge for edge, support_parts in membership.items() if support_parts} | gap_repair
-    frame["referenceSampleSupportCount"] = [sample_support[edge] for edge in frame.index]
-    frame["emissionCost"] = [round(minimum_emission[edge], 3) if math.isfinite(minimum_emission[edge]) else None
-                             for edge in frame.index]
-    frame["backboneMembership"] = [edge in selected for edge in frame.index]
-    frame["parallelOsmSupportPart"] = [",".join(map(str, sorted(membership[edge]))) if membership[edge] else None
-                                       for edge in frame.index]
-    frame["gapRepairMembership"] = [edge in gap_repair for edge in frame.index]
-    for edge in selected:
-        reason = "accepted-gap-repair" if edge in gap_repair and not membership[edge] else "accepted-backbone"
-        if membership[edge] and min(membership[edge]) > 0:
-            reason = "accepted-parallel-osm-supported"
-        frame.loc[edge, ["selectionStatus", "selectionReason"]] = reason
-    # Diagnose whole rejected chains, so a multi-edge route that leaves and
-    # rejoins the backbone is a detour rather than two unrelated stems.
-    rejected = set(frame.index) - selected
-    while rejected:
-        seed = rejected.pop()
-        component = {seed}
-        frontier = [seed]
-        while frontier:
-            for other in adjacency[frontier.pop()]:
-                if other in rejected:
-                    rejected.remove(other)
-                    component.add(other)
-                    frontier.append(other)
-        attachments = set().union(*(adjacency[edge] & selected for edge in component))
-        if len(attachments) >= 2:
-            reason = "rejected-detour"
-        elif len(attachments) == 1:
-            reason = "rejected-spur"
-        elif any(sample_support[edge] for edge in component):
-            reason = "rejected-redundant-parallel"
-        else:
-            reason = "rejected-disconnected"
-        frame.loc[list(component), ["selectionStatus", "selectionReason"]] = reason
-    accepted = frame[frame.selectionStatus.str.startswith("accepted-")].copy()
+    interval = float(settings["progressSampleMeters"])
+    maximum_distance = float(settings["maximumSampleDistanceMeters"])
+    maximum_angle = float(settings["maximumOrientationMismatchDegrees"])
+    minimum_run = int(settings["minimumOwnedReferenceSamples"])
+    maximum_bridge = int(settings["maximumOwnershipBridgeSamples"])
+    tolerance = float(settings["endpointSnapMeters"])
+    classes = ([str(value) for value in settings["classPriority"]] if settings.get("classPriority")
+               else list(dict.fromkeys(frame.N13_003.astype(str))))
+    rank = {road_class: index for index, road_class in enumerate(classes)}
+    samples_by_part = [_sample_reference(part, interval) for part in parts]
+    owners = [[None] * len(points) for _, points in samples_by_part]
+    reassigned_from = [[None] * len(points) for _, points in samples_by_part]
+    geometries = list(frame.geometry)
+    edge_classes = frame.N13_003.astype(str).tolist()
+    source_feature_indices = frame.sourceFeatureIndex.tolist()
+    class_edges = {road_class: [edge for edge, value in enumerate(edge_classes) if value == road_class]
+                   for road_class in classes}
+    class_spatial_indexes = ({road_class: gpd.GeoSeries([geometries[edge] for edge in edges], crs=frame.crs).sindex
+                              for road_class, edges in class_edges.items()}
+                             if bool(settings["useSpatialIndex"]) else {})
+    reference_vectors = [[_local_orientation(part, sample, interval) for sample in samples]
+                         for part, (_, samples) in zip(parts, samples_by_part)]
+    candidate_cache = {}
+    candidate_comparisons = 0
+    candidates_per_sample = Counter()
+    junction_cache = {}
+
+    def junctions(first_edge, second_edge):
+        key = (first_edge, second_edge)
+        if key not in junction_cache:
+            junction_cache[key] = _source_junctions(geometries[first_edge], geometries[second_edge], tolerance)
+            junction_cache[(second_edge, first_edge)] = [(second, first) for first, second in junction_cache[key]]
+        return junction_cache[key]
+
+    def candidates(part_index, sample_index, road_class=None, excluded=frozenset()):
+        nonlocal candidate_comparisons
+        if road_class is None:
+            combined = [choice for value in classes
+                        for choice in candidates(part_index, sample_index, value, excluded)]
+            return sorted(combined)
+        cache_key = (part_index, sample_index, road_class)
+        if cache_key in candidate_cache:
+            return [choice for choice in candidate_cache[cache_key] if choice[2] not in excluded]
+        sample = samples_by_part[part_index][1][sample_index]
+        reference_vector = reference_vectors[part_index][sample_index]
+        choices = []
+        query_bounds = box(sample.x - maximum_distance, sample.y - maximum_distance,
+                           sample.x + maximum_distance, sample.y + maximum_distance)
+        edges = class_edges.get(road_class, [])
+        nearby = ([edges[position] for position in map(int, class_spatial_indexes[road_class].query(query_bounds))]
+                  if road_class in class_spatial_indexes else edges)
+        candidates_per_sample[(part_index, sample_index)] += len(nearby)
+        for edge in nearby:
+            candidate_comparisons += 1
+            distance = float(geometries[edge].distance(sample))
+            if distance > maximum_distance:
+                continue
+            mismatch = _angle_difference(_local_orientation(geometries[edge], sample, interval), reference_vector)
+            if mismatch <= maximum_angle:
+                choices.append((rank.get(edge_classes[edge], len(rank)),
+                                distance + mismatch * float(settings["orientationCostWeight"]), edge))
+        candidate_cache[cache_key] = sorted(choices)
+        return [choice for choice in candidate_cache[cache_key] if choice[2] not in excluded]
+
+    # Hierarchical provisional ownership. A class only sees unresolved samples.
+    for road_class in classes:
+        for part_index, (_, samples) in enumerate(samples_by_part):
+            proposals = [None] * len(samples)
+            previous = None
+            for sample_index in range(len(samples)):
+                if owners[part_index][sample_index] is not None:
+                    previous = None
+                    continue
+                choices = candidates(part_index, sample_index, road_class)
+                if choices:
+                    adjusted = [(cost - (min(float(settings["edgeSwitchCost"]), 2.0) if edge == previous else 0), edge)
+                                for _, cost, edge in choices]
+                    _, edge = min(adjusted)
+                    proposals[sample_index] = previous = edge
+                else:
+                    previous = None
+            for run in _ownership_runs(proposals):
+                if run["end"] - run["start"] >= minimum_run:
+                    owners[part_index][run["start"]:run["end"]] = proposals[run["start"]:run["end"]]
+
+    # Complete source atoms validate ownership; they never create candidate ownership.
+    for _ in range(int(settings["ownershipContinuityIterations"])):
+        changed = False
+        for part_index, part_owners in enumerate(owners):
+            runs = _ownership_runs(part_owners)
+            for run_index, run in enumerate(runs):
+                previous, following = _neighbor_runs(runs, run_index, maximum_bridge)
+                edge = run["edge"]
+                edge_rank = rank.get(edge_classes[edge], len(rank))
+                lower_than_neighbor = any(
+                    edge_rank > rank.get(edge_classes[neighbor["edge"]], len(rank))
+                    for neighbor in (previous, following) if neighbor)
+                if not lower_than_neighbor:
+                    continue
+                upstream = previous is None or bool(junctions(previous["edge"], edge))
+                downstream = following is None or bool(junctions(edge, following["edge"]))
+                # Interior lower-class substitutions and bridges need both handoffs;
+                # route-start/end continuations only have the available handoff.
+                if upstream and downstream:
+                    continue
+                for sample_index in range(run["start"], run["end"]):
+                    alternatives = candidates(part_index, sample_index, excluded={edge})
+                    def handoff_penalty(choice):
+                        candidate_edge = choice[2]
+                        missing = 0
+                        if previous and candidate_edge != previous["edge"] and not junctions(previous["edge"], candidate_edge):
+                            missing += 1
+                        if following and candidate_edge != following["edge"] and not junctions(candidate_edge, following["edge"]):
+                            missing += 1
+                        return missing, choice[0], choice[1], choice[2]
+                    replacement = min(alternatives, key=handoff_penalty)[2] if alternatives else None
+                    reassigned_from[part_index][sample_index] = int(source_feature_indices[edge])
+                    part_owners[sample_index] = replacement
+                changed = True
+        if not changed:
+            break
+
+    # Heal a tiny disturbance on one original atom before extracting substrings.
+    for part_owners in owners:
+        runs = _ownership_runs(part_owners)
+        for left_index, left in enumerate(runs):
+            for right in runs[left_index + 1:]:
+                if right["edge"] == left["edge"]:
+                    if right["start"] - left["end"] <= maximum_bridge:
+                        part_owners[left["end"]:right["start"]] = [left["edge"]] * (right["start"] - left["end"])
+                    break
+
+    run_rows = []
+    connected_transitions = disconnected_transitions = extensions = 0
+    for part_index, (offsets, samples) in enumerate(samples_by_part):
+        runs = _ownership_runs(owners[part_index])
+        for run_index, run in enumerate(runs):
+            edge = run["edge"]
+            line = frame.at[edge, "geometry"]
+            projected = [float(line.project(samples[i])) for i in range(run["start"], run["end"])]
+            run["entryProject"] = projected[0]
+            run["exitProject"] = projected[-1]
+            run["sourceStart"] = max(0.0, min(projected) - interval / 2)
+            run["sourceEnd"] = min(float(line.length), max(projected) + interval / 2)
+            run["before"] = (run["sourceStart"], run["sourceEnd"])
+            run["upstream"] = run_index == 0
+            run["downstream"] = run_index == len(runs) - 1
+        for run_index in range(len(runs) - 1):
+            first, second = runs[run_index], runs[run_index + 1]
+            if second["start"] - first["end"] > maximum_bridge:
+                disconnected_transitions += 1
+                continue
+            if first["edge"] == second["edge"]:
+                transition_junctions = [(first["sourceEnd"], second["sourceStart"])]
+            else:
+                transition_junctions = junctions(first["edge"], second["edge"])
+            if not transition_junctions:
+                disconnected_transitions += 1
+                continue
+            junction = min(transition_junctions, key=lambda value: abs(value[0] - first["exitProject"])
+                           + abs(value[1] - second["entryProject"]))
+            first_extension = abs(junction[0] - first["exitProject"])
+            second_extension = abs(junction[1] - second["entryProject"])
+            if max(first_extension, second_extension) > float(settings["maximumJunctionExtensionMeters"]):
+                disconnected_transitions += 1
+                continue
+            first["sourceStart"] = min(first["sourceStart"], junction[0])
+            first["sourceEnd"] = max(first["sourceEnd"], junction[0])
+            second["sourceStart"] = min(second["sourceStart"], junction[1])
+            second["sourceEnd"] = max(second["sourceEnd"], junction[1])
+            first["downstream"] = second["upstream"] = True
+            connected_transitions += 1
+            if first_extension > 1e-9 or second_extension > 1e-9:
+                extensions += 1
+        for run_index, run in enumerate(runs):
+            edge = run["edge"]
+            before = run["before"]
+            geometry = substring(frame.at[edge, "geometry"], run["sourceStart"], run["sourceEnd"])
+            if geometry.geom_type != "LineString" or geometry.length <= 0:
+                continue
+            row = frame.loc[edge].copy()
+            row["geometry"] = geometry
+            row["referencePart"] = part_index
+            row["firstOwnedReferenceSample"] = run["start"]
+            row["lastOwnedReferenceSample"] = run["end"] - 1
+            row["ownedReferenceSampleCount"] = run["end"] - run["start"]
+            row["ownedReferenceStartMeters"] = float(offsets[run["start"]])
+            row["ownedReferenceEndMeters"] = float(offsets[run["end"] - 1])
+            row["sourceStartDistanceMeters"] = run["sourceStart"]
+            row["sourceEndDistanceMeters"] = run["sourceEnd"]
+            row["runPosition"] = ("start continuation" if run["start"] <= maximum_bridge else
+                                  "end continuation" if len(owners[part_index]) - run["end"] <= maximum_bridge
+                                  else "interior")
+            row["upstreamSourceConnected"] = bool(run["upstream"])
+            row["downstreamSourceConnected"] = bool(run["downstream"])
+            row["continuityValid"] = bool(run["upstream"] and run["downstream"])
+            row["sourceRangeBeforeExtension"] = json.dumps([round(value, 3) for value in before])
+            row["sourceRangeAfterExtension"] = json.dumps(
+                [round(run["sourceStart"], 3), round(run["sourceEnd"], 3)])
+            row["junctionExtensionMeters"] = round(
+                abs(run["sourceStart"] - before[0]) + abs(run["sourceEnd"] - before[1]), 3)
+            sources = {reassigned_from[part_index][i] for i in range(run["start"], run["end"])
+                       if reassigned_from[part_index][i] is not None}
+            row["reassignedFromSourceFeatureIndex"] = ",".join(map(str, sorted(sources))) if sources else None
+            row["selectionStatus"] = row["selectionReason"] = "accepted-owned-samples"
+            run_rows.append(row)
+
+    accepted = gpd.GeoDataFrame(run_rows, crs=METRIC_CRS) if run_rows else frame.iloc[0:0].copy()
+    owned_edges = {run["edge"] for part in owners for run in _ownership_runs(part)}
+    frame["selectionStatus"] = ["accepted-owned-samples" if edge in owned_edges else "rejected-no-owned-run"
+                                for edge in frame.index]
+    frame["selectionReason"] = frame["selectionStatus"]
+    frame["ownedReferenceSampleCount"] = [sum(owner == edge for part in owners for owner in part) for edge in frame.index]
+    ownership_features = []
+    for part_index, (offsets, samples) in enumerate(samples_by_part):
+        for sample_index, (offset, sample) in enumerate(zip(offsets, samples)):
+            edge = owners[part_index][sample_index]
+            road_class = edge_classes[edge] if edge is not None else None
+            ownership_features.append({"type": "Feature", "properties": {
+                "referencePart": part_index, "referenceSample": sample_index,
+                "referenceDistanceMeters": round(float(offset), 3), "ownershipClass": road_class,
+                "ownershipStatus": f"class-{road_class}" if road_class else "unmatched",
+                "sourceFeatureIndex": int(source_feature_indices[edge]) if edge is not None else None,
+                "reassignedFromSourceFeatureIndex": reassigned_from[part_index][sample_index],
+            }, "geometry": mapping(sample)})
     counts = Counter(frame.selectionReason)
-    report = {
-        "stage1CandidateCount": len(frame),
-        "backboneSelectedCount": int((frame.selectionStatus == "accepted-backbone").sum()),
-        "parallelSelectedCount": int((frame.selectionStatus == "accepted-parallel-osm-supported").sum()),
-        "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
-        "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
-        "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
-        "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
-        "referencePartInference": [{
-            "referencePart": inference["part"],
-            "sampleCount": len(inference["offsets"]),
-            "matchedSampleCount": sum(state is not None for state in inference["states"]),
-            "pathCost": round(inference["cost"], 3),
-        } for inference in inferences],
-        "repairedGaps": [gap for inference in inferences for gap in inference["repairedGaps"]],
-        "parameters": settings,
-    }
+    reference_sample_count = sum(len(samples) for _, samples in samples_by_part)
+    report = {"stage1CandidateCount": len(frame), "ownershipRunCount": len(accepted),
+              "referenceSampleCount": reference_sample_count, "candidateEdgeCount": len(frame),
+              "candidateComparisonsPerformed": candidate_comparisons,
+              "meanCandidatesPerSample": round(candidate_comparisons / reference_sample_count, 3)
+              if reference_sample_count else 0,
+              "maxCandidatesPerSample": max(candidates_per_sample.values(), default=0),
+              "ownershipSeconds": round(time.perf_counter() - started, 4),
+              "sourceConnectedRunTransitions": connected_transitions,
+              "sourceDisconnectedRunTransitions": disconnected_transitions,
+              "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
+              "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
+              "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
+              "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
+              "stage1LengthMeters": round(float(frame.geometry.length.sum()), 3),
+              "selectedLengthMeters": round(float(accepted.geometry.length.sum()), 3),
+              "referencePartInference": [{"referencePart": index, "sampleCount": len(owners[index]),
+                  "matchedSampleCount": sum(owner is not None for owner in owners[index])}
+                  for index in range(len(parts))], "repairedGaps": [], "parameters": settings}
+    frame.attrs["ownershipSamples"] = gpd.GeoDataFrame.from_features(ownership_features, crs=METRIC_CRS)
     return accepted, frame, report
 
 
@@ -929,7 +957,7 @@ def main() -> None:
     stage1, candidates = match_n13(candidates, reference, road)
     if stage1.empty:
         raise RuntimeError(f"No plausible N13 features selected for {road['id']}")
-    network_config = {**road.get("networkSelection", {}),
+    network_config = {**road.get("networkSelection", {}), "classPriority": road["n13"]["classifications"],
                       "endpointSnapMeters": road.get("display", {}).get("endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS)}
     selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
     if selected.empty:
