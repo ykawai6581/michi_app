@@ -778,6 +778,13 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     # overlap around a genuine longitudinal class handoff alone.
     parallel_distance = float(settings["crossClassParallelSearchMeters"])
     parallel_minimum = int(settings["crossClassParallelMinimumSamples"])
+    reference_sample_records = [(part_index, sample_index, sample)
+                                for part_index, (_, samples) in enumerate(samples_by_part)
+                                for sample_index, sample in enumerate(samples)]
+    reference_sample_index = gpd.GeoSeries(
+        [sample for _, _, sample in reference_sample_records], crs=METRIC_CRS).sindex
+    cross_class_parallel_sample_comparisons = 0
+    cross_class_parallel_candidate_pairs = 0
     conflict_masks = [[False] * len(points) for _, points in samples_by_part]
     for part_index, (_, samples) in enumerate(samples_by_part):
         for sample_index, sample in enumerate(samples):
@@ -785,22 +792,25 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             if edge is None:
                 continue
             edge_rank = rank.get(edge_classes[edge], len(rank))
-            for other_part, (_, other_samples) in enumerate(samples_by_part):
+            query_bounds = box(sample.x - parallel_distance, sample.y - parallel_distance,
+                               sample.x + parallel_distance, sample.y + parallel_distance)
+            nearby_positions = map(int, reference_sample_index.query(query_bounds))
+            for position in nearby_positions:
+                other_part, other_index, other_sample = reference_sample_records[position]
                 if other_part == part_index:
                     continue
-                nearby = [index for index, other in enumerate(other_samples)
-                          if sample.distance(other) <= parallel_distance]
-                for other_index in nearby:
-                    other_edge = owners[other_part][other_index]
-                    if other_edge is None or edge_classes[other_edge] == edge_classes[edge]:
-                        continue
-                    mismatch = _angle_difference(reference_vectors[part_index][sample_index],
-                                                 reference_vectors[other_part][other_index])
-                    if (mismatch <= maximum_angle
-                            and edge_rank > rank.get(edge_classes[other_edge], len(rank))):
-                        conflict_masks[part_index][sample_index] = True
-                        break
-                if conflict_masks[part_index][sample_index]:
+                cross_class_parallel_sample_comparisons += 1
+                if sample.distance(other_sample) > parallel_distance:
+                    continue
+                cross_class_parallel_candidate_pairs += 1
+                other_edge = owners[other_part][other_index]
+                if other_edge is None or edge_classes[other_edge] == edge_classes[edge]:
+                    continue
+                mismatch = _angle_difference(reference_vectors[part_index][sample_index],
+                                             reference_vectors[other_part][other_index])
+                if (mismatch <= maximum_angle
+                        and edge_rank > rank.get(edge_classes[other_edge], len(rank))):
+                    conflict_masks[part_index][sample_index] = True
                     break
     for part_index, mask in enumerate(conflict_masks):
         start = 0
@@ -935,6 +945,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "sourceDisconnectedRunTransitions": disconnected_transitions,
               "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
               "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
+              "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
+              "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
               "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
               "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},

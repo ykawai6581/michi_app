@@ -105,6 +105,19 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertEqual(set(accepted.N13_003), {"1", "2"})
         self.assertEqual(report["crossClassParallelRejectedSampleCount"], 0)
 
+    def test_cross_class_parallel_lookup_avoids_full_sample_cartesian_product(self):
+        length = 10_000
+        reference = MultiLineString([[(0, 0), (length, 0)], [(0, 40), (length, 40)]])
+        _, _, report = select(
+            [LineString([(0, 0), (length, 0)]), LineString([(0, 40), (length, 40)])],
+            reference, ["1", "3"], classPriority=["1", "3"],
+            maximumSampleDistanceMeters=35, crossClassParallelSearchMeters=50)
+        samples_per_part = length // 5 + 1
+        full_cross_part_product = 2 * samples_per_part * samples_per_part
+        self.assertLess(report["crossClassParallelSampleComparisons"], full_cross_part_product / 50)
+        self.assertLessEqual(report["crossClassParallelCandidatePairs"],
+                             report["crossClassParallelSampleComparisons"])
+
     def test_selected_run_exposes_required_provenance(self):
         accepted, diagnostics, _ = select([LineString([(0, 0), (100, 0)])],
                                           LineString([(0, 0), (100, 0)]), ["1"], classPriority=["1"])
