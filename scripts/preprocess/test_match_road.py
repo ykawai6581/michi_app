@@ -35,6 +35,12 @@ def select(lines, reference, classes=None, **settings):
 
 
 class ReferenceOwnershipTests(unittest.TestCase):
+    def connect(self, lines, reference, classes, **settings):
+        accepted, _, _ = select(lines, reference, classes, **settings)
+        stage1 = gpd.GeoDataFrame({"N13_003": classes, "sourceFeatureIndex": range(len(lines)),
+                                   "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
+        return MATCH_ROAD.connect_adjacent_selected_runs(accepted, stage1, reference, settings)
+
     def test_straight_road_rejects_t_stem(self):
         accepted, diagnostic, _ = select([
             LineString([(0, 0), (100, 0)]), LineString([(50, 0), (50, 30)])],
@@ -75,6 +81,80 @@ class ReferenceOwnershipTests(unittest.TestCase):
         accepted, _, _ = select([LineString([(0, 0), (100, 0)]), LineString([(0, 10), (100, 10)])],
                                 reference, ["1", "2"], classPriority=["1", "2"])
         self.assertEqual(set(accepted.referencePart), {0, 1})
+
+    def test_same_class_parallel_carriageways_keep_independent_owners(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(0, 8), (100, 8)]])
+        accepted, _, report = select(
+            [LineString([(0, 0), (100, 0)]), LineString([(0, 8), (100, 8)])],
+            reference, ["1", "1"], classPriority=["1"])
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1})
+        self.assertEqual(report["crossClassParallelRejectedSampleCount"], 0)
+
+    def test_cross_class_parallel_part_is_rejected_even_when_beyond_candidate_radius(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(0, 40), (100, 40)]])
+        accepted, ownership, report = select(
+            [LineString([(0, 0), (100, 0)]), LineString([(0, 40), (100, 40)])],
+            reference, ["1", "3"], classPriority=["1", "3"],
+            maximumSampleDistanceMeters=35, crossClassParallelSearchMeters=50)
+        self.assertEqual(set(accepted.N13_003), {"1"})
+        self.assertGreater(report["crossClassParallelRejectedSampleCount"], 0)
+        samples = ownership.attrs["ownershipSamples"]
+        self.assertFalse((samples.ownershipClass == "3").any())
+
+    def test_short_cross_class_parallel_overlap_is_allowed_at_handoff(self):
+        reference = MultiLineString([[(0, 0), (100, 0)], [(45, 40), (55, 40)]])
+        accepted, _, report = select(
+            [LineString([(0, 0), (50, 0)]), LineString([(45, 40), (100, 40)])],
+            reference, ["1", "2"], classPriority=["1", "2"],
+            progressSampleMeters=5, maximumSampleDistanceMeters=35,
+            crossClassParallelSearchMeters=50, crossClassParallelMinimumSamples=4)
+        self.assertEqual(set(accepted.N13_003), {"1", "2"})
+        self.assertEqual(report["crossClassParallelRejectedSampleCount"], 0)
+
+    def test_cross_class_parallel_lookup_avoids_full_sample_cartesian_product(self):
+        length = 10_000
+        reference = MultiLineString([[(0, 0), (length, 0)], [(0, 40), (length, 40)]])
+        _, _, report = select(
+            [LineString([(0, 0), (length, 0)]), LineString([(0, 40), (length, 40)])],
+            reference, ["1", "3"], classPriority=["1", "3"],
+            maximumSampleDistanceMeters=35, crossClassParallelSearchMeters=50)
+        samples_per_part = length // 5 + 1
+        full_cross_part_product = 2 * samples_per_part * samples_per_part
+        self.assertLess(report["crossClassParallelSampleComparisons"], full_cross_part_product / 50)
+        self.assertLessEqual(report["crossClassParallelCandidatePairs"],
+                             report["crossClassParallelSampleComparisons"])
+
+    def test_short_unowned_source_feature_is_recovered_as_connector(self):
+        lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
+                 LineString([(55, 0), (100, 0)])]
+        connected, report = self.connect(
+            lines, LineString([(0, 0), (100, 0)]), ["1", "1", "1"],
+            classPriority=["1"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
+        connectors = connected[connected.selectionStatus == "accepted-continuity-connector"]
+        self.assertEqual(set(connectors.sourceFeatureIndex), {1})
+        self.assertEqual(report["continuityConnectorCount"], 1)
+        self.assertEqual(report["ownershipGapCount"], 1)
+        self.assertEqual(report["connectorGraphSearchCount"], 1)
+        self.assertEqual(report["connectorCandidateEdgeCount"], 1)
+        self.assertAlmostEqual(connected.geometry.union_all().length, 100)
+
+    def test_wrong_class_connector_is_not_reintroduced(self):
+        lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
+                 LineString([(55, 0), (100, 0)])]
+        connected, report = self.connect(
+            lines, LineString([(0, 0), (100, 0)]), ["1", "3", "1"],
+            classPriority=["1", "3"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
+        self.assertNotIn("accepted-continuity-connector", set(connected.selectionStatus))
+        self.assertGreater(report["continuityUnresolvedGapCount"], 0)
+
+    def test_direct_parent_junction_uses_no_graph_search(self):
+        connected, report = self.connect(
+            [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (100, 0)])],
+            LineString([(0, 0), (100, 0)]), ["1", "1"],
+            classPriority=["1"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
+        self.assertEqual(report["directSourceJunctionCount"], 1)
+        self.assertEqual(report["connectorGraphSearchCount"], 0)
+        self.assertAlmostEqual(connected.geometry.union_all().length, 100)
 
     def test_selected_run_exposes_required_provenance(self):
         accepted, diagnostics, _ = select([LineString([(0, 0), (100, 0)])],

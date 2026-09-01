@@ -51,6 +51,14 @@ DEFAULT_NETWORK_SELECTION = {
     "maximumOwnershipBridgeSamples": 2,
     "maximumJunctionExtensionMeters": 35.0,
     "ownershipContinuityIterations": 4,
+    # Separate OSM parts may be the two sides of a divided road.  A sustained
+    # cross-class match across nearby, parallel parts is competition for the
+    # same route interval, not evidence for another carriageway.
+    "crossClassParallelSearchMeters": 50.0,
+    "crossClassParallelMinimumSamples": 6,
+    "continuityMaximumIntermediateFeatures": 2,
+    "continuityReferenceWindowBufferMeters": 10.0,
+    "continuityCorridorSafetyMarginMeters": 5.0,
     "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
@@ -615,6 +623,36 @@ def _source_junctions(first: LineString, second: LineString, tolerance: float) -
     return list(dict.fromkeys((round(a, 9), round(b, 9)) for a, b in junctions))
 
 
+def _edge_adjacency(edges: list[int], geometries: list[LineString], tolerance: float) -> dict[int, set[int]]:
+    """Build reasoning-only topology for a small, already gap-local edge set."""
+    adjacency = {edge: set() for edge in edges}
+    for position, first in enumerate(edges):
+        for second in edges[position + 1:]:
+            if _source_junctions(geometries[first], geometries[second], tolerance):
+                adjacency[first].add(second)
+                adjacency[second].add(first)
+    return adjacency
+
+
+def _graph_path(adjacency: dict[int, set[int]], start: int, finish: int,
+                maximum_intermediate: int) -> list[list[int]]:
+    """Return bounded simple paths in an already gap-local source graph."""
+    paths = []
+
+    def visit(edge, path):
+        if len(path) - 2 > maximum_intermediate:
+            return
+        if edge == finish:
+            paths.append(path)
+            return
+        for following in adjacency.get(edge, ()):
+            if following not in path:
+                visit(following, [*path, following])
+
+    visit(start, [start])
+    return paths
+
+
 def _neighbor_runs(runs: list[dict], index: int, maximum_gap: int) -> tuple[dict | None, dict | None]:
     previous = runs[index - 1] if index else None
     following = runs[index + 1] if index + 1 < len(runs) else None
@@ -654,6 +692,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     samples_by_part = [_sample_reference(part, interval) for part in parts]
     owners = [[None] * len(points) for _, points in samples_by_part]
     reassigned_from = [[None] * len(points) for _, points in samples_by_part]
+    cross_class_parallel_rejections = 0
     geometries = list(frame.geometry)
     edge_classes = frame.N13_003.astype(str).tolist()
     source_feature_indices = frame.sourceFeatureIndex.tolist()
@@ -763,6 +802,65 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 changed = True
         if not changed:
             break
+
+    # Reference parts are deliberately solved independently so that two real
+    # carriageways can choose two distinct N13 atoms.  Reconcile only sustained
+    # *cross-class* ownership on nearby parallel parts afterwards.  In
+    # particular, do not deduplicate same-class winners: those are the normal
+    # divided-road case.  Requiring a run also leaves the small geometric
+    # overlap around a genuine longitudinal class handoff alone.
+    parallel_distance = float(settings["crossClassParallelSearchMeters"])
+    parallel_minimum = int(settings["crossClassParallelMinimumSamples"])
+    reference_sample_records = [(part_index, sample_index, sample)
+                                for part_index, (_, samples) in enumerate(samples_by_part)
+                                for sample_index, sample in enumerate(samples)]
+    reference_sample_index = gpd.GeoSeries(
+        [sample for _, _, sample in reference_sample_records], crs=METRIC_CRS).sindex
+    cross_class_parallel_sample_comparisons = 0
+    cross_class_parallel_candidate_pairs = 0
+    conflict_masks = [[False] * len(points) for _, points in samples_by_part]
+    for part_index, (_, samples) in enumerate(samples_by_part):
+        for sample_index, sample in enumerate(samples):
+            edge = owners[part_index][sample_index]
+            if edge is None:
+                continue
+            edge_rank = rank.get(edge_classes[edge], len(rank))
+            query_bounds = box(sample.x - parallel_distance, sample.y - parallel_distance,
+                               sample.x + parallel_distance, sample.y + parallel_distance)
+            nearby_positions = map(int, reference_sample_index.query(query_bounds))
+            for position in nearby_positions:
+                other_part, other_index, other_sample = reference_sample_records[position]
+                if other_part == part_index:
+                    continue
+                cross_class_parallel_sample_comparisons += 1
+                if sample.distance(other_sample) > parallel_distance:
+                    continue
+                cross_class_parallel_candidate_pairs += 1
+                other_edge = owners[other_part][other_index]
+                if other_edge is None or edge_classes[other_edge] == edge_classes[edge]:
+                    continue
+                mismatch = _angle_difference(reference_vectors[part_index][sample_index],
+                                             reference_vectors[other_part][other_index])
+                if (mismatch <= maximum_angle
+                        and edge_rank > rank.get(edge_classes[other_edge], len(rank))):
+                    conflict_masks[part_index][sample_index] = True
+                    break
+    for part_index, mask in enumerate(conflict_masks):
+        start = 0
+        while start < len(mask):
+            if not mask[start]:
+                start += 1
+                continue
+            end = start + 1
+            while end < len(mask) and mask[end]:
+                end += 1
+            if end - start >= parallel_minimum:
+                for sample_index in range(start, end):
+                    edge = owners[part_index][sample_index]
+                    reassigned_from[part_index][sample_index] = int(source_feature_indices[edge])
+                    owners[part_index][sample_index] = None
+                    cross_class_parallel_rejections += 1
+            start = end
 
     # Heal a tiny disturbance on one original atom before extracting substrings.
     for part_owners in owners:
@@ -879,6 +977,9 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "sourceConnectedRunTransitions": connected_transitions,
               "sourceDisconnectedRunTransitions": disconnected_transitions,
               "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
+              "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
+              "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
+              "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
               "rejectedCount": int(frame.selectionStatus.str.startswith("rejected-").sum()),
               "rejectionReasonCounts": {key: value for key, value in counts.items() if key.startswith("rejected-")},
@@ -889,6 +990,197 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                   for index in range(len(parts))], "repairedGaps": [], "parameters": settings}
     frame.attrs["ownershipSamples"] = gpd.GeoDataFrame.from_features(ownership_features, crs=METRIC_CRS)
     return accepted, frame, report
+
+
+def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates: gpd.GeoDataFrame,
+                                   osm_reference, config: dict | None = None):
+    """Recover unambiguous source-native pieces between consecutive owned runs."""
+    settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
+    if selected.empty:
+        return selected.copy(), {"continuityConnectorCount": 0,
+                                 "continuityConnectorLengthMeters": 0.0,
+                                 "continuityUnresolvedGapCount": 0, "ownershipGapCount": 0,
+                                 "directSourceJunctionCount": 0, "sameSourceMergeCount": 0,
+                                 "connectorGraphSearchCount": 0, "connectorCandidateEdgeCount": 0,
+                                 "continuityConnectors": []}
+    tolerance = float(settings["endpointSnapMeters"])
+    corridor = (float(settings["maximumSampleDistanceMeters"])
+                + float(settings["continuityCorridorSafetyMarginMeters"]))
+    maximum_length = float(settings["maximumGapConnectorMeters"])
+    maximum_detour = float(settings["maximumGapDetourRatio"])
+    maximum_edges = int(settings.get("continuityMaximumIntermediateFeatures", 2))
+    window_buffer = float(settings.get("continuityReferenceWindowBufferMeters",
+                                       settings["progressSampleMeters"] * 2))
+    parts = _ordered_reference_parts(osm_reference)
+    source = stage1_candidates.copy()
+    source["_connectorSourceFeatureIndex"] = (source["sourceFeatureIndex"]
+                                               if "sourceFeatureIndex" in source else source.index)
+    exploded = source.explode(index_parts=True)
+    atom_indices = (exploded.index.get_level_values(-1).to_numpy()
+                    if isinstance(exploded.index, pd.MultiIndex) else np.zeros(len(exploded), dtype=int))
+    source = exploded.reset_index(drop=True)
+    source["sourceFeatureIndex"] = source.pop("_connectorSourceFeatureIndex")
+    if "sourceAtomIndex" not in source:
+        source["sourceAtomIndex"] = atom_indices
+    source_classes = source.N13_003.astype(str).tolist()
+    source_geometries = list(source.geometry)
+    source_index = source.geometry.sindex
+    result = selected.copy().reset_index(drop=True)
+    decisions = []
+    connector_rows = []
+    unresolved = 0
+    ownership_gap_count = 0
+    direct_junction_count = 0
+    same_source_merge_count = 0
+    graph_search_count = 0
+    connector_candidate_edge_count = 0
+
+    def atom(row):
+        matches = source[(source.sourceFeatureIndex == row.sourceFeatureIndex)
+                         & (source.sourceAtomIndex == row.sourceAtomIndex)]
+        return int(matches.index[0]) if not matches.empty else None
+
+    def extend(row_index, position):
+        parent = source_geometries[atom(result.loc[row_index])]
+        start = min(float(result.at[row_index, "sourceStartDistanceMeters"]), position)
+        end = max(float(result.at[row_index, "sourceEndDistanceMeters"]), position)
+        result.at[row_index, "sourceStartDistanceMeters"] = start
+        result.at[row_index, "sourceEndDistanceMeters"] = end
+        result.at[row_index, "geometry"] = substring(parent, start, end)
+
+    for part_index, reference_part in enumerate(parts):
+        ordered = list(result[result.referencePart == part_index].sort_values(
+            ["ownedReferenceStartMeters", "ownedReferenceEndMeters"]).index)
+        for upstream_index, downstream_index in zip(ordered, ordered[1:]):
+            if upstream_index not in result.index or downstream_index not in result.index:
+                continue
+            upstream = result.loc[upstream_index]
+            downstream = result.loc[downstream_index]
+            gap_start = float(upstream.ownedReferenceEndMeters)
+            gap_end = float(downstream.ownedReferenceStartMeters)
+            gap = max(0.0, gap_end - gap_start)
+            if gap <= 1e-9:
+                continue
+            ownership_gap_count += 1
+            base = {"upstreamSourceFeatureIndex": int(upstream.sourceFeatureIndex),
+                    "downstreamSourceFeatureIndex": int(downstream.sourceFeatureIndex),
+                    "referencePart": part_index, "referenceGapStartMeters": round(gap_start, 3),
+                    "referenceGapEndMeters": round(gap_end, 3), "referenceGapMeters": round(gap, 3)}
+            if gap > maximum_length:
+                unresolved += 1
+                decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+                                  "decision": "unresolved-gap-too-long"})
+                continue
+            upstream_atom, downstream_atom = atom(upstream), atom(downstream)
+            if upstream_atom is None or downstream_atom is None:
+                unresolved += 1
+                decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+                                  "decision": "unresolved-missing-parent"})
+                continue
+            if upstream_atom == downstream_atom:
+                source_gap = max(0.0, float(downstream.sourceStartDistanceMeters)
+                                 - float(upstream.sourceEndDistanceMeters))
+                if source_gap <= maximum_length and source_gap / max(gap, 1.0) <= maximum_detour:
+                    extend(upstream_index, float(downstream.sourceStartDistanceMeters))
+                    extend(upstream_index, float(downstream.sourceEndDistanceMeters))
+                    result = result.drop(index=downstream_index)
+                    decisions.append({**base, "connectorSourceFeatureIndices": [],
+                                      "connectorClasses": [str(upstream.N13_003)],
+                                      "connectorLengthMeters": round(source_gap, 3),
+                                      "connectorDetourRatio": round(source_gap / max(gap, 1.0), 3),
+                                      "decision": "accepted-same-source-range"})
+                    same_source_merge_count += 1
+                    continue
+            direct = _source_junctions(source_geometries[upstream_atom],
+                                       source_geometries[downstream_atom], tolerance)
+            if direct:
+                first, second = min(direct, key=lambda pair:
+                    abs(pair[0] - float(upstream.sourceEndDistanceMeters))
+                    + abs(pair[1] - float(downstream.sourceStartDistanceMeters)))
+                extend(upstream_index, first)
+                extend(downstream_index, second)
+                decisions.append({**base, "connectorSourceFeatureIndices": [],
+                                  "connectorClasses": sorted({str(upstream.N13_003), str(downstream.N13_003)}),
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": 0.0,
+                                  "decision": "accepted-direct-source-junction"})
+                direct_junction_count += 1
+                continue
+
+            gap_line = substring(reference_part, max(0.0, gap_start - window_buffer),
+                                 min(reference_part.length, gap_end + window_buffer))
+            nearby = list(map(int, source_index.query(gap_line.buffer(corridor))))
+            allowed_classes = {str(upstream.N13_003), str(downstream.N13_003)}
+            selected_atoms = {atom(row) for _, row in result.iterrows()}
+            pool = []
+            for edge in nearby:
+                geometry = source_geometries[edge]
+                projections = [float(reference_part.project(Point(coordinate))) for coordinate in geometry.coords]
+                if (edge not in selected_atoms and source_classes[edge] in allowed_classes
+                        and geometry.distance(gap_line) <= corridor
+                        and min(projections) >= gap_start - window_buffer
+                        and max(projections) <= gap_end + window_buffer):
+                    pool.append(edge)
+            graph_search_count += 1
+            connector_candidate_edge_count += len(pool)
+            local_edges = [upstream_atom, *pool, downstream_atom]
+            adjacency = _edge_adjacency(local_edges, source_geometries, tolerance)
+            graph_paths = _graph_path(adjacency, upstream_atom, downstream_atom, maximum_edges)
+            plausible = []
+            for graph_path in graph_paths:
+                path = graph_path[1:-1]
+                length = sum(source_geometries[edge].length for edge in path)
+                ratio = length / max(gap, 1.0)
+                midpoints = [float(reference_part.project(geometry.interpolate(geometry.length / 2)))
+                             for geometry in (source_geometries[edge] for edge in path)]
+                monotonic = all(second + window_buffer >= first
+                                for first, second in zip(midpoints, midpoints[1:]))
+                progress = sum(abs(float(reference_part.project(Point(geometry.coords[-1])))
+                                   - float(reference_part.project(Point(geometry.coords[0]))))
+                               for geometry in (source_geometries[edge] for edge in path))
+                if (length <= maximum_length and ratio <= maximum_detour and monotonic
+                        and progress / max(length, 1.0) >= float(settings["minimumProgressRatio"])):
+                    plausible.append((path, length, ratio))
+            if len(plausible) != 1:
+                unresolved += 1
+                decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
+                                  "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+                                  "decision": "unresolved-ambiguous" if len(plausible) > 1 else "unresolved-no-path"})
+                continue
+            path, length, ratio = plausible[0]
+            first_junction = _source_junctions(source_geometries[upstream_atom], source_geometries[path[0]], tolerance)[0]
+            last_junction = _source_junctions(source_geometries[path[-1]], source_geometries[downstream_atom], tolerance)[0]
+            extend(upstream_index, first_junction[0])
+            extend(downstream_index, last_junction[1])
+            for edge in path:
+                row = source.loc[edge].copy()
+                row["selectionStatus"] = row["selectionReason"] = "accepted-continuity-connector"
+                row["referencePart"] = part_index
+                row["ownedReferenceStartMeters"] = gap_start
+                row["ownedReferenceEndMeters"] = gap_end
+                connector_rows.append(row)
+            decisions.append({**base,
+                              "connectorSourceFeatureIndices": [int(source.at[edge, "sourceFeatureIndex"]) for edge in path],
+                              "connectorClasses": sorted({source_classes[edge] for edge in path}),
+                              "connectorLengthMeters": round(length, 3),
+                              "connectorDetourRatio": round(ratio, 3), "decision": "accepted-connector"})
+    if connector_rows:
+        result = gpd.GeoDataFrame(pd.concat(
+            [result, gpd.GeoDataFrame(connector_rows, crs=selected.crs)], ignore_index=True), crs=selected.crs)
+    connector_length = sum(item["connectorLengthMeters"] for item in decisions
+                           if item["decision"] in {"accepted-connector", "accepted-same-source-range"})
+    connector_count = sum(item["decision"] in {"accepted-connector", "accepted-same-source-range"}
+                          for item in decisions)
+    return result, {"continuityConnectorCount": connector_count,
+                    "continuityConnectorLengthMeters": round(connector_length, 3),
+                    "continuityUnresolvedGapCount": unresolved,
+                    "ownershipGapCount": ownership_gap_count,
+                    "directSourceJunctionCount": direct_junction_count,
+                    "sameSourceMergeCount": same_source_merge_count,
+                    "connectorGraphSearchCount": graph_search_count,
+                    "connectorCandidateEdgeCount": connector_candidate_edge_count,
+                    "continuityConnectors": decisions}
 
 
 def write_selection_diagnostics(frame: gpd.GeoDataFrame, output: Path) -> None:
@@ -962,6 +1254,14 @@ def main() -> None:
     selected, selection_diagnostics, network_report = select_reference_network(stage1, reference, network_config)
     if selected.empty:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
+    selected, connector_report = connect_adjacent_selected_runs(selected, stage1, reference, network_config)
+    network_report.update(connector_report)
+    connector_ids = set(selected.loc[selected.selectionStatus == "accepted-continuity-connector",
+                                     "sourceFeatureIndex"])
+    if connector_ids:
+        connector_mask = selection_diagnostics.sourceFeatureIndex.isin(connector_ids)
+        selection_diagnostics.loc[connector_mask, ["selectionStatus", "selectionReason"]] = \
+            "accepted-continuity-connector"
     diagnostic_output = args.diagnostics or Path("data/diagnostics") / f"{road['id']}-selection.geojson"
     write_selection_diagnostics(selection_diagnostics, diagnostic_output)
     for road_class, values in class_diagnostics.items():
