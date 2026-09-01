@@ -742,10 +742,16 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
                       "detourRatio": round(detour, 3), "maxResidualMeters": round(max_residual, 3)}
             if not consistent:
                 report["decision"] = "retained-uncertain-reference-parts"; branch_reports.append(report); continue
+            unique = _interval_unique_length(int(subset.referencePart.iloc[0]), low, high, set(path), frame, active)
+            growing_residual = max_residual > max(5.0, float(subset.medianResidualMeters.median()) * 1.5)
+            if dangling and unique < float(settings["sampleIntervalMeters"]) * 2 and growing_residual:
+                report["decision"] = "rejected"; report["rejectionReason"] = "dangling-spur"
+                for edge in path:
+                    rejected[edge] = ("dangling-spur", report)
+                active.difference_update(path); removed = True; break
             if not poor:
                 if reconnecting: retained_alternatives.add(tuple(path))
                 report["decision"] = "retained-plausible"; branch_reports.append(report); continue
-            unique = _interval_unique_length(int(subset.referencePart.iloc[0]), low, high, set(path), frame, active)
             meaningful = min(span * .25, 20.0) if span else 0.0
             if unique >= max(float(settings["sampleIntervalMeters"]) * 2, meaningful):
                 protected_paths.add(tuple(path)); report["decision"] = "protected-unique-coverage"
@@ -789,6 +795,18 @@ def _edge_adjacency(lines: list[LineString], tolerance: float) -> dict[int, set[
                 adjacency[edge].add(other)
                 adjacency[other].add(edge)
     return adjacency
+
+
+def _attachment_junction_count(component: set[int], selected: set[int], frame, tolerance: float) -> int:
+    """Count physical attachment locations, not adjacent backbone edge IDs."""
+    points = []
+    for edge in component:
+        for coordinate in (frame.iloc[edge].geometry.coords[0], frame.iloc[edge].geometry.coords[-1]):
+            point = Point(coordinate)
+            if any(frame.iloc[other].geometry.distance(point) <= tolerance for other in selected):
+                if not any(point.distance(existing) <= tolerance for existing in points):
+                    points.append(point)
+    return len(points)
 
 
 def _edge_cost(row) -> float:
@@ -1013,6 +1031,18 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             gap_repair.update(connector[1:-1])
         gap_repair.update(_repair_internal_gaps(inference, frame, adjacency, settings, path_cache))
     selected = {edge for edge, support_parts in membership.items() if support_parts} | gap_repair
+    # Preserve awkward source connectors that join two chosen backbone edges.
+    # This is the legacy single-class behavior; hierarchical locked-domain
+    # filtering happens before this selector and cannot be crossed here.
+    for edge in frame.index:
+        selected_neighbors = adjacency[edge] & (selected - {edge})
+        connector_like = (float(frame.iloc[edge].progressRatio) < float(settings["minimumProgressRatio"])
+                          or float(frame.iloc[edge].maxResidualMeters) >
+                              float(settings["maximumSampleDistanceMeters"]))
+        if (len(selected_neighbors) >= 2 and connector_like
+                and float(frame.iloc[edge].geometry.length) <= float(settings["maximumTransitionPathMeters"])):
+            gap_repair.add(edge)
+    selected |= gap_repair
     frame["candidateReferenceSampleCount"] = [sample_support[edge] for edge in frame.index]
     frame["selectedReferenceSampleCount"] = [selected_sample_support[edge] for edge in frame.index]
     frame["emissionCost"] = [round(minimum_emission[edge], 3) if math.isfinite(minimum_emission[edge]) else None
@@ -1040,10 +1070,11 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                     rejected.remove(other)
                     component.add(other)
                     frontier.append(other)
-        attachments = set().union(*(adjacency[edge] & selected for edge in component))
-        if len(attachments) >= 2:
+        attachment_junctions = _attachment_junction_count(
+            component, selected, frame, float(settings["endpointSnapMeters"]))
+        if attachment_junctions >= 2:
             reason = "rejected-detour"
-        elif len(attachments) == 1:
+        elif attachment_junctions == 1:
             reason = "rejected-spur"
         elif any(sample_support[edge] for edge in component):
             reason = "rejected-redundant-parallel"
@@ -1075,20 +1106,27 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     return accepted, frame, report
 
 
-def _merge_sample_runs(samples: list[dict], road_class: str, settings) -> list[dict]:
-    """Turn confidently owned reference samples into substantial lock runs."""
+def _geometry_coverage_runs(selected, parts: list[LineString], road_class: str, settings) -> list[dict]:
+    """Build locks from actual selected-geometry coverage of reference samples."""
     runs = []
-    maximum_gap = float(settings["maximumClassLockGapMeters"]) + float(settings["progressSampleMeters"])
-    for part in sorted({sample["referencePart"] for sample in samples}):
-        offsets = sorted(sample["referenceChainageMeters"] for sample in samples
-                         if sample["referencePart"] == part
-                         and sample["lockEligible"]
-                         and sample["distanceMeters"] <= float(settings["classLockSupportDistanceMeters"]))
+    if selected.empty:
+        return runs
+    maximum_gap = float(settings["maximumClassLockGapMeters"])
+    for part_index, part in enumerate(parts):
+        part_selected = selected[(selected["referencePart"] == part_index)
+                                 & selected["referencePartConsistent"].astype(bool)]
+        if part_selected.empty:
+            continue
+        selected_union = part_selected.geometry.union_all()
+        offsets, samples = _sample_reference(part, float(settings["progressSampleMeters"]))
+        offsets = [float(offset) for offset, sample in zip(offsets, samples)
+                   if selected_union.distance(sample) <= float(settings["classLockSupportDistanceMeters"])]
         for offset in offsets:
-            if runs and runs[-1]["referencePart"] == part and offset - runs[-1]["referenceEndMeters"] <= maximum_gap:
+            if (runs and runs[-1]["referencePart"] == part_index
+                    and offset - runs[-1]["referenceEndMeters"] <= maximum_gap):
                 runs[-1]["referenceEndMeters"] = offset
             else:
-                runs.append({"referencePart": part, "referenceStartMeters": offset,
+                runs.append({"referencePart": part_index, "referenceStartMeters": offset,
                              "referenceEndMeters": offset, "resolvedByClass": road_class})
     minimum = float(settings["minimumClassLockSpanMeters"])
     for run in runs:
@@ -1182,7 +1220,7 @@ def select_reference_network_hierarchical(stage1: gpd.GeoDataFrame, reference,
         selected["selectionClassPass"] = road_class
         diagnostics["selectionClassPass"] = road_class
         selected_frames.append(selected); diagnostic_frames.append(diagnostics)
-        runs = _merge_sample_runs(report["selectedReferenceSamples"], road_class, settings)
+        runs = _geometry_coverage_runs(selected, parts, road_class, settings)
         locked_runs.extend(runs)
         pass_reports.append({"class": road_class, "candidateCount": len(candidates),
                              "admittedCount": len(admitted), "selectedCount": len(selected),

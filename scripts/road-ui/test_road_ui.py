@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import LineString
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import road_ui
 
 
