@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LAYER_IDS, SOURCE_IDS } from './config'
-import { SELECTED_POINT_RADIUS, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
+import { SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
 
 describe('project map layer contract', () => {
@@ -18,7 +18,14 @@ describe('project map layer contract', () => {
     expect(calls).toHaveLength(5)
   })
   it('starts railways and stations hidden while historical posts remain visible',()=>{
-    expect(initialLayerVisibility()).toMatchObject({railways:false,stations:false,historicalPosts:true})
+    expect(initialLayerVisibility()).toMatchObject({basemap:'presentation',railways:false,stations:false,historicalPosts:true})
+  })
+  it('switches only namespaced basemap layers without replacing the map style',()=>{
+    const calls:unknown[][]=[];const map={setLayoutProperty:(...args:unknown[])=>calls.push(args),setPaintProperty:(...args:unknown[])=>calls.push(args)}
+    setBasemapMode(map as never,'rekichizu',['osm-background'],['basemap-rekichizu-land','basemap-rekichizu-road'])
+    expect(calls).toContainEqual(['osm-background','visibility','none'])
+    expect(calls).toContainEqual(['basemap-rekichizu-road','visibility','visible'])
+    expect(map).not.toHaveProperty('setStyle')
   })
   it('keeps selected points substantially larger than both base point defaults',()=>{
     const style=initialPointOverlayStyle();expect(SELECTED_POINT_RADIUS).toBeGreaterThan(style.stations.radius*3);expect(SELECTED_POINT_RADIUS).toBeGreaterThan(style.historicalPosts.radius*3)

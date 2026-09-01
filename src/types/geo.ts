@@ -2,7 +2,7 @@ import type { Feature, Geometry } from 'geojson'
 
 export type MapEntityType = 'road' | 'historical-road' | 'place' | 'historical-place' | 'chome' | 'station' | 'railway' | 'river' | 'water' | 'terrain-feature' | 'custom'
 export type Confidence = 'high' | 'medium' | 'low' | 'unknown'
-export type BasemapMode = 'presentation' | 'dark' | 'gsi' | 'white' | 'transparent'
+export type BasemapMode = 'presentation' | 'rekichizu' | 'dark' | 'gsi' | 'white' | 'transparent'
 export interface RoadSourceGeometries { n13: Geometry; osm: Geometry }
 
 export interface EntityProperties {
