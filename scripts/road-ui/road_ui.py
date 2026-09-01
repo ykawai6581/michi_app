@@ -121,7 +121,7 @@ def project_catalog(root: Path = ROOT) -> dict:
               "built": (root / "public/data/roads" / f"{road['id']}-n13.geojson").is_file()}
              for road in registry.get("roads", [])]
     codh_index = root / "data/cache/codh/edo-roads/index.json"
-    rail_paths = [root / "data/cache/osm/rail/tracks.parquet", root / "data/cache/osm/rail/stations.parquet"]
+    rail_paths = [root / "data/cache/osm/rail" / name for name in ("tracks.parquet", "stations.parquet", "routes.parquet", "route-members.parquet")]
     historical = []
     if codh_index.is_file():
         try:

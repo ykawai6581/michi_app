@@ -18,6 +18,8 @@ class ProjectBuilderTest(unittest.TestCase):
         (self.root / "public/data/roads/road-a-n13.geojson").write_text(json.dumps({"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[[139.1,35.1],[139.2,35.2]]}}]}))
         (self.root / "public/data/roads/road-b-n13.geojson").write_text(json.dumps({"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[[139.7,35.4],[139.8,35.5]]}}]}))
         self.write_parquet("data/cache/osm/rail/tracks.parquet", [{"osm_element_id":"1","name:ja":"中央本線","operator":"JR東日本"},{"osm_element_id":"2","name:ja":"中央本線","operator":"JR東日本"},{"osm_element_id":"3","name:ja":"別線","operator":"別会社"}], [LineString([(139.1,35.1),(139.2,35.2)]),LineString([(139.1,35.11),(139.2,35.21)]),LineString([(141,37),(142,38)])])
+        self.write_parquet("data/cache/osm/rail/routes.parquet", [{"railRouteId":"osm-railway-relation:100","name:ja":"中央本線","identitySource":"route-relation"},{"railRouteId":"osm-railway-relation:200","name:ja":"遠方線","identitySource":"route-relation"}], [LineString([(139.11,35.1),(145,40)]),LineString([(150,45),(151,46)])])
+        self.write_parquet("data/cache/osm/rail/route-members.parquet", [{"railRouteId":"osm-railway-relation:100","osm_way_id":"1","memberOrder":0,"memberRole":""},{"railRouteId":"osm-railway-relation:100","osm_way_id":"2","memberOrder":1,"memberRole":""}], [LineString([(139.1,35.1),(139.2,35.2)]),LineString([(139.1,35.11),(139.2,35.21)])])
         self.write_parquet("data/cache/osm/rail/stations.parquet", [{"osm_element_id":"10","name":"Demo Station"},{"osm_element_id":"11","name":"Far"}], [Point(139.3,35.3),Point(141,37)])
         roads=[{"routeId":"R003","name":"甲州道中","altName":"甲州街道","start":"江戸","end":"下諏訪","entityType":"historical-road"},{"routeId":"R004","name":"Other","entityType":"historical-road"}]
         self.write_parquet("data/cache/codh/edo-roads/roads.parquet", roads, [LineString([(139.1,35.1),(139.5,35.5)]),LineString([(130,30),(131,31)])])
@@ -75,13 +77,22 @@ class ProjectBuilderTest(unittest.TestCase):
         output=self.root/"output"; manifest=materialize_project(self.root,"demo",output)
         entities=json.loads((output/"search/entities.json").read_text()); self.assertEqual({e["entityType"] for e in entities},{"modern-road","railway","railway-station","historical-road","historical-post"})
         rail=[entity for entity in entities if entity["entityType"]=="railway"]
-        self.assertEqual(len(rail),1); self.assertEqual(rail[0]["displayName"],"中央本線")
+        self.assertEqual(len(rail),1); self.assertEqual(rail[0]["displayName"],"中央本線"); self.assertEqual(rail[0]["identitySource"],"route-relation")
         for key,path in manifest["outputs"].items():
             if key == "search": continue
             count=len(json.loads((output/path).read_text())["features"])
             manifest_key={"railways":"railwayTracks","historicalRoads":"historicalRoadFeatures"}.get(key,key)
             self.assertEqual(count,manifest["featureCounts"][manifest_key])
         self.assertEqual(manifest["bounds"],self.config["bounds"]); self.assertEqual(manifest["boundsSource"],{"mode":"explicit"})
+        self.assertEqual(manifest["featureCounts"]["railwayRoutes"],1)
+
+    def test_near_road_selects_full_unclipped_route(self):
+        self.write_config({**self.config,"layers":{**self.config["layers"],"railways":{"mode":"near-modern-roads","distanceKm":3}}})
+        output=self.root/"near"; manifest=materialize_project(self.root,"demo",output)
+        routes=json.loads((output/"data/railway-routes.geojson").read_text())["features"]
+        self.assertEqual([r["properties"]["name:ja"] for r in routes],["中央本線"])
+        self.assertEqual(routes[0]["geometry"]["coordinates"][-1],[145.0,40.0])
+        self.assertEqual(manifest["railwaySelection"],{"mode":"near-modern-roads","distanceKm":3})
     def test_auto_manifest_and_bbox_layers_use_resolved_bounds(self):
         config={**self.config,"bounds":{"mode":"auto","from":"modernRoads","paddingKm":3}}; self.write_config(config)
         manifest=materialize_project(self.root,"demo",self.root/"auto-output")

@@ -106,7 +106,11 @@ def overpass_features(document: dict) -> list[dict]:
                      for member in element["members"] if member.get("geometry")]
             if lines:
                 geometry = {"type": "MultiLineString", "coordinates": lines}
-        if geometry:
+        if element.get("type") == "relation":
+            properties = dict(element.get("tags", {}))
+            properties.update(osm_element_type="relation", osm_element_id=element.get("id"), osm_members=element.get("members", []))
+            features.append({"type": "Feature", "id": f"relation/{element.get('id')}", "properties": properties, "geometry": geometry})
+        elif geometry:
             properties = dict(element.get("tags", {}))
             properties.update(osm_element_type=element.get("type"), osm_element_id=element.get("id"))
             features.append({"type": "Feature", "id": f"{element.get('type')}/{element.get('id')}", "properties": properties, "geometry": geometry})

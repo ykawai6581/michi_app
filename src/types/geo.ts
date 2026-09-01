@@ -25,6 +25,10 @@ export interface EntityProperties {
   highway?: string
   railGroupId?: string
   railDisplayName?: string
+  railRouteId?: string
+  railRouteIds?: string[]
+  memberWayIds?: string[]
+  osm_way_id?: string | number
   routeId?: string
   postId?: string
   historicalLabel?: string
