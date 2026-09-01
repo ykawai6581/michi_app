@@ -140,6 +140,14 @@ class BranchPruningTests(unittest.TestCase):
         self.assertEqual(len(retained), 2)
         self.assertEqual(rejected.iloc[0].rejectionReason, "dangling-spur")
 
+    def test_moderate_residual_shallow_stem_is_rejected_without_residual_growth(self):
+        reference = LineString([(0, 0), (150, 0)])
+        retained, rejected, _ = prune([
+            LineString([(0, 0), (60, 0)]), LineString([(60, 0), (150, 0)]),
+            LineString([(60, 0), (70, 5), (120, 5)])], reference)
+        self.assertEqual(set(retained.sourceFeatureIndex), {0, 1})
+        self.assertEqual(rejected.iloc[0].rejectionReason, "dangling-spur")
+
 
 class NetworkSelectionTests(unittest.TestCase):
     def test_hierarchical_a_shinjuku_parallel_stem_is_outside_fallback_domain(self):
@@ -200,6 +208,16 @@ class NetworkSelectionTests(unittest.TestCase):
             LineString([(50, 0), (50, 20)])], LineString([(0, 0), (100, 0)]))
         self.assertEqual(len(accepted), 2)
         self.assertEqual(diagnostic.iloc[2].selectionStatus, "rejected-spur")
+
+    def test_t_spur_two_adjacent_edges_are_one_physical_attachment(self):
+        accepted, diagnostic, _ = select([
+            LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)]),
+            LineString([(50, 0), (50, 20)])], LineString([(0, 0), (100, 0)]))
+        spur = diagnostic.iloc[2]
+        self.assertEqual(spur.gapRepairAdjacentEdgeCount, 2)
+        self.assertEqual(spur.gapRepairAttachmentJunctionCount, 1)
+        self.assertFalse(spur.gapRepairMembership)
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
 
     def test_straight_road_rejects_diagonal_spur(self):
         accepted, diagnostic, _ = select([

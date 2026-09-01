@@ -743,8 +743,10 @@ def prune_selected_branches(selected_n13, osm_reference, config: dict | None = N
             if not consistent:
                 report["decision"] = "retained-uncertain-reference-parts"; branch_reports.append(report); continue
             unique = _interval_unique_length(int(subset.referencePart.iloc[0]), low, high, set(path), frame, active)
-            growing_residual = max_residual > max(5.0, float(subset.medianResidualMeters.median()) * 1.5)
-            if dangling and unique < float(settings["sampleIntervalMeters"]) * 2 and growing_residual:
+            attachment_junctions = _attachment_junction_count(
+                set(path), active - set(path), frame, float(settings["endpointSnapMeters"]))
+            report["attachmentJunctionCount"] = attachment_junctions
+            if dangling and attachment_junctions == 1 and unique < float(settings["sampleIntervalMeters"]) * 2:
                 report["decision"] = "rejected"; report["rejectionReason"] = "dangling-spur"
                 for edge in path:
                     rejected[edge] = ("dangling-spur", report)
@@ -1034,12 +1036,18 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     # Preserve awkward source connectors that join two chosen backbone edges.
     # This is the legacy single-class behavior; hierarchical locked-domain
     # filtering happens before this selector and cannot be crossed here.
+    gap_repair_adjacent_counts = {edge: 0 for edge in frame.index}
+    gap_repair_junction_counts = {edge: 0 for edge in frame.index}
     for edge in frame.index:
         selected_neighbors = adjacency[edge] & (selected - {edge})
+        attachment_junctions = _attachment_junction_count(
+            {edge}, selected - {edge}, frame, float(settings["endpointSnapMeters"]))
+        gap_repair_adjacent_counts[edge] = len(selected_neighbors)
+        gap_repair_junction_counts[edge] = attachment_junctions
         connector_like = (float(frame.iloc[edge].progressRatio) < float(settings["minimumProgressRatio"])
                           or float(frame.iloc[edge].maxResidualMeters) >
                               float(settings["maximumSampleDistanceMeters"]))
-        if (len(selected_neighbors) >= 2 and connector_like
+        if (attachment_junctions >= 2 and connector_like
                 and float(frame.iloc[edge].geometry.length) <= float(settings["maximumTransitionPathMeters"])):
             gap_repair.add(edge)
     selected |= gap_repair
@@ -1051,6 +1059,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     frame["parallelOsmSupportPart"] = [",".join(map(str, sorted(membership[edge]))) if membership[edge] else None
                                        for edge in frame.index]
     frame["gapRepairMembership"] = [edge in gap_repair for edge in frame.index]
+    frame["gapRepairAdjacentEdgeCount"] = [gap_repair_adjacent_counts[edge] for edge in frame.index]
+    frame["gapRepairAttachmentJunctionCount"] = [gap_repair_junction_counts[edge] for edge in frame.index]
     frame["n13Class"] = frame["N13_003"].astype(str)
     for edge in selected:
         reason = "accepted-gap-repair" if edge in gap_repair and not membership[edge] else "accepted-backbone"
