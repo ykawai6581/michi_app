@@ -122,6 +122,32 @@ class RoadBuilderTests(unittest.TestCase):
         # scalar that an existing matcher report happens to expose.
         json.dumps(response, default=str)
 
+    def test_match_preview_layers_are_atom_disjoint_and_rejected_is_filtered(self):
+        diagnostics = gpd.GeoDataFrame({
+            "n13FeatureId": ["feature-a", "feature-b"], "n13AtomId": ["a:0", "b:0"],
+            "selectionStatus": ["accepted-owned-samples", "rejected-no-owned-run"],
+            "automaticSelection": [True, False],
+            "geometry": [LineString([(0, 0), (10, 0)]), LineString([(0, 2), (10, 2)])],
+        }, crs=road_ui.MATCHER.METRIC_CRS)
+        selected = diagnostics.iloc[[0]].copy()
+        candidates = gpd.GeoDataFrame({
+            "n13FeatureId": ["feature-a", "feature-b", "feature-c"],
+            "n13AtomId": ["a:0", "b:0", "c:0"],
+            "geometry": [LineString([(0, 0), (10, 0)]), LineString([(0, 2), (10, 2)]),
+                         LineString([(0, 20), (10, 20)])],
+        }, crs=road_ui.MATCHER.METRIC_CRS)
+        layers = road_ui._match_preview_layers({
+            "selectionDiagnostics": diagnostics, "selected": selected, "candidates": candidates})
+        auto_ids = {item["properties"]["n13AtomId"] for item in layers["autoSelected"]["features"]}
+        shortlist_ids = {item["properties"]["n13AtomId"] for item in layers["unselectedShortlist"]["features"]}
+        self.assertEqual(auto_ids, {"a:0"})
+        self.assertEqual(shortlist_ids, {"b:0"})
+        self.assertFalse(auto_ids & shortlist_ids)
+        self.assertTrue(all(item["properties"]["selectionStatus"].startswith("rejected-")
+                            for item in layers["rejectedDiagnostics"]["features"]))
+        self.assertEqual({item["properties"]["n13AtomId"]
+                          for item in layers["residualRejected"]["features"]}, {"c:0"})
+
     @patch.object(road_ui, "_context")
     @patch.object(road_ui.MATCHER, "load_n13_candidates")
     @patch.object(road_ui.MATCHER, "match_n13")

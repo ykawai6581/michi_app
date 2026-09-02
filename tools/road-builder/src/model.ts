@@ -8,21 +8,25 @@ export type StatutoryNetworkChoice='national'|'prefectural'|'custom'
 export const statutoryNetworkChoice=(network?:string):StatutoryNetworkChoice=>network==='JP:national'?'national':network==='JP:prefectural'?'prefectural':'custom'
 export const applyStatutoryNetworkChoice=(reference:Road['reference'],choice:StatutoryNetworkChoice):Road['reference']=>({...reference,network:choice==='national'?'JP:national':choice==='prefectural'?'JP:prefectural':reference.network||''})
 
-export const diagnosticLayerIds=['rejected','candidates','referenceExcluded','reference','ownership','selected'] as const
+export const diagnosticLayerIds=['allCandidates','residualRejected','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected'] as const
 export type DiagnosticLayerId=typeof diagnosticLayerIds[number]
 export type LayerVisibility=Record<DiagnosticLayerId,boolean>
-export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:true,ownership:true,selected:true,candidates:false,rejected:false})
+export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,allCandidates:false,residualRejected:false})
 export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
+export const mapLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId,hasData=true):'visible'|'none'=>hasData&&visibility[id]?'visible':'none'
 export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
 
 export type PreviewStage='NO_MATCH'|'MATCH_RUNNING'|'MATCH_READY'|'MATCH_EDITED'|'CONNECT_RUNNING'|'FINAL_READY'
 export const emptyManualSelection=():ManualSelection=>({include:[],exclude:[]})
-export const toggleManualAtom=(selection:ManualSelection,atomId:string,automatic:boolean):ManualSelection=>automatic
-  ?{include:selection.include.filter(id=>id!==atomId),exclude:selection.exclude.includes(atomId)?selection.exclude.filter(id=>id!==atomId):[...selection.exclude,atomId]}
-  :{exclude:selection.exclude.filter(id=>id!==atomId),include:selection.include.includes(atomId)?selection.include.filter(id=>id!==atomId):[...selection.include,atomId]}
+export const toggleManualAtom=(selection:ManualSelection,atomId:string,automatic:boolean):ManualSelection=>{
+  if(selection.exclude.includes(atomId))return{...selection,exclude:selection.exclude.filter(id=>id!==atomId)}
+  if(selection.include.includes(atomId))return{...selection,include:selection.include.filter(id=>id!==atomId)}
+  return automatic?{include:selection.include,exclude:[...selection.exclude,atomId]}
+    :{exclude:selection.exclude,include:[...selection.include,atomId]}
+}
 export type SelectionBounds=[number,number,number,number]
 type LineGeometry={type:'LineString'|'MultiLineString';coordinates:unknown}
-type AtomFeature={properties?:{n13AtomId?:unknown}|null;geometry?:LineGeometry|null}
+type AtomFeature={properties?:Record<string,unknown>|null;geometry?:LineGeometry|null}
 type AtomCollection={features:AtomFeature[]}
 const pointInBounds=([x,y]:[number,number],[west,south,east,north]:SelectionBounds)=>x>=west&&x<=east&&y>=south&&y<=north
 const segmentIntersectsBounds=(a:[number,number],b:[number,number],bounds:SelectionBounds)=>{
@@ -49,6 +53,23 @@ export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:Selecti
 export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
   const excluded=new Set([...selection.exclude,...atomIds])
   return{include:selection.include.filter(id=>!excluded.has(id)),exclude:[...excluded]}
+}
+type ReviewCollections={autoSelected:AtomCollection;unselectedShortlist:AtomCollection}
+export const deriveManualReviewLayers=(source:ReviewCollections,selection:ManualSelection)=>{
+  const included=new Set(selection.include),excluded=new Set(selection.exclude)
+  const atom=(feature:AtomFeature)=>String(feature.properties?.n13AtomId||'')
+  const state=(feature:AtomFeature,manualSelection:string,finalCuratedSelection:boolean,selectionReason:string)=>
+    ({...feature,properties:{...(feature.properties||{}),manualSelection,finalCuratedSelection,selectionReason}})
+  const automatic=source.autoSelected.features.filter(feature=>!excluded.has(atom(feature)))
+    .map(feature=>state(feature,'none',true,'accepted-auto'))
+  const unselected=source.unselectedShortlist.features.filter(feature=>!included.has(atom(feature))&&!excluded.has(atom(feature)))
+    .map(feature=>state(feature,'none',false,'rejected-auto'))
+  const manuallyIncluded=source.unselectedShortlist.features.filter(feature=>included.has(atom(feature)))
+    .map(feature=>state(feature,'include',true,'accepted-manual'))
+  const manuallyExcluded=[...source.autoSelected.features,...source.unselectedShortlist.features]
+    .filter(feature=>excluded.has(atom(feature))).map(feature=>state(feature,'exclude',false,'rejected-manual'))
+  return{autoSelected:{features:automatic},unselectedShortlist:{features:unselected},
+    manuallyIncluded:{features:manuallyIncluded},manuallyExcluded:{features:manuallyExcluded}}
 }
 export const previewStageAfterManualEdit=(stage:PreviewStage):PreviewStage=>stage==='NO_MATCH'||stage==='MATCH_RUNNING'?stage:'MATCH_EDITED'
 export const canConnect=(stage:PreviewStage)=>stage==='MATCH_READY'||stage==='MATCH_EDITED'||stage==='FINAL_READY'

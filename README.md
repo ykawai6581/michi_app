@@ -88,6 +88,10 @@ Connect Selected → Save & Build**.
 - **Manual Review** is enabled explicitly with **Edit Selection**. A selected atom can be excluded and a Stage-1
   shortlisted atom can be included; **Undo** and **Clear manual edits** preserve the untouched automatic proposal.
   Exclusions are hard constraints and can never be resurrected by continuity reconstruction.
+- The review map uses disjoint stable-atom layers: **Auto selected**, **Unselected shortlist**, **Manually included**,
+  and **Manually excluded**. Moving an atom into a manual state removes it from its automatic layer, so visibility
+  checkboxes never reveal an identical primary-review copy underneath. **All nearby N13** and **Residual rejected**
+  remain separate, default-hidden advanced diagnostics and are never used as manual-inclusion sources.
 - **Exclude Region** provides a batch review gesture: drag a visible rectangle and every Stage-1 N13 source atom
   whose line intersects or touches it is added to the stable-ID exclusion set. The rectangle is session-only UI
   history—not a persisted geographic build rule—and the entire drag is reverted by one **Undo**. This operation is

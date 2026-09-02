@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtoms,findRegisteredRoad,initialLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtoms,findRegisteredRoad,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -18,6 +18,15 @@ describe('road form helpers',()=>{
     expect(hidden.reference).toBe(false)
     expect(layers.reference).toBe(data)
     expect(toggleLayerVisibility(hidden,'reference').reference).toBe(true)
+  })
+  it('maps every checkbox deterministically to MapLibre visibility and preserves hidden state for new data',()=>{
+    const hiddenAuto=toggleLayerVisibility(initialLayerVisibility(),'autoSelected')
+    const hiddenShortlist=toggleLayerVisibility(hiddenAuto,'unselectedShortlist')
+    expect(mapLayerVisibility(hiddenShortlist,'autoSelected')).toBe('none')
+    expect(mapLayerVisibility(hiddenShortlist,'unselectedShortlist')).toBe('none')
+    expect(mapLayerVisibility(toggleLayerVisibility(hiddenShortlist,'reference'),'reference')).toBe('none')
+    expect(mapLayerVisibility(hiddenShortlist,'autoSelected',true)).toBe('none')
+    expect(mapLayerVisibility(initialLayerVisibility(),'autoSelected',false)).toBe('none')
   })
   it('models New road diagnostics as independently clearable state',()=>{
     const cleared=emptyDiagnosticState()
@@ -61,5 +70,19 @@ describe('road form helpers',()=>{
   it('a region exclusion wins over a previous manual include as one atomic state update',()=>{
     expect(excludeManualAtoms({include:['crosses','safe'],exclude:['old']},['crosses','new']))
       .toEqual({include:['safe'],exclude:['old','crosses','new']})
+  })
+  it('derives mutually disjoint review layers and restores automatic placement on undo',()=>{
+    const feature=(id:string,automaticSelection:boolean)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})
+    const source={autoSelected:{features:[feature('auto',true)]},unselectedShortlist:{features:[feature('alternative',false)]}}
+    const edited=deriveManualReviewLayers(source,{include:['alternative'],exclude:['auto']})
+    expect(edited.autoSelected.features).toEqual([])
+    expect(edited.unselectedShortlist.features).toEqual([])
+    expect(edited.manuallyIncluded.features.map(item=>item.properties?.n13AtomId)).toEqual(['alternative'])
+    expect(edited.manuallyExcluded.features.map(item=>item.properties?.n13AtomId)).toEqual(['auto'])
+    expect(edited.manuallyIncluded.features[0].properties?.selectionReason).toBe('accepted-manual')
+    expect(edited.manuallyExcluded.features[0].properties?.selectionReason).toBe('rejected-manual')
+    const restored=deriveManualReviewLayers(source,emptyManualSelection())
+    expect(restored.autoSelected.features.map(item=>item.properties?.n13AtomId)).toEqual(['auto'])
+    expect(restored.unselectedShortlist.features.map(item=>item.properties?.n13AtomId)).toEqual(['alternative'])
   })
 })

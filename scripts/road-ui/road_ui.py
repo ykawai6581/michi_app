@@ -321,6 +321,24 @@ def _cleanup_previews(cache: Path, road_id: str, retain: int = 5) -> None:
         shutil.rmtree(item, ignore_errors=True)
 
 
+def _match_preview_layers(result: dict) -> dict:
+    """Create cheap, atom-disjoint review layers from existing matcher frames."""
+    diagnostics = result["selectionDiagnostics"]
+    automatic_ids = set(result["selected"]["n13AtomId"].astype(str))
+    atom_ids = diagnostics["n13AtomId"].astype(str)
+    auto_selected = diagnostics[atom_ids.isin(automatic_ids)].copy()
+    unselected = diagnostics[~atom_ids.isin(automatic_ids)].copy()
+    rejected = diagnostics[diagnostics["selectionStatus"].astype(str).str.startswith("rejected-")].copy()
+    stage1_features = set(diagnostics["n13FeatureId"].astype(str))
+    candidates = result["candidates"]
+    residual_rejected = candidates[~candidates["n13FeatureId"].astype(str).isin(stage1_features)].copy()
+    return {"autoSelected": _geojson(auto_selected),
+            "unselectedShortlist": _geojson(unselected),
+            "allCandidates": _geojson(candidates),
+            "residualRejected": _geojson(residual_rejected),
+            "rejectedDiagnostics": _geojson(rejected)}
+
+
 def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CACHE,
                   progress_callback=None, preview_id: str | None = None) -> dict:
     road = validate_road(draft)
@@ -335,8 +353,8 @@ def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CA
         pickle.dump(result, output, protocol=pickle.HIGHEST_PROTOCOL)
     response = {"matchPreviewId": preview_id, "previewId": preview_id, "draftHash": draft_hash(road),
         "reference": _geojson(result["reference"]), "referenceExcluded": _geojson(result["referenceExcluded"]),
-        "candidates": _geojson(result["selectionDiagnostics"]), "residualPass": _geojson(result["residualPass"]),
-        "selected": _geojson(result["selected"]), "diagnostics": _geojson(result["selectionDiagnostics"]),
+        **_match_preview_layers(result),
+        "selectedSubstrings": _geojson(result["selected"]), "diagnostics": _geojson(result["selectionDiagnostics"]),
         "ownership": _geojson(result["ownershipSamples"]), "report": result["networkReport"],
         "sourceFingerprint": fingerprint}
     metadata_payload = {"previewId": preview_id, "roadId": road["id"], "draftHash": response["draftHash"],
