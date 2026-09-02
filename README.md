@@ -71,7 +71,8 @@ python scripts/build-project.py shinjuku
 ```
 
 Open **http://127.0.0.1:5174**. The API listens only on `http://127.0.0.1:8765`; the development Vite server proxies
-`/api` to it. The intended workflow is **New Road → Inspect OSM → Analyze N13 → Preview Match → Save & Build**.
+`/api` to it. The intended workflow is **New Road → Inspect OSM → Analyze N13 → Preview Match → Manual Review →
+Connect Selected → Save & Build**.
 
 - **Inspect OSM** resolves an unsaved draft through the canonical OSM source configuration and current N13 coverage.
   It displays the exact tag values found; selecting a discovered name explicitly adds it to the draft. It never
@@ -81,11 +82,34 @@ Open **http://127.0.0.1:5174**. The API listens only on `http://127.0.0.1:8765`;
 - Missing class partitions are read from the cache manifest. **Prepare class N** calls the existing N13 preprocessor
   for that one class and requires the manifest's raw source to still be present; no large preprocessing starts
   silently.
-- **Preview Match** passes the in-memory draft to the existing matcher functions and returns reference, candidate,
-  residual-pass, selected, and diagnostic GeoJSON without writing the registry.
+- **Preview Match** runs only the existing fast spatial/ownership matcher. It proposes N13 road identity and returns
+  the Stage-1 shortlist, automatic selection, ownership, and diagnostics without writing the registry or recovering
+  connectors. Stable geometry-derived `n13FeatureId` / `n13AtomId` values make review overrides deterministic.
+- **Manual Review** is enabled explicitly with **Edit Selection**. A selected atom can be excluded and a Stage-1
+  shortlisted atom can be included; **Undo** and **Clear manual edits** preserve the untouched automatic proposal.
+  Exclusions are hard constraints and can never be resurrected by continuity reconstruction.
+- The review map uses disjoint stable-atom layers: **Auto selected**, **Unselected shortlist**, **Manually included**,
+  and **Manually excluded**. Moving an atom into a manual state removes it from its automatic layer, so visibility
+  checkboxes never reveal an identical primary-review copy underneath. **All nearby N13** and **Residual rejected**
+  remain separate, default-hidden advanced diagnostics and are never used as manual-inclusion sources.
+  Red **Auto selected** geometry is the matcher's exact ownership-selected substrings; it is never expanded to the
+  complete parent atom. The parent `n13AtomId` remains on each substring for whole-atom exclusion, and a separate
+  default-hidden **Auto-selected source atoms** layer is available only for debugging.
+- **Exclude Region** provides a batch review gesture: drag a visible rectangle and every Stage-1 N13 source atom
+  whose line intersects or touches it is added to the stable-ID exclusion set. The rectangle is session-only UI
+  history—not a persisted geographic build rule—and the entire drag is reverted by one **Undo**. This operation is
+  immediate, does not rerun matching, and invalidates only the connected final preview.
+- **Connect Selected** applies the explicit include/exclude set, then uses topology only to restore source-native
+  same-atom ranges, direct source junctions, and conservative local same/transition-class connectors. It does not
+  rerun matching. An ambiguous, long, wrong-class, or excluded path remains unresolved rather than being guessed.
+  The first connected view shows only **Final connected** from the review geometry layers; entering Edit Selection
+  restores the review-layer presentation without changing the saved manual include/exclude state.
+- Match and final previews have separate identities. A matching-setting edit invalidates both; a manual-only edit
+  retains the expensive match preview and invalidates only the connected final preview. Manual overrides are stored
+  with the N13 manifest fingerprint and are not silently applied after the source changes.
 - **Save Road** uses the same shared validation and atomic registry writer as `add-road.py`. Editing retains unknown
-  fields because the UI round-trips the complete object. **Save & Build** saves first and invokes the existing
-  `build-road.py` pipeline with a subprocess argument array.
+  fields because the UI round-trips the complete object. **Save & Build** accepts only a current final preview and
+  atomically publishes its exact cached artifacts. It never reruns matching, manual selection, or connectivity.
 
 For a local smoke test, keep `npm run road-builder` running, confirm the editor and map load at the URL above, choose
 an existing road, and click **Inspect OSM**. A prepared N13 cache and its raw source are needed for analysis/preview.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -64,7 +65,42 @@ DEFAULT_NETWORK_SELECTION = {
     "useSpatialIndex": True,
 }
 OSM_CACHE_BOUNDS_EPSILON = 1e-7
-ROAD_BUILD_SCHEMA_VERSION = 1
+ROAD_BUILD_SCHEMA_VERSION = 2
+
+
+def _canonical_line_bytes(geometry) -> bytes:
+    """Return direction/order independent bytes for one source geometry."""
+    if geometry.geom_type == "LineString":
+        forward = geometry.wkb
+        reverse = LineString(list(geometry.coords)[::-1]).wkb
+        return min(forward, reverse)
+    if geometry.geom_type == "MultiLineString":
+        return b"".join(sorted(_canonical_line_bytes(part) for part in geometry.geoms))
+    return geometry.wkb
+
+
+def add_stable_n13_ids(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Attach persistent geometry-derived feature and atom identities.
+
+    The identifiers intentionally exclude dataframe indices and matcher metrics.
+    Multipart atoms use their own geometry hash, so dataframe and multipart
+    ordering cannot redirect a saved manual override to another source line.
+    """
+    result = frame.copy()
+    feature_ids = []
+    for _, row in result.iterrows():
+        source_id = next((str(row.get(name)) for name in ("N13_001", "N13_007", "id")
+                          if row.get(name) is not None and not pd.isna(row.get(name))), "n13")
+        payload = b"\0".join((source_id.encode(), str(row.get("N13_003", "")).encode(),
+                               _canonical_line_bytes(row.geometry)))
+        feature_ids.append("n13-" + hashlib.sha256(payload).hexdigest()[:24])
+    result["n13FeatureId"] = feature_ids
+    if "sourceAtomIndex" in result:
+        atom_indexes = result["sourceAtomIndex"].fillna(0).astype(int)
+    else:
+        atom_indexes = pd.Series([0] * len(result), index=result.index)
+    result["n13AtomId"] = [f"{feature}:{atom}" for feature, atom in zip(feature_ids, atom_indexes)]
+    return result
 
 
 def _line_parts(geometries) -> list[LineString]:
@@ -563,7 +599,7 @@ def load_n13_candidates(road: dict, source: Path, reference=None) -> gpd.GeoData
             "residualTestedCount": len(frame),
         }
         frames.append(frame)
-    result = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=METRIC_CRS)
+    result = add_stable_n13_ids(gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=METRIC_CRS))
     result.attrs["classDiagnostics"] = diagnostics
     return result
 
@@ -689,7 +725,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
-    source = stage1.copy()
+    source = add_stable_n13_ids(stage1) if "n13FeatureId" not in stage1 else stage1.copy()
     source["_ownershipSourceFeatureIndex"] = (source["sourceFeatureIndex"] if "sourceFeatureIndex" in source
                                                else source.index)
     exploded = source.explode(index_parts=True)
@@ -699,6 +735,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     frame["sourceFeatureIndex"] = frame.pop("_ownershipSourceFeatureIndex")
     if "sourceAtomIndex" not in frame:
         frame["sourceAtomIndex"] = atom_indices
+    frame["n13AtomId"] = [f"{feature}:{atom}" for feature, atom in
+                           zip(frame.n13FeatureId, frame.sourceAtomIndex.astype(int))]
     parts = _ordered_reference_parts(reference)
     interval = float(settings["progressSampleMeters"])
     maximum_distance = float(settings["maximumSampleDistanceMeters"])
@@ -717,6 +755,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     geometries = list(frame.geometry)
     edge_classes = frame.N13_003.astype(str).tolist()
     source_feature_indices = frame.sourceFeatureIndex.tolist()
+    source_atom_ids = frame.n13AtomId.tolist()
     class_edges = {road_class: [edge for edge, value in enumerate(edge_classes) if value == road_class]
                    for road_class in classes}
     class_spatial_indexes = ({road_class: gpd.GeoSeries([geometries[edge] for edge in edges], crs=frame.crs).sindex
@@ -998,6 +1037,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 "referenceDistanceMeters": round(float(offset), 3), "ownershipClass": road_class,
                 "ownershipStatus": f"class-{road_class}" if road_class else "unmatched",
                 "sourceFeatureIndex": int(source_feature_indices[edge]) if edge is not None else None,
+                "n13AtomId": source_atom_ids[edge] if edge is not None else None,
                 "reassignedFromSourceFeatureIndex": reassigned_from[part_index][sample_index],
             }, "geometry": mapping(sample)})
     counts = Counter(frame.selectionReason)
@@ -1028,7 +1068,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
 
 
 def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates: gpd.GeoDataFrame,
-                                   osm_reference, config: dict | None = None):
+                                   osm_reference, config: dict | None = None,
+                                   excluded_atom_ids=frozenset(), progress_callback=None):
     """Recover unambiguous source-native pieces between consecutive owned runs."""
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if selected.empty:
@@ -1057,6 +1098,8 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
     source["sourceFeatureIndex"] = source.pop("_connectorSourceFeatureIndex")
     if "sourceAtomIndex" not in source:
         source["sourceAtomIndex"] = atom_indices
+    source["n13AtomId"] = [f"{feature}:{atom}" for feature, atom in
+                           zip(source.n13FeatureId, source.sourceAtomIndex.astype(int))]
     source_classes = source.N13_003.astype(str).tolist()
     source_geometries = list(source.geometry)
     source_index = source.geometry.sindex
@@ -1087,6 +1130,10 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
         ordered = list(result[result.referencePart == part_index].sort_values(
             ["ownedReferenceStartMeters", "ownedReferenceEndMeters"]).index)
         for upstream_index, downstream_index in zip(ordered, ordered[1:]):
+            if progress_callback:
+                progress_callback(progress=min(89, 40 + int(49 * ownership_gap_count / max(1, len(result)))),
+                                  phase="Searching local connector gaps",
+                                  completed=ownership_gap_count, total=max(1, len(result) - 1))
             if upstream_index not in result.index or downstream_index not in result.index:
                 continue
             upstream = result.loc[upstream_index]
@@ -1152,7 +1199,8 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
             for edge in nearby:
                 geometry = source_geometries[edge]
                 projections = [float(reference_part.project(Point(coordinate))) for coordinate in geometry.coords]
-                if (edge not in selected_atoms and source_classes[edge] in allowed_classes
+                if (edge not in selected_atoms and source.at[edge, "n13AtomId"] not in excluded_atom_ids
+                        and source_classes[edge] in allowed_classes
                         and geometry.distance(gap_line) <= corridor
                         and min(projections) >= gap_start - window_buffer
                         and max(projections) <= gap_end + window_buffer):
@@ -1194,6 +1242,8 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                 row["referencePart"] = part_index
                 row["ownedReferenceStartMeters"] = gap_start
                 row["ownedReferenceEndMeters"] = gap_end
+                row["upstreamN13AtomId"] = upstream.n13AtomId
+                row["downstreamN13AtomId"] = downstream.n13AtomId
                 connector_rows.append(row)
             decisions.append({**base,
                               "connectorSourceFeatureIndices": [int(source.at[edge, "sourceFeatureIndex"]) for edge in path],
@@ -1259,10 +1309,10 @@ def rebuild_search_index(registry_path: Path) -> None:
     SEARCH_INDEX.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n")
 
 
-def compute_road_build(road: dict, source_config: dict, n13_source: Path,
-                       refresh_osm: bool = False, overpass_url: str | None = None,
-                       progress_callback=None) -> dict:
-    """Compute every preview and publication artifact without writing outputs."""
+def compute_match_preview(road: dict, source_config: dict, n13_source: Path,
+                          refresh_osm: bool = False, overpass_url: str | None = None,
+                          progress_callback=None) -> dict:
+    """Run identity matching only; connectivity is deliberately a later phase."""
     def progress(value, phase, **counts):
         if progress_callback:
             progress_callback(progress=value, phase=phase, **counts)
@@ -1288,19 +1338,21 @@ def compute_road_build(road: dict, source_config: dict, n13_source: Path,
         stage1, reference, network_config, progress_callback)
     if selected.empty:
         raise RuntimeError(f"Network selection found no canonical N13 backbone for {road['id']}")
-    selected, connector_report = connect_adjacent_selected_runs(selected, stage1, reference, network_config)
-    progress(95, "Preparing preview output")
-    network_report.update(connector_report)
-    connector_ids = set(selected.loc[selected.selectionStatus == "accepted-continuity-connector", "sourceFeatureIndex"])
-    if connector_ids:
-        connector_mask = selection_diagnostics.sourceFeatureIndex.isin(connector_ids)
-        selection_diagnostics.loc[connector_mask, ["selectionStatus", "selectionReason"]] = "accepted-continuity-connector"
+    progress(95, "Preparing automatic proposal")
+    selected["automaticSelection"] = True
+    selected["manualSelection"] = "none"
+    selected["finalCuratedSelection"] = True
+    selected["selectionReason"] = "accepted-auto"
+    selected_ids = set(selected.n13AtomId)
+    selection_diagnostics["automaticSelection"] = selection_diagnostics.n13AtomId.isin(selected_ids)
+    selection_diagnostics["manualSelection"] = "none"
+    selection_diagnostics["finalCuratedSelection"] = selection_diagnostics["automaticSelection"]
+    selection_diagnostics["selectionReason"] = np.where(
+        selection_diagnostics.automaticSelection, "accepted-auto", "rejected-auto")
     for road_class, values in class_diagnostics.items():
         values["selectedFeatureCount"] = int((selected["N13_003"].astype(str) == road_class).sum())
     coverage, unresolved = reference_coverage(
         reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"])
-    display_config = road.get("display", {"endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS})
-    display_geometry, stitching = build_display_chains(selected, reference, display_config)
     ownership = selection_diagnostics.attrs.get("ownershipSamples", gpd.GeoDataFrame(geometry=[], crs=METRIC_CRS))
     return {"schemaVersion": ROAD_BUILD_SCHEMA_VERSION, "road": road, "n13Source": str(n13_source),
             "n13Manifest": n13_manifest, "osm": osm, "reference": reference, "referenceExcluded": excluded,
@@ -1308,8 +1360,111 @@ def compute_road_build(road: dict, source_config: dict, n13_source: Path,
             "candidates": candidates, "residualPass": stage1, "selected": selected,
             "selectionDiagnostics": selection_diagnostics, "ownershipSamples": ownership,
             "networkReport": network_report, "classDiagnostics": class_diagnostics,
-            "coverage": coverage, "unresolved": unresolved, "displayGeometry": display_geometry,
-            "stitching": stitching, "displayConfig": display_config}
+            "coverage": coverage, "unresolved": unresolved,
+            "displayConfig": road.get("display", {"endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS})}
+
+
+def curate_selection(result: dict, manual_selection: dict | None = None) -> gpd.GeoDataFrame:
+    """Apply explicit overrides to a proposal without mutating or rerunning it."""
+    manual_selection = manual_selection or {}
+    include, exclude = set(manual_selection.get("include", [])), set(manual_selection.get("exclude", []))
+    if include & exclude:
+        raise ValueError("An N13 atom cannot be both manually included and excluded")
+    shortlist = result["selectionDiagnostics"].copy()
+    known = set(shortlist.n13AtomId)
+    unknown = (include | exclude) - known
+    if unknown:
+        raise ValueError(f"Manual selection contains atoms outside this shortlist: {sorted(unknown)[0]}")
+    selected = result["selected"][~result["selected"].n13AtomId.isin(exclude)].copy()
+    missing = include - set(selected.n13AtomId)
+    additions = shortlist[shortlist.n13AtomId.isin(missing)].copy()
+    if not additions.empty:
+        parts = _ordered_reference_parts(result["reference"])
+        additions["sourceStartDistanceMeters"] = 0.0
+        additions["sourceEndDistanceMeters"] = additions.geometry.length
+        additions["ownedReferenceSampleCount"] = 0
+        for index, row in additions.iterrows():
+            midpoint = row.geometry.interpolate(row.geometry.length / 2)
+            part_index, part = min(enumerate(parts), key=lambda item: item[1].distance(midpoint))
+            projections = [float(part.project(Point(value))) for value in row.geometry.coords]
+            additions.at[index, "referencePart"] = part_index
+            additions.at[index, "ownedReferenceStartMeters"] = min(projections)
+            additions.at[index, "ownedReferenceEndMeters"] = max(projections)
+        selected = gpd.GeoDataFrame(pd.concat([selected, additions], ignore_index=True), crs=selected.crs)
+    selected["automaticSelection"] = selected.n13AtomId.isin(set(result["selected"].n13AtomId))
+    selected["manualSelection"] = np.where(selected.n13AtomId.isin(include), "include", "none")
+    selected["finalCuratedSelection"] = True
+    selected["selectionReason"] = np.where(selected.n13AtomId.isin(include), "accepted-manual", "accepted-auto")
+    return selected
+
+
+def connect_match_preview(result: dict, manual_selection: dict | None = None, progress_callback=None) -> dict:
+    manual_selection = manual_selection or {"include": [], "exclude": []}
+    if progress_callback: progress_callback(progress=5, phase="Preparing curated selection")
+    curated = curate_selection(result, manual_selection)
+    if progress_callback: progress_callback(progress=20, phase="Merging source ranges")
+    config = {**result["road"].get("networkSelection", {}),
+              "classPriority": result["road"]["n13"]["classifications"],
+              "endpointSnapMeters": result["displayConfig"].get(
+                  "endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS)}
+    connected, connector_report = connect_adjacent_selected_runs(
+        curated, result["residualPass"], result["reference"], config,
+        frozenset(manual_selection.get("exclude", [])), progress_callback)
+    curated_atom_ids = set(curated.n13AtomId.astype(str))
+    connected_atom_ids = set(connected.n13AtomId.astype(str))
+    missing_curated_atoms = curated_atom_ids - connected_atom_ids
+    if missing_curated_atoms:
+        raise RuntimeError("Connectivity reconstruction discarded curated N13 atoms: "
+                           + ", ".join(sorted(missing_curated_atoms)))
+    curated_union = curated.geometry.union_all()
+    connected_union = connected.geometry.union_all()
+    lost_curated_geometry = curated_union.difference(connected_union)
+    lost_curated_length = float(lost_curated_geometry.length)
+    geometry_tolerance_meters = 1e-6
+    if lost_curated_length > geometry_tolerance_meters:
+        affected = sorted({str(row.n13AtomId) for _, row in curated.iterrows()
+                           if row.geometry.difference(connected_union).length > geometry_tolerance_meters})
+        raise RuntimeError(
+            f"Connectivity reconstruction removed {lost_curated_length:.6f} m of curated N13 geometry"
+            + (f" (atoms: {', '.join(affected)})" if affected else ""))
+    if progress_callback: progress_callback(progress=94, phase="Building final display geometry/report")
+    final = dict(result)
+    final["selected"] = connected
+    final["curatedSelected"] = curated
+    final["manualSelection"] = manual_selection
+    final["networkReport"] = {**result["networkReport"], **connector_report,
+        "automaticSelectedAtomCount": len(set(result["selected"].n13AtomId)),
+        "manualIncludedAtomCount": len(manual_selection.get("include", [])),
+        "manualExcludedAtomCount": len(manual_selection.get("exclude", [])),
+        "curatedSelectedAtomCount": len(curated_atom_ids),
+        "finalSelectedAtomCount": len(connected_atom_ids)}
+    requested_includes = sorted(set(map(str, manual_selection.get("include", []))))
+    final["connectDiagnostics"] = {
+        "manualIncludedAtomIds": requested_includes,
+        "curatedManualIncludedAtomIds": sorted(curated_atom_ids.intersection(requested_includes)),
+        "finalManualIncludedAtomIds": sorted(connected_atom_ids.intersection(requested_includes)),
+        "missingCuratedAtomIds": sorted(missing_curated_atoms),
+        "curatedGeometryLengthMeters": round(float(curated_union.length), 6),
+        "finalGeometryLengthMeters": round(float(connected_union.length), 6),
+        "lostCuratedGeometryLengthMeters": round(lost_curated_length, 6),
+        "curatedSelectedRunCount": len(curated),
+        "finalSelectedRunCount": len(connected)}
+    final["coverage"], final["unresolved"] = reference_coverage(
+        result["reference"], connected.geometry.union_all(), result["road"]["matching"]["sampleIntervalMeters"],
+        result["road"]["matching"]["coverageToleranceMeters"])
+    final["displayGeometry"], final["stitching"] = build_display_chains(
+        connected, result["reference"], result["displayConfig"])
+    if progress_callback: progress_callback(progress=100, phase="Connected preview ready")
+    return final
+
+
+def compute_road_build(road: dict, source_config: dict, n13_source: Path,
+                       refresh_osm: bool = False, overpass_url: str | None = None,
+                       progress_callback=None) -> dict:
+    """Compatibility entry point: automatic proposal followed by connection."""
+    matched = compute_match_preview(road, source_config, n13_source, refresh_osm,
+                                    overpass_url, progress_callback)
+    return connect_match_preview(matched, progress_callback=progress_callback)
 
 
 def road_build_artifacts(result: dict, diagnostic_output: Path) -> dict[str, bytes]:
