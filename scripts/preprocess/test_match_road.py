@@ -1,12 +1,13 @@
 """Synthetic regression tests for N13 display-geometry stitching."""
 
 import importlib.util
+import io
 import json
 import tempfile
 import unittest
 import warnings
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
 from shapely.geometry import LineString, MultiLineString
@@ -426,7 +427,64 @@ class SourceArchitectureTests(unittest.TestCase):
     def test_direct_way_fallback_preserves_network_identity(self):
         road = MATCH_ROAD.load_road(Path("data/roads/registry.json"), "jp-national-20")
         query = MATCH_ROAD.osm_query(road, [1, 2, 3, 4], direct_fallback=True)
-        self.assertIn('way["highway"]["ref"="20"]["network"="JP:national"]', query)
+        self.assertIn('way["highway"]["ref"="20"]', query)
+        self.assertNotIn('["network"=', query)
+
+    @staticmethod
+    def overpass_response(elements):
+        response = MagicMock()
+        response.__enter__.return_value = io.BytesIO(json.dumps({"elements": elements}).encode())
+        return response
+
+    def test_relation_members_are_preferred_and_reported(self):
+        road = {"id": "tokyo-prefectural-430", "reference": {
+            "type": "osm-ref", "ref": "430", "network": "JP:prefectural"}}
+        member = {"type": "way", "id": 10, "tags": {"highway": "primary"},
+                  "geometry": [{"lon": 139, "lat": 35}, {"lon": 140, "lat": 35}]}
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                MATCH_ROAD, "urlopen", return_value=self.overpass_response([member])) as request:
+            output = Path(directory) / "reference.geojson"
+            acquisition = MATCH_ROAD.download_reference(road, output, "https://example.test", [1, 2, 3, 4])
+            properties = json.loads(output.read_text())["features"][0]["properties"]
+        self.assertEqual(acquisition, "exact-route-relation")
+        self.assertEqual(request.call_count, 1)
+        self.assertEqual(properties["osm_reference_network"], "JP:prefectural")
+        self.assertEqual(properties["osm_reference_acquisition"], "exact-route-relation")
+
+    def test_networkless_direct_ref_way_fallback_excludes_wrong_ref(self):
+        road = {"id": "tokyo-prefectural-430", "reference": {
+            "type": "osm-ref", "ref": "430", "network": "JP:prefectural"}}
+        ways = [{"type": "way", "id": way_id, "tags": {"highway": "primary", "ref": ref},
+                 "geometry": [{"lon": 139, "lat": lat}, {"lon": 140, "lat": lat}]}
+                for way_id, ref, lat in ((10, "430", 35), (11, "431", 36))]
+        responses = [self.overpass_response([]), self.overpass_response(ways)]
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                MATCH_ROAD, "urlopen", side_effect=responses) as request:
+            output = Path(directory) / "reference.geojson"
+            acquisition = MATCH_ROAD.download_reference(road, output, "https://example.test", [1, 2, 3, 4])
+            document = json.loads(output.read_text())
+        self.assertEqual(request.call_count, 2)
+        self.assertEqual(acquisition, "direct-ref-way-fallback")
+        self.assertEqual([feature["properties"]["osm_way_id"] for feature in document["features"]], [10])
+        properties = document["features"][0]["properties"]
+        self.assertEqual(properties["osm_reference_network"], "JP:prefectural")
+        self.assertEqual(properties["osm_reference_acquisition"], "direct-ref-way-fallback")
+
+    def test_fallback_provenance_retains_configured_network(self):
+        road = {"id": "tokyo-prefectural-430", "reference": {
+            "type": "osm-ref", "ref": "430", "network": "JP:prefectural"}}
+        frame = gpd.GeoDataFrame({"ref": ["430"], "geometry": [
+            LineString([(139, 35), (140, 35)])]}, crs="EPSG:4326")
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                MATCH_ROAD, "download_reference", return_value="direct-ref-way-fallback"), patch.object(
+                MATCH_ROAD.gpd, "read_file", return_value=frame):
+            config = {"osm": {"provider": "overpass", "cacheDirectory": directory,
+                              "overpass": {"endpoint": "https://example.test"}}}
+            _, provenance = MATCH_ROAD.build_osm_reference(
+                road, config, [138, 34, 141, 36], refresh=True)
+        self.assertEqual(provenance["referenceAcquisition"], "direct-ref-way-fallback")
+        self.assertEqual(provenance["referenceNetwork"], "JP:prefectural")
+        self.assertEqual(provenance["referenceRef"], "430")
 
     def test_networkless_statutory_query_warns_and_retains_legacy_behavior(self):
         road = {"reference": {"type": "osm-ref", "ref": "20"}}
