@@ -740,6 +740,47 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         self.assertEqual(curated.iloc[0].selectionReason, "accepted-manual")
         self.assertEqual(set(MATCH_ROAD.curate_selection(result,{}).n13AtomId), {"a:0"})
 
+    def test_automatic_partial_atom_none_restores_exact_baseline_substrings(self):
+        result = self.same_atom_substring_result()
+        baseline = result["selected"]
+        curated = MATCH_ROAD.curate_selection(result, {})
+        self.assertEqual([geometry.wkb for geometry in curated.geometry],
+                         [geometry.wkb for geometry in baseline.geometry])
+
+    def test_automatic_partial_atom_exclude_removes_all_substrings(self):
+        curated = MATCH_ROAD.curate_selection(
+            self.same_atom_substring_result(), {"include": [], "exclude": ["a:0"]})
+        self.assertNotIn("a:0", set(curated.n13AtomId))
+
+    def test_automatic_partial_atom_include_promotes_to_one_complete_source_atom(self):
+        result = self.same_atom_substring_result()
+        curated = MATCH_ROAD.curate_selection(result, {"include": ["a:0"], "exclude": []})
+        promoted = curated[curated.n13AtomId == "a:0"]
+        self.assertEqual(len(promoted), 1)
+        self.assertEqual(promoted.iloc[0].geometry.wkb, result["selectionDiagnostics"].iloc[0].geometry.wkb)
+        self.assertEqual(promoted.iloc[0].manualSelection, "include")
+
+    def test_removing_automatic_include_restores_exact_partial_baseline(self):
+        result = self.same_atom_substring_result()
+        MATCH_ROAD.curate_selection(result, {"include": ["a:0"], "exclude": []})
+        restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
+        self.assertEqual([geometry.wkb for geometry in restored.geometry],
+                         [geometry.wkb for geometry in result["selected"].geometry])
+
+    def test_removing_nonautomatic_include_returns_atom_to_unselected(self):
+        result = self.same_atom_substring_result()
+        included = MATCH_ROAD.curate_selection(result, {"include": ["b:0"], "exclude": []})
+        self.assertIn("b:0", set(included.n13AtomId))
+        restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
+        self.assertNotIn("b:0", set(restored.n13AtomId))
+
+    def test_removing_nonautomatic_exclude_does_not_include_atom(self):
+        result = self.same_atom_substring_result()
+        excluded = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": ["b:0"]})
+        self.assertNotIn("b:0", set(excluded.n13AtomId))
+        restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
+        self.assertNotIn("b:0", set(restored.n13AtomId))
+
     def test_connect_match_preview_preserves_manual_include_in_curated_and_final_selection(self):
         connected = MATCH_ROAD.connect_match_preview(
             self.match_result(["a:0"]), {"include":["b:0"],"exclude":[]})

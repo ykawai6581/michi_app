@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtoms,findRegisteredRoad,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,includeManualAtom,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -70,6 +70,32 @@ describe('road form helpers',()=>{
   it('a region exclusion wins over a previous manual include as one atomic state update',()=>{
     expect(excludeManualAtoms({include:['crosses','safe'],exclude:['old']},['crosses','new']))
       .toEqual({include:['safe'],exclude:['old','crosses','new']})
+  })
+  it('manual atom helpers keep include and exclude mutually exclusive',()=>{
+    const included=includeManualAtom({include:[],exclude:['atom']},'atom')
+    expect(included).toEqual({include:['atom'],exclude:[]})
+    const excluded=excludeManualAtom(included,'atom')
+    expect(excluded).toEqual({include:[],exclude:['atom']})
+    expect(restoreManualAtom(excluded,'atom')).toEqual(emptyManualSelection())
+  })
+  it('click transitions restore automatic and non-automatic atoms to their baselines',()=>{
+    const automaticExcluded=toggleManualAtom(emptyManualSelection(),'auto',true)
+    expect(automaticExcluded).toEqual({include:[],exclude:['auto']})
+    expect(toggleManualAtom(automaticExcluded,'auto',true)).toEqual(emptyManualSelection())
+    const availableIncluded=toggleManualAtom(emptyManualSelection(),'available',false)
+    expect(availableIncluded).toEqual({include:['available'],exclude:[]})
+    expect(toggleManualAtom(availableIncluded,'available',false)).toEqual(emptyManualSelection())
+    expect(toggleManualAtom({include:[],exclude:['available']},'available',false)).toEqual(emptyManualSelection())
+  })
+  it('promotes an included automatic substring to its complete source atom in review layers',()=>{
+    const feature=(id:string,coordinates:number[][])=>({properties:{n13AtomId:id,automaticSelection:true},geometry:{type:'LineString' as const,coordinates}})
+    const source={autoSelected:{features:[feature('auto',[[2,0],[4,0]])]},
+      autoSelectedSourceAtoms:{features:[feature('auto',[[0,0],[10,0]])]},unselectedShortlist:{features:[]}}
+    const baseline=deriveManualReviewLayers(source,emptyManualSelection())
+    expect(baseline.autoSelected.features[0].geometry?.coordinates).toEqual([[2,0],[4,0]])
+    const promoted=deriveManualReviewLayers(source,{include:['auto'],exclude:[]})
+    expect(promoted.autoSelected.features).toEqual([])
+    expect(promoted.manuallyIncluded.features[0].geometry?.coordinates).toEqual([[0,0],[10,0]])
   })
   it('derives mutually disjoint review layers and restores automatic placement on undo',()=>{
     const feature=(id:string,automaticSelection:boolean)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})

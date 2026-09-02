@@ -1411,9 +1411,8 @@ def curate_selection(result: dict, manual_selection: dict | None = None) -> gpd.
     unknown = (include | exclude) - known
     if unknown:
         raise ValueError(f"Manual selection contains atoms outside this shortlist: {sorted(unknown)[0]}")
-    selected = result["selected"][~result["selected"].n13AtomId.isin(exclude)].copy()
-    missing = include - set(selected.n13AtomId)
-    additions = shortlist[shortlist.n13AtomId.isin(missing)].copy()
+    selected = result["selected"][~result["selected"].n13AtomId.isin(exclude | include)].copy()
+    additions = shortlist[shortlist.n13AtomId.isin(include)].drop_duplicates("n13AtomId").copy()
     if not additions.empty:
         parts = _ordered_reference_parts(result["reference"])
         additions["sourceStartDistanceMeters"] = 0.0

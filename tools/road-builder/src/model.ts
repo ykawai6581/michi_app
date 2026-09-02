@@ -18,11 +18,17 @@ export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:
 
 export type PreviewStage='NO_MATCH'|'MATCH_RUNNING'|'MATCH_READY'|'MATCH_EDITED'|'CONNECT_RUNNING'|'FINAL_READY'
 export const emptyManualSelection=():ManualSelection=>({include:[],exclude:[]})
+export const restoreManualAtom=(selection:ManualSelection,atomId:string):ManualSelection=>({
+  include:selection.include.filter(id=>id!==atomId),exclude:selection.exclude.filter(id=>id!==atomId)})
+export const includeManualAtom=(selection:ManualSelection,atomId:string):ManualSelection=>({
+  include:selection.include.includes(atomId)?selection.include:[...selection.include,atomId],
+  exclude:selection.exclude.filter(id=>id!==atomId)})
+export const excludeManualAtom=(selection:ManualSelection,atomId:string):ManualSelection=>({
+  include:selection.include.filter(id=>id!==atomId),
+  exclude:selection.exclude.includes(atomId)?selection.exclude:[...selection.exclude,atomId]})
 export const toggleManualAtom=(selection:ManualSelection,atomId:string,automatic:boolean):ManualSelection=>{
-  if(selection.exclude.includes(atomId))return{...selection,exclude:selection.exclude.filter(id=>id!==atomId)}
-  if(selection.include.includes(atomId))return{...selection,include:selection.include.filter(id=>id!==atomId)}
-  return automatic?{include:selection.include,exclude:[...selection.exclude,atomId]}
-    :{exclude:selection.exclude,include:[...selection.include,atomId]}
+  if(selection.exclude.includes(atomId)||selection.include.includes(atomId))return restoreManualAtom(selection,atomId)
+  return automatic?excludeManualAtom(selection,atomId):includeManualAtom(selection,atomId)
 }
 export type SelectionBounds=[number,number,number,number]
 type LineGeometry={type:'LineString'|'MultiLineString';coordinates:unknown}
@@ -51,8 +57,7 @@ export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:Selecti
   }))]
 }
 export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
-  const excluded=new Set([...selection.exclude,...atomIds])
-  return{include:selection.include.filter(id=>!excluded.has(id)),exclude:[...excluded]}
+  return atomIds.reduce(excludeManualAtom,selection)
 }
 type ReviewCollections={autoSelected:AtomCollection;autoSelectedSourceAtoms:AtomCollection;unselectedShortlist:AtomCollection}
 export const deriveManualReviewLayers=(source:ReviewCollections,selection:ManualSelection)=>{
@@ -60,11 +65,12 @@ export const deriveManualReviewLayers=(source:ReviewCollections,selection:Manual
   const atom=(feature:AtomFeature)=>String(feature.properties?.n13AtomId||'')
   const state=(feature:AtomFeature,manualSelection:string,finalCuratedSelection:boolean,selectionReason:string)=>
     ({...feature,properties:{...(feature.properties||{}),manualSelection,finalCuratedSelection,selectionReason}})
-  const automatic=source.autoSelected.features.filter(feature=>!excluded.has(atom(feature)))
+  const automatic=source.autoSelected.features.filter(feature=>!excluded.has(atom(feature))&&!included.has(atom(feature)))
     .map(feature=>state(feature,'none',true,'accepted-auto'))
   const unselected=source.unselectedShortlist.features.filter(feature=>!included.has(atom(feature))&&!excluded.has(atom(feature)))
     .map(feature=>state(feature,'none',false,'rejected-auto'))
-  const manuallyIncluded=source.unselectedShortlist.features.filter(feature=>included.has(atom(feature)))
+  const manuallyIncluded=[...source.autoSelectedSourceAtoms.features,...source.unselectedShortlist.features]
+    .filter(feature=>included.has(atom(feature)))
     .map(feature=>state(feature,'include',true,'accepted-manual'))
   const manuallyExcluded=[...source.autoSelectedSourceAtoms.features,...source.unselectedShortlist.features]
     .filter(feature=>excluded.has(atom(feature))).map(feature=>state(feature,'exclude',false,'rejected-manual'))
