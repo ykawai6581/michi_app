@@ -73,7 +73,7 @@ describe('road form helpers',()=>{
   })
   it('derives mutually disjoint review layers and restores automatic placement on undo',()=>{
     const feature=(id:string,automaticSelection:boolean)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})
-    const source={autoSelected:{features:[feature('auto',true)]},unselectedShortlist:{features:[feature('alternative',false)]}}
+    const source={autoSelected:{features:[feature('auto',true)]},autoSelectedSourceAtoms:{features:[feature('auto',true)]},unselectedShortlist:{features:[feature('alternative',false)]}}
     const edited=deriveManualReviewLayers(source,{include:['alternative'],exclude:['auto']})
     expect(edited.autoSelected.features).toEqual([])
     expect(edited.unselectedShortlist.features).toEqual([])

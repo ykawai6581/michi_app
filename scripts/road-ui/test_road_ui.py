@@ -130,6 +130,7 @@ class RoadBuilderTests(unittest.TestCase):
             "geometry": [LineString([(0, 0), (10, 0)]), LineString([(0, 2), (10, 2)])],
         }, crs=road_ui.MATCHER.METRIC_CRS)
         selected = diagnostics.iloc[[0]].copy()
+        selected.at[selected.index[0], "geometry"] = LineString([(2, 0), (4, 0)])
         candidates = gpd.GeoDataFrame({
             "n13FeatureId": ["feature-a", "feature-b", "feature-c"],
             "n13AtomId": ["a:0", "b:0", "c:0"],
@@ -141,6 +142,10 @@ class RoadBuilderTests(unittest.TestCase):
         auto_ids = {item["properties"]["n13AtomId"] for item in layers["autoSelected"]["features"]}
         shortlist_ids = {item["properties"]["n13AtomId"] for item in layers["unselectedShortlist"]["features"]}
         self.assertEqual(auto_ids, {"a:0"})
+        self.assertEqual(layers["autoSelected"]["features"][0]["geometry"],
+                         road_ui._geojson(selected)["features"][0]["geometry"])
+        self.assertNotEqual(layers["autoSelected"]["features"][0]["geometry"],
+                            layers["autoSelectedSourceAtoms"]["features"][0]["geometry"])
         self.assertEqual(shortlist_ids, {"b:0"})
         self.assertFalse(auto_ids & shortlist_ids)
         self.assertTrue(all(item["properties"]["selectionStatus"].startswith("rejected-")

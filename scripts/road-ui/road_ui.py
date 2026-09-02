@@ -326,13 +326,14 @@ def _match_preview_layers(result: dict) -> dict:
     diagnostics = result["selectionDiagnostics"]
     automatic_ids = set(result["selected"]["n13AtomId"].astype(str))
     atom_ids = diagnostics["n13AtomId"].astype(str)
-    auto_selected = diagnostics[atom_ids.isin(automatic_ids)].copy()
+    auto_selected_atoms = diagnostics[atom_ids.isin(automatic_ids)].copy()
     unselected = diagnostics[~atom_ids.isin(automatic_ids)].copy()
     rejected = diagnostics[diagnostics["selectionStatus"].astype(str).str.startswith("rejected-")].copy()
     stage1_features = set(diagnostics["n13FeatureId"].astype(str))
     candidates = result["candidates"]
     residual_rejected = candidates[~candidates["n13FeatureId"].astype(str).isin(stage1_features)].copy()
-    return {"autoSelected": _geojson(auto_selected),
+    return {"autoSelected": _geojson(result["selected"]),
+            "autoSelectedSourceAtoms": _geojson(auto_selected_atoms),
             "unselectedShortlist": _geojson(unselected),
             "allCandidates": _geojson(candidates),
             "residualRejected": _geojson(residual_rejected),

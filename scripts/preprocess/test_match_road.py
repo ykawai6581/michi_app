@@ -627,6 +627,29 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
                     "matching":{"sampleIntervalMeters":5,"coverageToleranceMeters":5}},
             "displayConfig":{"endpointSnapMeters":2}, "networkReport":{}}
 
+    def same_atom_substring_result(self):
+        diagnostics = gpd.GeoDataFrame({
+            "n13FeatureId":["a","b"], "n13AtomId":["a:0","b:0"],
+            "sourceFeatureIndex":[0,1], "sourceAtomIndex":[0,0], "N13_003":["1","1"],
+            "match_min_m":[0.,0.], "match_median_m":[0.,0.], "match_p90_m":[0.,0.],
+            "geometry":[LineString([(0,0),(30,0)]),LineString([(40,0),(50,0)])],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        selected = gpd.GeoDataFrame({
+            **{column:[diagnostics.iloc[0][column],diagnostics.iloc[0][column]]
+               for column in diagnostics.columns if column != "geometry"},
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(20,0),(30,0)])],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        selected["referencePart"] = 0
+        selected["ownedReferenceStartMeters"] = [0.,20.]
+        selected["ownedReferenceEndMeters"] = [10.,30.]
+        selected["sourceStartDistanceMeters"] = [0.,20.]
+        selected["sourceEndDistanceMeters"] = [10.,30.]
+        return {"selected":selected, "selectionDiagnostics":diagnostics,
+            "residualPass":diagnostics, "reference":LineString([(0,0),(50,0)]),
+            "road":{"n13":{"classifications":["1"]}, "networkSelection":{},
+                    "matching":{"sampleIntervalMeters":5,"coverageToleranceMeters":5}},
+            "displayConfig":{"endpointSnapMeters":2}, "networkReport":{}}
+
     def test_stable_ids_ignore_dataframe_order_and_change_with_geometry(self):
         frame = gpd.GeoDataFrame({"N13_001":["source-a","source-b"],"N13_003":["1","1"],
             "geometry":[LineString([(0,0),(10,0)]),LineString([(10,0),(20,0)])]}, crs=MATCH_ROAD.METRIC_CRS)
@@ -684,6 +707,28 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
                           side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
             with self.assertRaisesRegex(RuntimeError, "discarded curated N13 atoms: b:0"):
                 MATCH_ROAD.connect_match_preview(result, {"include":["b:0"],"exclude":[]})
+
+    def test_same_atom_multiple_substrings_are_geometrically_preserved_or_merged(self):
+        connected = MATCH_ROAD.connect_match_preview(self.same_atom_substring_result())
+        curated_union = connected["curatedSelected"].geometry.union_all()
+        final_union = connected["selected"].geometry.union_all()
+        self.assertLessEqual(curated_union.difference(final_union).length, 1e-6)
+        self.assertEqual(connected["connectDiagnostics"]["lostCuratedGeometryLengthMeters"], 0)
+
+    def test_geometry_invariant_detects_lost_same_atom_substring(self):
+        result = self.same_atom_substring_result()
+        with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
+                          side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
+            with self.assertRaisesRegex(RuntimeError, "removed 10.000000 m.*atoms: a:0"):
+                MATCH_ROAD.connect_match_preview(result)
+
+    def test_final_geometry_contains_auto_substrings_and_manual_full_atom(self):
+        connected = MATCH_ROAD.connect_match_preview(
+            self.same_atom_substring_result(), {"include":["b:0"],"exclude":[]})
+        visible_before = connected["curatedSelected"].geometry.union_all()
+        final_geometry = connected["selected"].geometry.union_all()
+        self.assertLessEqual(visible_before.difference(final_geometry).length, 1e-6)
+        self.assertEqual(set(connected["selected"].n13AtomId), {"a:0","b:0"})
 
 
 if __name__ == "__main__":

@@ -8,10 +8,10 @@ export type StatutoryNetworkChoice='national'|'prefectural'|'custom'
 export const statutoryNetworkChoice=(network?:string):StatutoryNetworkChoice=>network==='JP:national'?'national':network==='JP:prefectural'?'prefectural':'custom'
 export const applyStatutoryNetworkChoice=(reference:Road['reference'],choice:StatutoryNetworkChoice):Road['reference']=>({...reference,network:choice==='national'?'JP:national':choice==='prefectural'?'JP:prefectural':reference.network||''})
 
-export const diagnosticLayerIds=['allCandidates','residualRejected','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected'] as const
+export const diagnosticLayerIds=['allCandidates','residualRejected','autoSelectedSourceAtoms','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected'] as const
 export type DiagnosticLayerId=typeof diagnosticLayerIds[number]
 export type LayerVisibility=Record<DiagnosticLayerId,boolean>
-export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,allCandidates:false,residualRejected:false})
+export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,autoSelectedSourceAtoms:false,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,allCandidates:false,residualRejected:false})
 export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
 export const mapLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId,hasData=true):'visible'|'none'=>hasData&&visibility[id]?'visible':'none'
 export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
@@ -54,7 +54,7 @@ export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):Man
   const excluded=new Set([...selection.exclude,...atomIds])
   return{include:selection.include.filter(id=>!excluded.has(id)),exclude:[...excluded]}
 }
-type ReviewCollections={autoSelected:AtomCollection;unselectedShortlist:AtomCollection}
+type ReviewCollections={autoSelected:AtomCollection;autoSelectedSourceAtoms:AtomCollection;unselectedShortlist:AtomCollection}
 export const deriveManualReviewLayers=(source:ReviewCollections,selection:ManualSelection)=>{
   const included=new Set(selection.include),excluded=new Set(selection.exclude)
   const atom=(feature:AtomFeature)=>String(feature.properties?.n13AtomId||'')
@@ -66,7 +66,7 @@ export const deriveManualReviewLayers=(source:ReviewCollections,selection:Manual
     .map(feature=>state(feature,'none',false,'rejected-auto'))
   const manuallyIncluded=source.unselectedShortlist.features.filter(feature=>included.has(atom(feature)))
     .map(feature=>state(feature,'include',true,'accepted-manual'))
-  const manuallyExcluded=[...source.autoSelected.features,...source.unselectedShortlist.features]
+  const manuallyExcluded=[...source.autoSelectedSourceAtoms.features,...source.unselectedShortlist.features]
     .filter(feature=>excluded.has(atom(feature))).map(feature=>state(feature,'exclude',false,'rejected-manual'))
   return{autoSelected:{features:automatic},unselectedShortlist:{features:unselected},
     manuallyIncluded:{features:manuallyIncluded},manuallyExcluded:{features:manuallyExcluded}}

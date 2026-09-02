@@ -92,6 +92,9 @@ Connect Selected → Save & Build**.
   and **Manually excluded**. Moving an atom into a manual state removes it from its automatic layer, so visibility
   checkboxes never reveal an identical primary-review copy underneath. **All nearby N13** and **Residual rejected**
   remain separate, default-hidden advanced diagnostics and are never used as manual-inclusion sources.
+  Red **Auto selected** geometry is the matcher's exact ownership-selected substrings; it is never expanded to the
+  complete parent atom. The parent `n13AtomId` remains on each substring for whole-atom exclusion, and a separate
+  default-hidden **Auto-selected source atoms** layer is available only for debugging.
 - **Exclude Region** provides a batch review gesture: drag a visible rectangle and every Stage-1 N13 source atom
   whose line intersects or touches it is added to the stable-ID exclusion set. The rectangle is session-only UI
   history—not a persisted geographic build rule—and the entire drag is reverted by one **Undo**. This operation is

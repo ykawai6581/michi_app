@@ -1416,6 +1416,17 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
     if missing_curated_atoms:
         raise RuntimeError("Connectivity reconstruction discarded curated N13 atoms: "
                            + ", ".join(sorted(missing_curated_atoms)))
+    curated_union = curated.geometry.union_all()
+    connected_union = connected.geometry.union_all()
+    lost_curated_geometry = curated_union.difference(connected_union)
+    lost_curated_length = float(lost_curated_geometry.length)
+    geometry_tolerance_meters = 1e-6
+    if lost_curated_length > geometry_tolerance_meters:
+        affected = sorted({str(row.n13AtomId) for _, row in curated.iterrows()
+                           if row.geometry.difference(connected_union).length > geometry_tolerance_meters})
+        raise RuntimeError(
+            f"Connectivity reconstruction removed {lost_curated_length:.6f} m of curated N13 geometry"
+            + (f" (atoms: {', '.join(affected)})" if affected else ""))
     if progress_callback: progress_callback(progress=94, phase="Building final display geometry/report")
     final = dict(result)
     final["selected"] = connected
@@ -1432,7 +1443,12 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
         "manualIncludedAtomIds": requested_includes,
         "curatedManualIncludedAtomIds": sorted(curated_atom_ids.intersection(requested_includes)),
         "finalManualIncludedAtomIds": sorted(connected_atom_ids.intersection(requested_includes)),
-        "missingCuratedAtomIds": sorted(missing_curated_atoms)}
+        "missingCuratedAtomIds": sorted(missing_curated_atoms),
+        "curatedGeometryLengthMeters": round(float(curated_union.length), 6),
+        "finalGeometryLengthMeters": round(float(connected_union.length), 6),
+        "lostCuratedGeometryLengthMeters": round(lost_curated_length, 6),
+        "curatedSelectedRunCount": len(curated),
+        "finalSelectedRunCount": len(connected)}
     final["coverage"], final["unresolved"] = reference_coverage(
         result["reference"], connected.geometry.union_all(), result["road"]["matching"]["sampleIntervalMeters"],
         result["road"]["matching"]["coverageToleranceMeters"])
