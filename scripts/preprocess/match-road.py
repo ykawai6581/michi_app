@@ -219,7 +219,7 @@ def osm_query(road: dict, bounds: list[float], direct_fallback: bool = False) ->
     escaped_network = str(network).replace('"', '\\"') if network else ""
     if network and direct_fallback:
         return f'''[out:json][timeout:180];
-way["highway"]["ref"="{ref}"]["network"="{escaped_network}"]({south},{west},{north},{east});
+way["highway"]["ref"="{ref}"]({south},{west},{north},{east});
 out tags geom;'''
     network_filter = f'["network"="{escaped_network}"]' if network else ""
     if not network:
@@ -238,7 +238,7 @@ way(r.r)({south},{west},{north},{east})->.rw;
 .rw out tags geom;'''
 
 
-def download_reference(road: dict, output: Path, endpoint: str, bounds: list[float]) -> None:
+def download_reference(road: dict, output: Path, endpoint: str, bounds: list[float]) -> str | None:
     def request_elements(direct_fallback: bool = False) -> list[dict]:
         request = Request(f"{endpoint}?{urlencode({'data': osm_query(road, bounds, direct_fallback)})}", headers={
             "Accept": "application/json", "User-Agent": "michi-map-road-matcher/0.1",
@@ -248,8 +248,14 @@ def download_reference(road: dict, output: Path, endpoint: str, bounds: list[flo
 
     elements = request_elements()
     reference = road["reference"]
+    acquisition = "exact-route-relation" if reference["type"] == "osm-ref" and reference.get("network") else None
     if not elements and reference["type"] == "osm-ref" and reference.get("network"):
         elements = request_elements(direct_fallback=True)
+        acquisition = "direct-ref-way-fallback"
+        expected_ref = str(reference["ref"])
+        elements = [item for item in elements
+                    if expected_ref in [value.strip() for value in
+                                        str(item.get("tags", {}).get("ref", "")).split(";")]]
         if not elements:
             raise RuntimeError(
                 f"OSM has neither a matching route relation nor directly tagged highway ways for "
@@ -258,13 +264,15 @@ def download_reference(road: dict, output: Path, endpoint: str, bounds: list[flo
         "type": "Feature",
         "properties": {"osm_way_id": item["id"], **item.get("tags", {}),
                        "osm_reference_ref": reference.get("ref"),
-                       "osm_reference_network": reference.get("network")},
+                       "osm_reference_network": reference.get("network"),
+                       **({"osm_reference_acquisition": acquisition} if acquisition else {})},
         "geometry": {"type": "LineString", "coordinates": [[p["lon"], p["lat"]] for p in item["geometry"]]},
     } for item in elements if len(item.get("geometry", [])) > 1]
     if not features:
         raise RuntimeError(f"OSM returned no reference geometry for {road['id']}")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps({"type": "FeatureCollection", "features": features}) + "\n")
+    return acquisition
 
 
 def load_source_config(path: Path) -> dict:
@@ -364,13 +372,17 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
         if not coverage_bounds:
             raise RuntimeError("N13 coverage bounds are required (legacy jurisdiction fallback is unavailable)")
     identity = reference_cache_identity(road["reference"])
+    statutory_identity = ({"referenceRef": road["reference"].get("ref"),
+                           "referenceNetwork": road["reference"].get("network")}
+                          if road["reference"]["type"] == "osm-ref" else {})
     if cache.exists() and not refresh:
         cached = json.loads(metadata.read_text()) if metadata.exists() else {}
         cached_bounds = cached.get("coverageBoundsWgs84")
         if (cached_bounds and cached.get("referenceIdentity") == identity
                 and _bounds_cover(cached_bounds, coverage_bounds)):
             frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
-            return frame, {"provider": "cache", "path": str(cache),
+            return frame, {"provider": "cache", "path": str(cache), **statutory_identity,
+                           "referenceAcquisition": cached.get("referenceAcquisition"),
                            "cachedCoverageBoundsWgs84": cached_bounds, "workingBoundsWgs84": coverage_bounds}
     provider = config.get("provider", "auto")
     local = Path(config.get("local", {}).get("path", ""))
@@ -384,7 +396,7 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
             frame.to_file(cache, driver="GeoJSON")
             metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds,
                                             "referenceIdentity": identity}, indent=2) + "\n")
-            return frame, {"provider": "local", "path": str(local), "cache": str(cache),
+            return frame, {"provider": "local", "path": str(local), "cache": str(cache), **statutory_identity,
                            "workingBoundsWgs84": coverage_bounds}
         except RuntimeError:
             if provider == "local":
@@ -392,11 +404,15 @@ def build_osm_reference(road: dict, source_config: dict, coverage_bounds: list[f
     if provider == "local":
         raise RuntimeError(f"Configured local OSM source does not exist: {local}")
     overpass = config["overpass"]
-    download_reference(road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), coverage_bounds)
+    acquisition = download_reference(
+        road, cache, endpoint_override or overpass.get("endpoint", OVERPASS_URL), coverage_bounds)
+    acquisition = acquisition if isinstance(acquisition, str) else None
     metadata.write_text(json.dumps({"coverageBoundsWgs84": coverage_bounds,
-                                    "referenceIdentity": identity}, indent=2) + "\n")
+                                    "referenceIdentity": identity,
+                                    "referenceAcquisition": acquisition}, indent=2) + "\n")
     frame = clip_osm_to_bounds(gpd.read_file(cache), coverage_bounds)
     return frame, {"provider": "overpass", "bounds": coverage_bounds, "cache": str(cache),
+                   **statutory_identity, "referenceAcquisition": acquisition,
                    "workingBoundsWgs84": coverage_bounds}
 
 
