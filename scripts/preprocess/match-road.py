@@ -103,6 +103,22 @@ def add_stable_n13_ids(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return result
 
 
+def source_atoms(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Return complete source LineStrings with the identities used by matching."""
+    source = add_stable_n13_ids(frame) if "n13FeatureId" not in frame else frame.copy()
+    source["_sourceFeatureIndex"] = (source["sourceFeatureIndex"]
+                                      if "sourceFeatureIndex" in source else source.index)
+    exploded = source.explode(index_parts=True)
+    atom_indexes = (exploded.index.get_level_values(-1).to_numpy()
+                    if isinstance(exploded.index, pd.MultiIndex) else np.zeros(len(exploded), dtype=int))
+    atoms = exploded.reset_index(drop=True)
+    atoms["sourceFeatureIndex"] = atoms.pop("_sourceFeatureIndex")
+    atoms["sourceAtomIndex"] = atom_indexes
+    atoms["n13AtomId"] = [f"{feature}:{atom}" for feature, atom in
+                          zip(atoms.n13FeatureId, atoms.sourceAtomIndex.astype(int))]
+    return atoms
+
+
 def _line_parts(geometries) -> list[LineString]:
     """Flatten line-like N13 features without changing their vertices."""
     parts = []
@@ -689,6 +705,66 @@ def _edge_adjacency(edges: list[int], geometries: list[LineString], tolerance: f
     return adjacency
 
 
+def source_atom_adjacency(atoms: gpd.GeoDataFrame, tolerance: float) -> dict[str, list[str]]:
+    """Build deterministic endpoint-based source topology using a spatial index."""
+    def connects(first, second):
+        for line, other in ((first, second), (second, first)):
+            endpoints = ((Point(line.coords[0]), Point(line.coords[1])),
+                         (Point(line.coords[-1]), Point(line.coords[-2])))
+            for endpoint, inward in endpoints:
+                if endpoint.distance(other) > tolerance:
+                    continue
+                position = float(other.project(endpoint))
+                other_endpoint = (Point(other.coords[0]), Point(other.coords[1])) if position <= tolerance else (
+                    Point(other.coords[-1]), Point(other.coords[-2])) if other.length - position <= tolerance else None
+                if other_endpoint and endpoint.distance(other_endpoint[0]) <= tolerance:
+                    gap_vector = (other_endpoint[0].x - endpoint.x, other_endpoint[0].y - endpoint.y)
+                    if math.hypot(*gap_vector) <= 1e-9:
+                        return True
+                    first_vector = (inward.x - endpoint.x, inward.y - endpoint.y)
+                    second_vector = (other_endpoint[1].x - other_endpoint[0].x,
+                                     other_endpoint[1].y - other_endpoint[0].y)
+                    tangent_denominator = math.hypot(*first_vector) * math.hypot(*second_vector)
+                    parallel = tangent_denominator and abs(sum(a * b for a, b in zip(
+                        first_vector, second_vector)) / tangent_denominator) >= math.cos(math.radians(20))
+                    gap_denominator = math.hypot(*gap_vector) * math.hypot(*first_vector)
+                    if not parallel or (gap_denominator and abs(sum(a * b for a, b in zip(
+                            gap_vector, first_vector)) / gap_denominator) >= math.cos(math.radians(20))):
+                        return True
+                    continue
+                delta = min(0.1, position, other.length - position)
+                before, after = other.interpolate(position - delta), other.interpolate(position + delta)
+                first_vector = (inward.x - endpoint.x, inward.y - endpoint.y)
+                other_vector = (after.x - before.x, after.y - before.y)
+                denominator = math.hypot(*first_vector) * math.hypot(*other_vector)
+                if denominator and abs(sum(a * b for a, b in zip(first_vector, other_vector)) / denominator) < math.cos(math.radians(20)):
+                    return True
+        return False
+
+    ids = atoms.n13AtomId.astype(str).tolist()
+    geometries = list(atoms.geometry)
+    spatial_index = atoms.geometry.sindex
+    graph = {atom_id: set() for atom_id in ids}
+    for first, geometry in enumerate(geometries):
+        for second in map(int, spatial_index.query(geometry.buffer(tolerance))):
+            if second <= first or not connects(geometry, geometries[second]):
+                continue
+            graph[ids[first]].add(ids[second])
+            graph[ids[second]].add(ids[first])
+    return {atom_id: sorted(neighbors) for atom_id, neighbors in sorted(graph.items())}
+
+
+def available_source_atom_ids(automatic_ids, adjacency: dict[str, list[str]],
+                              manual_selection: dict | None = None) -> list[str]:
+    """Derive the cheap manual-inclusion frontier from cached source topology."""
+    manual_selection = manual_selection or {}
+    included = set(manual_selection.get("include", []))
+    excluded = set(manual_selection.get("exclude", []))
+    selected = (set(automatic_ids) - excluded) | (included - excluded)
+    return sorted({neighbor for atom_id in selected for neighbor in adjacency.get(atom_id, [])
+                   if neighbor not in selected and neighbor not in excluded})
+
+
 def _graph_path(adjacency: dict[int, set[int]], start: int, finish: int,
                 maximum_intermediate: int) -> list[list[int]]:
     """Return bounded simple paths in an already gap-local source graph."""
@@ -725,18 +801,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if stage1.empty:
         return stage1.copy(), stage1.copy(), {}
-    source = add_stable_n13_ids(stage1) if "n13FeatureId" not in stage1 else stage1.copy()
-    source["_ownershipSourceFeatureIndex"] = (source["sourceFeatureIndex"] if "sourceFeatureIndex" in source
-                                               else source.index)
-    exploded = source.explode(index_parts=True)
-    atom_indices = (exploded.index.get_level_values(-1).to_numpy()
-                    if isinstance(exploded.index, pd.MultiIndex) else np.zeros(len(exploded), dtype=int))
-    frame = exploded.reset_index(drop=True)
-    frame["sourceFeatureIndex"] = frame.pop("_ownershipSourceFeatureIndex")
-    if "sourceAtomIndex" not in frame:
-        frame["sourceAtomIndex"] = atom_indices
-    frame["n13AtomId"] = [f"{feature}:{atom}" for feature, atom in
-                           zip(frame.n13FeatureId, frame.sourceAtomIndex.astype(int))]
+    frame = source_atoms(stage1)
     parts = _ordered_reference_parts(reference)
     interval = float(settings["progressSampleMeters"])
     maximum_distance = float(settings["maximumSampleDistanceMeters"])
@@ -1390,11 +1455,14 @@ def compute_match_preview(road: dict, source_config: dict, n13_source: Path,
     coverage, unresolved = reference_coverage(
         reference, selected.geometry.union_all(), match["sampleIntervalMeters"], match["coverageToleranceMeters"])
     ownership = selection_diagnostics.attrs.get("ownershipSamples", gpd.GeoDataFrame(geometry=[], crs=METRIC_CRS))
+    atoms = source_atoms(candidates)
+    adjacency = source_atom_adjacency(atoms, float(network_config["endpointSnapMeters"]))
     return {"schemaVersion": ROAD_BUILD_SCHEMA_VERSION, "road": road, "n13Source": str(n13_source),
             "n13Manifest": n13_manifest, "osm": osm, "reference": reference, "referenceExcluded": excluded,
             "osmProvenance": osm_provenance, "referenceDiagnostics": reference_diagnostics,
             "candidates": candidates, "residualPass": stage1, "selected": selected,
             "selectionDiagnostics": selection_diagnostics, "ownershipSamples": ownership,
+            "sourceAtoms": atoms, "sourceAdjacency": adjacency,
             "networkReport": network_report, "classDiagnostics": class_diagnostics,
             "coverage": coverage, "unresolved": unresolved,
             "displayConfig": road.get("display", {"endpointSnapMeters": DEFAULT_ENDPOINT_SNAP_METERS})}
@@ -1406,13 +1474,16 @@ def curate_selection(result: dict, manual_selection: dict | None = None) -> gpd.
     include, exclude = set(manual_selection.get("include", [])), set(manual_selection.get("exclude", []))
     if include & exclude:
         raise ValueError("An N13 atom cannot be both manually included and excluded")
-    shortlist = result["selectionDiagnostics"].copy()
-    known = set(shortlist.n13AtomId)
+    source_pool = result.get("sourceAtoms")
+    if source_pool is None:
+        source_pool = source_atoms(result.get("candidates", result["selectionDiagnostics"]))
+    source_pool = source_pool.copy()
+    known = set(source_pool.n13AtomId)
     unknown = (include | exclude) - known
     if unknown:
         raise ValueError(f"Manual selection contains atoms outside this shortlist: {sorted(unknown)[0]}")
     selected = result["selected"][~result["selected"].n13AtomId.isin(exclude | include)].copy()
-    additions = shortlist[shortlist.n13AtomId.isin(include)].drop_duplicates("n13AtomId").copy()
+    additions = source_pool[source_pool.n13AtomId.isin(include)].drop_duplicates("n13AtomId").copy()
     if not additions.empty:
         parts = _ordered_reference_parts(result["reference"])
         additions["sourceStartDistanceMeters"] = 0.0

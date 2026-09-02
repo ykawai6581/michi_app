@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,includeManualAtom,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveAvailableAtomIds,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,includeManualAtom,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -90,7 +90,8 @@ describe('road form helpers',()=>{
   it('promotes an included automatic substring to its complete source atom in review layers',()=>{
     const feature=(id:string,coordinates:number[][])=>({properties:{n13AtomId:id,automaticSelection:true},geometry:{type:'LineString' as const,coordinates}})
     const source={autoSelected:{features:[feature('auto',[[2,0],[4,0]])]},
-      autoSelectedSourceAtoms:{features:[feature('auto',[[0,0],[10,0]])]},unselectedShortlist:{features:[]}}
+      autoSelectedSourceAtoms:{features:[feature('auto',[[0,0],[10,0]])]},
+      sourceAtoms:{features:[feature('auto',[[0,0],[10,0]])]},sourceAdjacency:{auto:[]}}
     const baseline=deriveManualReviewLayers(source,emptyManualSelection())
     expect(baseline.autoSelected.features[0].geometry?.coordinates).toEqual([[2,0],[4,0]])
     const promoted=deriveManualReviewLayers(source,{include:['auto'],exclude:[]})
@@ -99,7 +100,7 @@ describe('road form helpers',()=>{
   })
   it('derives mutually disjoint review layers and restores automatic placement on undo',()=>{
     const feature=(id:string,automaticSelection:boolean)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})
-    const source={autoSelected:{features:[feature('auto',true)]},autoSelectedSourceAtoms:{features:[feature('auto',true)]},unselectedShortlist:{features:[feature('alternative',false)]}}
+    const source={autoSelected:{features:[feature('auto',true)]},autoSelectedSourceAtoms:{features:[feature('auto',true)]},sourceAtoms:{features:[feature('auto',true),feature('alternative',false)]},sourceAdjacency:{auto:['alternative'],alternative:['auto']}}
     const edited=deriveManualReviewLayers(source,{include:['alternative'],exclude:['auto']})
     expect(edited.autoSelected.features).toEqual([])
     expect(edited.unselectedShortlist.features).toEqual([])
@@ -110,5 +111,12 @@ describe('road form helpers',()=>{
     const restored=deriveManualReviewLayers(source,emptyManualSelection())
     expect(restored.autoSelected.features.map(item=>item.properties?.n13AtomId)).toEqual(['auto'])
     expect(restored.unselectedShortlist.features.map(item=>item.properties?.n13AtomId)).toEqual(['alternative'])
+  })
+  it('derives an expanding frontier from selected atoms and treats exclusion as a barrier',()=>{
+    const graph={A:['B'],B:['A','C'],C:['B']}
+    expect(deriveAvailableAtomIds(['A'],graph,emptyManualSelection())).toEqual(['B'])
+    expect(deriveAvailableAtomIds(['A'],graph,{include:['B'],exclude:[]})).toEqual(['C'])
+    expect(deriveAvailableAtomIds(['A'],graph,restoreManualAtom({include:['B'],exclude:[]},'B'))).toEqual(['B'])
+    expect(deriveAvailableAtomIds(['A'],graph,{include:[],exclude:['B']})).toEqual([])
   })
 })

@@ -59,20 +59,31 @@ export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:Selecti
 export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
   return atomIds.reduce(excludeManualAtom,selection)
 }
-type ReviewCollections={autoSelected:AtomCollection;autoSelectedSourceAtoms:AtomCollection;unselectedShortlist:AtomCollection}
+export const deriveAvailableAtomIds=(automaticIds:string[],adjacency:Record<string,string[]>,selection:ManualSelection):string[]=>{
+  const excluded=new Set(selection.exclude)
+  const selected=new Set([...automaticIds.filter(id=>!excluded.has(id)),...selection.include.filter(id=>!excluded.has(id))])
+  const available=new Set<string>()
+  selected.forEach(id=>(adjacency[id]||[]).forEach(neighbor=>{
+    if(!selected.has(neighbor)&&!excluded.has(neighbor))available.add(neighbor)
+  }))
+  return [...available].sort()
+}
+type ReviewCollections={autoSelected:AtomCollection;autoSelectedSourceAtoms:AtomCollection;sourceAtoms:AtomCollection;sourceAdjacency:Record<string,string[]>}
 export const deriveManualReviewLayers=(source:ReviewCollections,selection:ManualSelection)=>{
   const included=new Set(selection.include),excluded=new Set(selection.exclude)
   const atom=(feature:AtomFeature)=>String(feature.properties?.n13AtomId||'')
+  const automaticIds=[...new Set(source.autoSelected.features.map(atom))]
+  const available=new Set(deriveAvailableAtomIds(automaticIds,source.sourceAdjacency,selection))
   const state=(feature:AtomFeature,manualSelection:string,finalCuratedSelection:boolean,selectionReason:string)=>
     ({...feature,properties:{...(feature.properties||{}),manualSelection,finalCuratedSelection,selectionReason}})
   const automatic=source.autoSelected.features.filter(feature=>!excluded.has(atom(feature))&&!included.has(atom(feature)))
     .map(feature=>state(feature,'none',true,'accepted-auto'))
-  const unselected=source.unselectedShortlist.features.filter(feature=>!included.has(atom(feature))&&!excluded.has(atom(feature)))
+  const unselected=source.sourceAtoms.features.filter(feature=>available.has(atom(feature)))
     .map(feature=>state(feature,'none',false,'rejected-auto'))
-  const manuallyIncluded=[...source.autoSelectedSourceAtoms.features,...source.unselectedShortlist.features]
+  const manuallyIncluded=source.sourceAtoms.features
     .filter(feature=>included.has(atom(feature)))
     .map(feature=>state(feature,'include',true,'accepted-manual'))
-  const manuallyExcluded=[...source.autoSelectedSourceAtoms.features,...source.unselectedShortlist.features]
+  const manuallyExcluded=source.sourceAtoms.features
     .filter(feature=>excluded.has(atom(feature))).map(feature=>state(feature,'exclude',false,'rejected-manual'))
   return{autoSelected:{features:automatic},unselectedShortlist:{features:unselected},
     manuallyIncluded:{features:manuallyIncluded},manuallyExcluded:{features:manuallyExcluded}}

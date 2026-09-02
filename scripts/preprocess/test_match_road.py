@@ -299,6 +299,7 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertLess(indexed_report["candidateComparisonsPerformed"], full_product / 20)
         self.assertEqual(brute_report["candidateComparisonsPerformed"], full_product)
 
+
     def _fixture(self, name):
         path = Path(__file__).parents[2] / "data/fixtures/road-matching" / name
         frame = gpd.read_file(path).to_crs(MATCH_ROAD.METRIC_CRS)
@@ -325,6 +326,50 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertLess(one_report["referencePartInference"][0]["matchedSampleCount"],
                         all_report["referencePartInference"][0]["matchedSampleCount"])
         self.assertEqual(set(all_classes.N13_003), {"1", "2"})
+
+
+class SourceAtomFrontierTests(unittest.TestCase):
+    def atoms(self, lines):
+        return MATCH_ROAD.source_atoms(gpd.GeoDataFrame({
+            "N13_001": [f"source-{index}" for index in range(len(lines))],
+            "N13_003": ["1"] * len(lines), "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS))
+
+    def test_linear_frontier_expands_restores_and_respects_exclusion_barrier(self):
+        atoms = self.atoms([LineString([(0, 0), (10, 0)]), LineString([(10, 0), (20, 0)]),
+                            LineString([(20, 0), (30, 0)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        a, b, c = atoms.n13AtomId
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids([a], graph), [b])
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids(
+            [a], graph, {"include": [b], "exclude": []}), [c])
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids(
+            [a], graph, {"include": [], "exclude": []}), [b])
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids(
+            [a], graph, {"include": [], "exclude": [b]}), [])
+
+    def test_endpoint_to_line_interior_is_adjacent(self):
+        atoms = self.atoms([LineString([(0, 0), (20, 0)]), LineString([(10, 10), (10, 0)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        self.assertEqual(graph[atoms.n13AtomId.iloc[0]], [atoms.n13AtomId.iloc[1]])
+
+    def test_nearby_parallel_interiors_are_not_adjacent(self):
+        atoms = self.atoms([LineString([(0, 0), (20, 0)]), LineString([(5, 1), (15, 1)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        self.assertEqual(graph[atoms.n13AtomId.iloc[0]], [])
+
+    def test_nearby_parallel_endpoints_are_not_adjacent(self):
+        atoms = self.atoms([LineString([(0, 0), (20, 0)]), LineString([(0, 1), (20, 1)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        self.assertEqual(graph[atoms.n13AtomId.iloc[0]], [])
+
+    def test_adjacency_is_stable_under_dataframe_reordering(self):
+        frame = gpd.GeoDataFrame({"N13_001": ["a", "b", "c"], "N13_003": ["1"] * 3,
+            "geometry": [LineString([(0, 0), (10, 0)]), LineString([(10, 0), (20, 0)]),
+                         LineString([(20, 0), (30, 0)])]}, crs=MATCH_ROAD.METRIC_CRS)
+        first = MATCH_ROAD.source_atoms(frame)
+        reordered = MATCH_ROAD.source_atoms(frame.iloc[::-1].reset_index(drop=True))
+        self.assertEqual(MATCH_ROAD.source_atom_adjacency(first, 2),
+                         MATCH_ROAD.source_atom_adjacency(reordered, 2))
 
 
 class DisplayChainTests(unittest.TestCase):
@@ -780,6 +825,12 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         self.assertNotIn("b:0", set(excluded.n13AtomId))
         restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
         self.assertNotIn("b:0", set(restored.n13AtomId))
+
+    def test_atom_outside_preview_candidates_cannot_be_manually_included(self):
+        result = self.same_atom_substring_result()
+        result["candidates"] = result["selectionDiagnostics"]
+        with self.assertRaisesRegex(ValueError, "outside this shortlist"):
+            MATCH_ROAD.curate_selection(result, {"include": ["outside:0"], "exclude": []})
 
     def test_connect_match_preview_preserves_manual_include_in_curated_and_final_selection(self):
         connected = MATCH_ROAD.connect_match_preview(

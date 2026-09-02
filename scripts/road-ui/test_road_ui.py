@@ -137,8 +137,10 @@ class RoadBuilderTests(unittest.TestCase):
             "geometry": [LineString([(0, 0), (10, 0)]), LineString([(0, 2), (10, 2)]),
                          LineString([(0, 20), (10, 20)])],
         }, crs=road_ui.MATCHER.METRIC_CRS)
+        adjacency = {"a:0": ["b:0"], "b:0": ["a:0"], "c:0": []}
         layers = road_ui._match_preview_layers({
-            "selectionDiagnostics": diagnostics, "selected": selected, "candidates": candidates})
+            "selectionDiagnostics": diagnostics, "selected": selected, "candidates": candidates,
+            "sourceAtoms": candidates, "sourceAdjacency": adjacency})
         auto_ids = {item["properties"]["n13AtomId"] for item in layers["autoSelected"]["features"]}
         shortlist_ids = {item["properties"]["n13AtomId"] for item in layers["unselectedShortlist"]["features"]}
         self.assertEqual(auto_ids, {"a:0"})
@@ -152,6 +154,9 @@ class RoadBuilderTests(unittest.TestCase):
                             for item in layers["rejectedDiagnostics"]["features"]))
         self.assertEqual({item["properties"]["n13AtomId"]
                           for item in layers["residualRejected"]["features"]}, {"c:0"})
+        self.assertEqual({item["properties"]["n13AtomId"]
+                          for item in layers["sourceAtoms"]["features"]}, {"a:0", "b:0", "c:0"})
+        self.assertEqual(layers["sourceAdjacency"], adjacency)
 
     @patch.object(road_ui, "_context")
     @patch.object(road_ui.MATCHER, "load_n13_candidates")
