@@ -71,7 +71,8 @@ python scripts/build-project.py shinjuku
 ```
 
 Open **http://127.0.0.1:5174**. The API listens only on `http://127.0.0.1:8765`; the development Vite server proxies
-`/api` to it. The intended workflow is **New Road → Inspect OSM → Analyze N13 → Preview Match → Save & Build**.
+`/api` to it. The intended workflow is **New Road → Inspect OSM → Analyze N13 → Preview Match → Manual Review →
+Connect Selected → Save & Build**.
 
 - **Inspect OSM** resolves an unsaved draft through the canonical OSM source configuration and current N13 coverage.
   It displays the exact tag values found; selecting a discovered name explicitly adds it to the draft. It never
@@ -81,11 +82,21 @@ Open **http://127.0.0.1:5174**. The API listens only on `http://127.0.0.1:8765`;
 - Missing class partitions are read from the cache manifest. **Prepare class N** calls the existing N13 preprocessor
   for that one class and requires the manifest's raw source to still be present; no large preprocessing starts
   silently.
-- **Preview Match** passes the in-memory draft to the existing matcher functions and returns reference, candidate,
-  residual-pass, selected, and diagnostic GeoJSON without writing the registry.
+- **Preview Match** runs only the existing fast spatial/ownership matcher. It proposes N13 road identity and returns
+  the Stage-1 shortlist, automatic selection, ownership, and diagnostics without writing the registry or recovering
+  connectors. Stable geometry-derived `n13FeatureId` / `n13AtomId` values make review overrides deterministic.
+- **Manual Review** is enabled explicitly with **Edit Selection**. A selected atom can be excluded and a Stage-1
+  shortlisted atom can be included; **Undo** and **Clear manual edits** preserve the untouched automatic proposal.
+  Exclusions are hard constraints and can never be resurrected by continuity reconstruction.
+- **Connect Selected** applies the explicit include/exclude set, then uses topology only to restore source-native
+  same-atom ranges, direct source junctions, and conservative local same/transition-class connectors. It does not
+  rerun matching. An ambiguous, long, wrong-class, or excluded path remains unresolved rather than being guessed.
+- Match and final previews have separate identities. A matching-setting edit invalidates both; a manual-only edit
+  retains the expensive match preview and invalidates only the connected final preview. Manual overrides are stored
+  with the N13 manifest fingerprint and are not silently applied after the source changes.
 - **Save Road** uses the same shared validation and atomic registry writer as `add-road.py`. Editing retains unknown
-  fields because the UI round-trips the complete object. **Save & Build** saves first and invokes the existing
-  `build-road.py` pipeline with a subprocess argument array.
+  fields because the UI round-trips the complete object. **Save & Build** accepts only a current final preview and
+  atomically publishes its exact cached artifacts. It never reruns matching, manual selection, or connectivity.
 
 For a local smoke test, keep `npm run road-builder` running, confirm the editor and map load at the URL above, choose
 an existing road, and click **Inspect OSM**. A prepared N13 cache and its raw source are needed for analysis/preview.

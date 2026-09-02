@@ -74,6 +74,9 @@ class Handler(BaseHTTPRequestHandler):
                 result = road_ui.preview_match(body["road"])
             elif route == ["api", "match", "preview", "start"]:
                 result = road_ui.start_preview_job(body["road"])
+            elif (len(route) == 6 and route[:3] == ["api", "match", "previews"]
+                  and route[4:] == ["connect", "start"]):
+                result = road_ui.start_connect_job(route[3], body.get("manualSelection", {}), body["road"])
             elif route == ["api", "roads"] and method == "POST":
                 result = {"road": road_ui.save_road(road_ui.REGISTRY, body["road"])}
             elif len(route) == 3 and route[:2] == ["api", "roads"] and method == "PUT":

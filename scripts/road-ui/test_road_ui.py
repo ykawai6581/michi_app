@@ -211,7 +211,7 @@ class RoadBuilderTests(unittest.TestCase):
 
     def test_unknown_preview_fails_without_computing(self):
         with patch.object(road_ui.MATCHER, "compute_road_build") as compute:
-            with self.assertRaisesRegex(RuntimeError, "Preview is stale"):
+            with self.assertRaisesRegex(RuntimeError, "Final preview is stale"):
                 road_ui.build_road(ROAD["id"], "unknown", ROAD, self.registry,
                                    cache=Path(self.temp.name) / "previews")
             compute.assert_not_called()
@@ -227,7 +227,8 @@ class RoadBuilderTests(unittest.TestCase):
                        "n13Manifest":road_ui._file_hash(n13 / "manifest.json"),
                        "osmReference":None,"osmReferenceMetadata":None}
         metadata = {"roadId":ROAD["id"],"draftHash":road_ui.draft_hash(ROAD),
-                    "sourceFingerprint":fingerprint}
+                    "sourceFingerprint":fingerprint,"stage":"final",
+                    "manualSelectionHash":road_ui.manual_selection_hash(None)}
         (preview / "metadata.json").write_text(json.dumps(metadata))
         exact_n13 = b'{"type":"FeatureCollection","features":[]}\n'
         artifacts = {"n13":exact_n13,"osm":b'{}\n',"report":b'{"outputs":{}}\n',"diagnostics":b'{}'}

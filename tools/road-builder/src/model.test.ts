@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyRoad,findRegisteredRoad,initialLayerVisibility,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,canBuild,canConnect,deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyManualSelection,emptyRoad,findRegisteredRoad,initialLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -37,4 +37,15 @@ describe('road form helpers',()=>{
     expect(deletionApiPaths(target!.id)).toEqual({references:'/api/roads/tokyo-named-itsukaichi-kaido/references',delete:'/api/roads/tokyo-named-itsukaichi-kaido'})
   })
   it('stops exposing deletion after the registered entry is removed',()=>expect(resolveDeletableRoad([], 'tokyo-named-itsukaichi-kaido')).toBeUndefined())
+  it('applies reversible manual includes and exclusions without changing the automatic decision',()=>{
+    expect(toggleManualAtom(emptyManualSelection(),'auto',true)).toEqual({include:[],exclude:['auto']})
+    expect(toggleManualAtom({include:[],exclude:['auto']},'auto',true)).toEqual(emptyManualSelection())
+    expect(toggleManualAtom(emptyManualSelection(),'candidate',false)).toEqual({include:['candidate'],exclude:[]})
+  })
+  it('invalidates only the final preview after a manual edit',()=>{
+    expect(previewStageAfterManualEdit('FINAL_READY')).toBe('MATCH_EDITED')
+    expect(canConnect('MATCH_EDITED')).toBe(true)
+    expect(canBuild('MATCH_EDITED','final')).toBe(false)
+    expect(canBuild('FINAL_READY','final')).toBe(true)
+  })
 })

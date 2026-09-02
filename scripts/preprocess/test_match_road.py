@@ -607,5 +607,39 @@ class SourceArchitectureTests(unittest.TestCase):
         self.assertEqual(report["syntheticBridgesAdded"], 0)
 
 
+class StableIdentityAndManualSelectionTests(unittest.TestCase):
+    def test_stable_ids_ignore_dataframe_order_and_change_with_geometry(self):
+        frame = gpd.GeoDataFrame({"N13_001":["source-a","source-b"],"N13_003":["1","1"],
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(10,0),(20,0)])]}, crs=MATCH_ROAD.METRIC_CRS)
+        first = MATCH_ROAD.add_stable_n13_ids(frame)
+        reordered = MATCH_ROAD.add_stable_n13_ids(frame.iloc[::-1].reset_index(drop=True))
+        self.assertEqual(set(first.n13FeatureId), set(reordered.n13FeatureId))
+        unchanged = MATCH_ROAD.add_stable_n13_ids(frame.copy())
+        self.assertEqual(list(first.n13AtomId), list(unchanged.n13AtomId))
+        changed = frame.copy(); changed.at[0,"geometry"] = LineString([(0,0),(11,0)])
+        self.assertNotEqual(first.at[0,"n13FeatureId"], MATCH_ROAD.add_stable_n13_ids(changed).at[0,"n13FeatureId"])
+
+    def test_multipart_atoms_receive_distinct_ids(self):
+        geometry = MultiLineString([[(0,0),(5,0)],[(5,0),(10,0)]])
+        frame = MATCH_ROAD.add_stable_n13_ids(gpd.GeoDataFrame({"N13_003":["1"],"geometry":[geometry]}, crs=MATCH_ROAD.METRIC_CRS))
+        exploded = frame.explode(index_parts=True).reset_index(drop=True)
+        exploded["sourceAtomIndex"] = range(len(exploded))
+        exploded["n13AtomId"] = [f"{feature}:{atom}" for feature,atom in zip(exploded.n13FeatureId,exploded.sourceAtomIndex)]
+        self.assertEqual(len(set(exploded.n13AtomId)), 2)
+
+    def test_manual_selection_is_explicit_and_reversible(self):
+        diagnostics = gpd.GeoDataFrame({"n13FeatureId":["a","b"],"n13AtomId":["a:0","b:0"],
+            "sourceFeatureIndex":[0,1],"sourceAtomIndex":[0,0],"N13_003":["1","1"],
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(10,0),(20,0)])]}, crs=MATCH_ROAD.METRIC_CRS)
+        selected = diagnostics.iloc[[0]].copy()
+        selected["referencePart"] = 0; selected["ownedReferenceStartMeters"] = 0.; selected["ownedReferenceEndMeters"] = 10.
+        selected["sourceStartDistanceMeters"] = 0.; selected["sourceEndDistanceMeters"] = 10.
+        result = {"selected":selected,"selectionDiagnostics":diagnostics,"reference":LineString([(0,0),(20,0)])}
+        curated = MATCH_ROAD.curate_selection(result,{"exclude":["a:0"],"include":["b:0"]})
+        self.assertEqual(set(curated.n13AtomId), {"b:0"})
+        self.assertEqual(curated.iloc[0].selectionReason, "accepted-manual")
+        self.assertEqual(set(MATCH_ROAD.curate_selection(result,{}).n13AtomId), {"a:0"})
+
+
 if __name__ == "__main__":
     unittest.main()
