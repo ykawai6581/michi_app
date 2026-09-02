@@ -1410,6 +1410,12 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
     connected, connector_report = connect_adjacent_selected_runs(
         curated, result["residualPass"], result["reference"], config,
         frozenset(manual_selection.get("exclude", [])), progress_callback)
+    curated_atom_ids = set(curated.n13AtomId.astype(str))
+    connected_atom_ids = set(connected.n13AtomId.astype(str))
+    missing_curated_atoms = curated_atom_ids - connected_atom_ids
+    if missing_curated_atoms:
+        raise RuntimeError("Connectivity reconstruction discarded curated N13 atoms: "
+                           + ", ".join(sorted(missing_curated_atoms)))
     if progress_callback: progress_callback(progress=94, phase="Building final display geometry/report")
     final = dict(result)
     final["selected"] = connected
@@ -1419,7 +1425,14 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
         "automaticSelectedAtomCount": len(set(result["selected"].n13AtomId)),
         "manualIncludedAtomCount": len(manual_selection.get("include", [])),
         "manualExcludedAtomCount": len(manual_selection.get("exclude", [])),
-        "curatedSelectedAtomCount": len(set(curated.n13AtomId))}
+        "curatedSelectedAtomCount": len(curated_atom_ids),
+        "finalSelectedAtomCount": len(connected_atom_ids)}
+    requested_includes = sorted(set(map(str, manual_selection.get("include", []))))
+    final["connectDiagnostics"] = {
+        "manualIncludedAtomIds": requested_includes,
+        "curatedManualIncludedAtomIds": sorted(curated_atom_ids.intersection(requested_includes)),
+        "finalManualIncludedAtomIds": sorted(connected_atom_ids.intersection(requested_includes)),
+        "missingCuratedAtomIds": sorted(missing_curated_atoms)}
     final["coverage"], final["unresolved"] = reference_coverage(
         result["reference"], connected.geometry.union_all(), result["road"]["matching"]["sampleIntervalMeters"],
         result["road"]["matching"]["coverageToleranceMeters"])

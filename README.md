@@ -99,6 +99,8 @@ Connect Selected → Save & Build**.
 - **Connect Selected** applies the explicit include/exclude set, then uses topology only to restore source-native
   same-atom ranges, direct source junctions, and conservative local same/transition-class connectors. It does not
   rerun matching. An ambiguous, long, wrong-class, or excluded path remains unresolved rather than being guessed.
+  The first connected view shows only **Final connected** from the review geometry layers; entering Edit Selection
+  restores the review-layer presentation without changing the saved manual include/exclude state.
 - Match and final previews have separate identities. A matching-setting edit invalidates both; a manual-only edit
   retains the expensive match preview and invalidates only the connected final preview. Manual overrides are stored
   with the N13 manifest fingerprint and are not silently applied after the source changes.

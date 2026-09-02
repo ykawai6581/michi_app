@@ -608,6 +608,25 @@ class SourceArchitectureTests(unittest.TestCase):
 
 
 class StableIdentityAndManualSelectionTests(unittest.TestCase):
+    def match_result(self, automatic_ids):
+        diagnostics = gpd.GeoDataFrame({
+            "n13FeatureId":["a","b"], "n13AtomId":["a:0","b:0"],
+            "sourceFeatureIndex":[0,1], "sourceAtomIndex":[0,0], "N13_003":["1","1"],
+            "match_min_m":[0.,0.], "match_median_m":[0.,0.], "match_p90_m":[0.,0.],
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(20,0),(30,0)])],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        selected = diagnostics[diagnostics.n13AtomId.isin(automatic_ids)].copy()
+        selected["referencePart"] = 0
+        selected["ownedReferenceStartMeters"] = [0. if atom == "a:0" else 20. for atom in selected.n13AtomId]
+        selected["ownedReferenceEndMeters"] = [10. if atom == "a:0" else 30. for atom in selected.n13AtomId]
+        selected["sourceStartDistanceMeters"] = 0.
+        selected["sourceEndDistanceMeters"] = 10.
+        return {"selected":selected, "selectionDiagnostics":diagnostics,
+            "residualPass":diagnostics, "reference":LineString([(0,0),(30,0)]),
+            "road":{"n13":{"classifications":["1"]}, "networkSelection":{},
+                    "matching":{"sampleIntervalMeters":5,"coverageToleranceMeters":5}},
+            "displayConfig":{"endpointSnapMeters":2}, "networkReport":{}}
+
     def test_stable_ids_ignore_dataframe_order_and_change_with_geometry(self):
         frame = gpd.GeoDataFrame({"N13_001":["source-a","source-b"],"N13_003":["1","1"],
             "geometry":[LineString([(0,0),(10,0)]),LineString([(10,0),(20,0)])]}, crs=MATCH_ROAD.METRIC_CRS)
@@ -639,6 +658,32 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         self.assertEqual(set(curated.n13AtomId), {"b:0"})
         self.assertEqual(curated.iloc[0].selectionReason, "accepted-manual")
         self.assertEqual(set(MATCH_ROAD.curate_selection(result,{}).n13AtomId), {"a:0"})
+
+    def test_connect_match_preview_preserves_manual_include_in_curated_and_final_selection(self):
+        connected = MATCH_ROAD.connect_match_preview(
+            self.match_result(["a:0"]), {"include":["b:0"],"exclude":[]})
+        self.assertEqual(set(connected["curatedSelected"].n13AtomId), {"a:0","b:0"})
+        self.assertEqual(set(connected["selected"].n13AtomId), {"a:0","b:0"})
+        self.assertEqual(connected["networkReport"]["automaticSelectedAtomCount"], 1)
+        self.assertEqual(connected["networkReport"]["manualIncludedAtomCount"], 1)
+        self.assertEqual(connected["networkReport"]["manualExcludedAtomCount"], 0)
+        self.assertEqual(connected["networkReport"]["curatedSelectedAtomCount"], 2)
+        self.assertEqual(connected["networkReport"]["finalSelectedAtomCount"], 2)
+        self.assertEqual(connected["connectDiagnostics"]["curatedManualIncludedAtomIds"], ["b:0"])
+        self.assertEqual(connected["connectDiagnostics"]["finalManualIncludedAtomIds"], ["b:0"])
+
+    def test_connect_match_preview_does_not_restore_manual_exclusion_as_connector(self):
+        connected = MATCH_ROAD.connect_match_preview(
+            self.match_result(["a:0","b:0"]), {"include":[],"exclude":["b:0"]})
+        self.assertEqual(set(connected["curatedSelected"].n13AtomId), {"a:0"})
+        self.assertEqual(set(connected["selected"].n13AtomId), {"a:0"})
+
+    def test_connect_match_preview_raises_if_topology_discards_a_curated_atom(self):
+        result = self.match_result(["a:0"])
+        with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
+                          side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
+            with self.assertRaisesRegex(RuntimeError, "discarded curated N13 atoms: b:0"):
+                MATCH_ROAD.connect_match_preview(result, {"include":["b:0"],"exclude":[]})
 
 
 if __name__ == "__main__":
