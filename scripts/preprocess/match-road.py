@@ -1112,19 +1112,42 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
     same_source_merge_count = 0
     graph_search_count = 0
     connector_candidate_edge_count = 0
+    curated_union = selected.geometry.union_all()
+    connector_union = None
 
     def atom(row):
         matches = source[(source.sourceFeatureIndex == row.sourceFeatureIndex)
                          & (source.sourceAtomIndex == row.sourceAtomIndex)]
         return int(matches.index[0]) if not matches.empty else None
 
-    def extend(row_index, position):
-        parent = source_geometries[atom(result.loc[row_index])]
-        start = min(float(result.at[row_index, "sourceStartDistanceMeters"]), position)
-        end = max(float(result.at[row_index, "sourceEndDistanceMeters"]), position)
-        result.at[row_index, "sourceStartDistanceMeters"] = start
-        result.at[row_index, "sourceEndDistanceMeters"] = end
-        result.at[row_index, "geometry"] = substring(parent, start, end)
+    def append_connector(edge, geometry, upstream, downstream, part_index, gap_start, gap_end):
+        """Append only source geometry not already present in the curated result."""
+        nonlocal connector_union
+        occupied = curated_union if connector_union is None else unary_union([curated_union, connector_union])
+        missing = geometry.difference(occupied)
+        pieces = list(missing.geoms) if hasattr(missing, "geoms") else [missing]
+        added = []
+        parent = source_geometries[edge]
+        for piece in pieces:
+            if piece.geom_type != "LineString" or piece.length <= 1e-9:
+                continue
+            row = source.loc[edge].copy()
+            row["geometry"] = piece
+            positions = [float(parent.project(Point(coordinate))) for coordinate in piece.coords]
+            row["sourceStartDistanceMeters"] = min(positions)
+            row["sourceEndDistanceMeters"] = max(positions)
+            row["selectionStatus"] = row["selectionReason"] = "accepted-continuity-connector"
+            row["referencePart"] = part_index
+            row["ownedReferenceStartMeters"] = gap_start
+            row["ownedReferenceEndMeters"] = gap_end
+            row["upstreamN13AtomId"] = upstream.n13AtomId
+            row["downstreamN13AtomId"] = downstream.n13AtomId
+            connector_rows.append(row)
+            added.append(piece)
+        if added:
+            addition = unary_union(added)
+            connector_union = addition if connector_union is None else unary_union([connector_union, addition])
+        return sum(piece.length for piece in added)
 
     for part_index, reference_part in enumerate(parts):
         ordered = list(result[result.referencePart == part_index].sort_values(
@@ -1165,12 +1188,15 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                 source_gap = max(0.0, float(downstream.sourceStartDistanceMeters)
                                  - float(upstream.sourceEndDistanceMeters))
                 if source_gap <= maximum_length and source_gap / max(gap, 1.0) <= maximum_detour:
-                    extend(upstream_index, float(downstream.sourceStartDistanceMeters))
-                    extend(upstream_index, float(downstream.sourceEndDistanceMeters))
-                    result = result.drop(index=downstream_index)
+                    parent = source_geometries[upstream_atom]
+                    connector_length = append_connector(
+                        upstream_atom,
+                        substring(parent, float(upstream.sourceEndDistanceMeters),
+                                  float(downstream.sourceStartDistanceMeters)),
+                        upstream, downstream, part_index, gap_start, gap_end)
                     decisions.append({**base, "connectorSourceFeatureIndices": [],
                                       "connectorClasses": [str(upstream.N13_003)],
-                                      "connectorLengthMeters": round(source_gap, 3),
+                                      "connectorLengthMeters": round(connector_length, 3),
                                       "connectorDetourRatio": round(source_gap / max(gap, 1.0), 3),
                                       "decision": "accepted-same-source-range"})
                     same_source_merge_count += 1
@@ -1181,8 +1207,16 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                 first, second = min(direct, key=lambda pair:
                     abs(pair[0] - float(upstream.sourceEndDistanceMeters))
                     + abs(pair[1] - float(downstream.sourceStartDistanceMeters)))
-                extend(upstream_index, first)
-                extend(downstream_index, second)
+                append_connector(
+                    upstream_atom,
+                    substring(source_geometries[upstream_atom],
+                              float(upstream.sourceEndDistanceMeters), first),
+                    upstream, downstream, part_index, gap_start, gap_end)
+                append_connector(
+                    downstream_atom,
+                    substring(source_geometries[downstream_atom], second,
+                              float(downstream.sourceStartDistanceMeters)),
+                    upstream, downstream, part_index, gap_start, gap_end)
                 decisions.append({**base, "connectorSourceFeatureIndices": [],
                                   "connectorClasses": sorted({str(upstream.N13_003), str(downstream.N13_003)}),
                                   "connectorLengthMeters": 0.0, "connectorDetourRatio": 0.0,
@@ -1234,17 +1268,19 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
             path, length, ratio = plausible[0]
             first_junction = _source_junctions(source_geometries[upstream_atom], source_geometries[path[0]], tolerance)[0]
             last_junction = _source_junctions(source_geometries[path[-1]], source_geometries[downstream_atom], tolerance)[0]
-            extend(upstream_index, first_junction[0])
-            extend(downstream_index, last_junction[1])
+            append_connector(
+                upstream_atom,
+                substring(source_geometries[upstream_atom],
+                          float(upstream.sourceEndDistanceMeters), first_junction[0]),
+                upstream, downstream, part_index, gap_start, gap_end)
+            append_connector(
+                downstream_atom,
+                substring(source_geometries[downstream_atom], last_junction[1],
+                          float(downstream.sourceStartDistanceMeters)),
+                upstream, downstream, part_index, gap_start, gap_end)
             for edge in path:
-                row = source.loc[edge].copy()
-                row["selectionStatus"] = row["selectionReason"] = "accepted-continuity-connector"
-                row["referencePart"] = part_index
-                row["ownedReferenceStartMeters"] = gap_start
-                row["ownedReferenceEndMeters"] = gap_end
-                row["upstreamN13AtomId"] = upstream.n13AtomId
-                row["downstreamN13AtomId"] = downstream.n13AtomId
-                connector_rows.append(row)
+                append_connector(edge, source_geometries[edge], upstream, downstream,
+                                 part_index, gap_start, gap_end)
             decisions.append({**base,
                               "connectorSourceFeatureIndices": [int(source.at[edge, "sourceFeatureIndex"]) for edge in path],
                               "connectorClasses": sorted({source_classes[edge] for edge in path}),

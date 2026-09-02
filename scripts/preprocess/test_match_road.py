@@ -37,6 +37,14 @@ def select(lines, reference, classes=None, **settings):
 
 
 class ReferenceOwnershipTests(unittest.TestCase):
+    def assert_curated_rows_unchanged(self, curated, connected):
+        for _, row in curated.iterrows():
+            matches = connected[
+                (connected.sourceFeatureIndex == row.sourceFeatureIndex)
+                & (connected.sourceStartDistanceMeters == row.sourceStartDistanceMeters)
+                & (connected.sourceEndDistanceMeters == row.sourceEndDistanceMeters)]
+            self.assertTrue(any(candidate.wkb == row.geometry.wkb for candidate in matches.geometry))
+
     def test_progress_callback_reports_actual_reference_sample_work_without_changing_output(self):
         lines = [LineString([(0, 0), (100, 0)])]
         reference = LineString([(0, 0), (100, 0)])
@@ -151,6 +159,56 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertEqual(report["ownershipGapCount"], 1)
         self.assertEqual(report["connectorGraphSearchCount"], 1)
         self.assertEqual(report["connectorCandidateEdgeCount"], 1)
+        self.assertAlmostEqual(connected.geometry.union_all().length, 100)
+
+    def test_intermediate_connector_keeps_both_curated_endpoints_unchanged(self):
+        lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
+                 LineString([(55, 0), (100, 0)])]
+        reference = LineString([(0, 0), (100, 0)])
+        settings = {"classPriority": ["1"], "progressSampleMeters": 20,
+                    "minimumOwnedReferenceSamples": 2}
+        curated, _, _ = select(lines, reference, ["1", "1", "1"], **settings)
+        stage1 = gpd.GeoDataFrame({"N13_003": ["1"] * 3, "sourceFeatureIndex": range(3),
+                                   "n13FeatureId": ["a", "b", "c"],
+                                   "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
+        connected, _ = MATCH_ROAD.connect_adjacent_selected_runs(curated, stage1, reference, settings)
+        self.assert_curated_rows_unchanged(curated, connected)
+        self.assertLessEqual(curated.geometry.union_all().difference(
+            connected.geometry.union_all()).length, 1e-9)
+
+    def test_same_source_gap_adds_only_missing_interval_without_mutating_runs(self):
+        parent = LineString([(0, 0), (30, 0)])
+        curated = gpd.GeoDataFrame({
+            "N13_003": ["1", "1"], "sourceFeatureIndex": [0, 0],
+            "sourceAtomIndex": [0, 0], "n13FeatureId": ["a", "a"], "n13AtomId": ["a:0", "a:0"],
+            "referencePart": [0, 0], "ownedReferenceStartMeters": [0., 20.],
+            "ownedReferenceEndMeters": [10., 30.], "sourceStartDistanceMeters": [0., 20.],
+            "sourceEndDistanceMeters": [10., 30.],
+            "geometry": [MATCH_ROAD.substring(parent, 0, 10), MATCH_ROAD.substring(parent, 20, 30)]},
+            crs=MATCH_ROAD.METRIC_CRS)
+        stage1 = gpd.GeoDataFrame({"N13_003": ["1"], "sourceFeatureIndex": [0],
+                                   "n13FeatureId": ["a"], "geometry": [parent]}, crs=MATCH_ROAD.METRIC_CRS)
+        connected, _ = MATCH_ROAD.connect_adjacent_selected_runs(
+            curated, stage1, parent, {"endpointSnapMeters": 2})
+        self.assert_curated_rows_unchanged(curated, connected)
+        connectors = connected[connected.selectionStatus == "accepted-continuity-connector"]
+        self.assertEqual(len(connectors), 1)
+        self.assertTrue(connectors.iloc[0].geometry.equals(LineString([(10, 0), (20, 0)])))
+
+    def test_direct_junction_appends_extensions_without_mutating_curated_runs(self):
+        parents = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])]
+        reference = LineString([(0, 0), (100, 0)])
+        curated, _, _ = select(parents, reference, ["1", "1"], classPriority=["1"])
+        ordered = curated.sort_values("ownedReferenceStartMeters").index
+        curated.at[ordered[0], "geometry"] = MATCH_ROAD.substring(parents[0], 0, 45)
+        curated.at[ordered[0], "sourceEndDistanceMeters"] = 45.
+        curated.at[ordered[1], "geometry"] = MATCH_ROAD.substring(parents[1], 5, 50)
+        curated.at[ordered[1], "sourceStartDistanceMeters"] = 5.
+        stage1 = gpd.GeoDataFrame({"N13_003": ["1", "1"], "sourceFeatureIndex": [0, 1],
+                                   "n13FeatureId": ["a", "b"],
+                                   "geometry": parents}, crs=MATCH_ROAD.METRIC_CRS)
+        connected, _ = MATCH_ROAD.connect_adjacent_selected_runs(curated, stage1, reference)
+        self.assert_curated_rows_unchanged(curated, connected)
         self.assertAlmostEqual(connected.geometry.union_all().length, 100)
 
     def test_wrong_class_connector_is_not_reintroduced(self):
