@@ -44,12 +44,13 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.highlightLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['Point','Polygon']]], layout: { 'text-field':['get','name'],'text-size':28,'text-font':['Noto Sans Regular'],'text-offset':['case',['==',['geometry-type'],'Point'],['literal',[0,1.5]],['literal',[0,0]]],'text-anchor':['case',['==',['geometry-type'],'Point'],'top','center'] }, paint: { 'text-color':['match',['geometry-type'],'Polygon','#3264aa','#64c2f2'],'text-halo-color':'#fff','text-halo-width':3 } })
 }
 
-export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentationLayerIds: string[]): void {
-  const showPresentation = mode === 'presentation' || mode === 'dark'
+export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentationLayerIds: string[], rekichizuLayerIds: string[] = [], dark = false): void {
+  const showPresentation = mode === 'presentation'
   presentationLayerIds.forEach((id) => map.setLayoutProperty(id, 'visibility', showPresentation ? 'visible' : 'none'))
+  rekichizuLayerIds.forEach((id) => map.setLayoutProperty(id, 'visibility', mode === 'rekichizu' ? 'visible' : 'none'))
   map.setLayoutProperty(LAYER_IDS.gsiBase, 'visibility', mode === 'gsi' ? 'visible' : 'none')
   map.setPaintProperty(LAYER_IDS.whiteBase, 'background-opacity', mode === 'white' || mode === 'gsi' ? 1 : 0)
-  map.setPaintProperty(LAYER_IDS.darkVeil, 'background-opacity', mode === 'dark' ? 0.68 : 0)
+  map.setPaintProperty(LAYER_IDS.darkVeil, 'background-opacity', dark ? 0.68 : 0)
 }
 
 export function setProjectLayerVisibility(map: maplibregl.Map, visibility: LayerVisibility): void {
