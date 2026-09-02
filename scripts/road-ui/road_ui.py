@@ -335,6 +335,8 @@ def _match_preview_layers(result: dict) -> dict:
     return {"autoSelected": _geojson(result["selected"]),
             "autoSelectedSourceAtoms": _geojson(auto_selected_atoms),
             "unselectedShortlist": _geojson(unselected),
+            "sourceAtoms": _geojson(result.get("sourceAtoms", diagnostics)),
+            "sourceAdjacency": result.get("sourceAdjacency", {}),
             "allCandidates": _geojson(candidates),
             "residualRejected": _geojson(residual_rejected),
             "rejectedDiagnostics": _geojson(rejected)}

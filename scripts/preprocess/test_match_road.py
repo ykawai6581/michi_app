@@ -37,6 +37,14 @@ def select(lines, reference, classes=None, **settings):
 
 
 class ReferenceOwnershipTests(unittest.TestCase):
+    def assert_curated_rows_unchanged(self, curated, connected):
+        for _, row in curated.iterrows():
+            matches = connected[
+                (connected.sourceFeatureIndex == row.sourceFeatureIndex)
+                & (connected.sourceStartDistanceMeters == row.sourceStartDistanceMeters)
+                & (connected.sourceEndDistanceMeters == row.sourceEndDistanceMeters)]
+            self.assertTrue(any(candidate.wkb == row.geometry.wkb for candidate in matches.geometry))
+
     def test_progress_callback_reports_actual_reference_sample_work_without_changing_output(self):
         lines = [LineString([(0, 0), (100, 0)])]
         reference = LineString([(0, 0), (100, 0)])
@@ -153,6 +161,56 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertEqual(report["connectorCandidateEdgeCount"], 1)
         self.assertAlmostEqual(connected.geometry.union_all().length, 100)
 
+    def test_intermediate_connector_keeps_both_curated_endpoints_unchanged(self):
+        lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
+                 LineString([(55, 0), (100, 0)])]
+        reference = LineString([(0, 0), (100, 0)])
+        settings = {"classPriority": ["1"], "progressSampleMeters": 20,
+                    "minimumOwnedReferenceSamples": 2}
+        curated, _, _ = select(lines, reference, ["1", "1", "1"], **settings)
+        stage1 = gpd.GeoDataFrame({"N13_003": ["1"] * 3, "sourceFeatureIndex": range(3),
+                                   "n13FeatureId": ["a", "b", "c"],
+                                   "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
+        connected, _ = MATCH_ROAD.connect_adjacent_selected_runs(curated, stage1, reference, settings)
+        self.assert_curated_rows_unchanged(curated, connected)
+        self.assertLessEqual(curated.geometry.union_all().difference(
+            connected.geometry.union_all()).length, 1e-9)
+
+    def test_same_source_gap_adds_only_missing_interval_without_mutating_runs(self):
+        parent = LineString([(0, 0), (30, 0)])
+        curated = gpd.GeoDataFrame({
+            "N13_003": ["1", "1"], "sourceFeatureIndex": [0, 0],
+            "sourceAtomIndex": [0, 0], "n13FeatureId": ["a", "a"], "n13AtomId": ["a:0", "a:0"],
+            "referencePart": [0, 0], "ownedReferenceStartMeters": [0., 20.],
+            "ownedReferenceEndMeters": [10., 30.], "sourceStartDistanceMeters": [0., 20.],
+            "sourceEndDistanceMeters": [10., 30.],
+            "geometry": [MATCH_ROAD.substring(parent, 0, 10), MATCH_ROAD.substring(parent, 20, 30)]},
+            crs=MATCH_ROAD.METRIC_CRS)
+        stage1 = gpd.GeoDataFrame({"N13_003": ["1"], "sourceFeatureIndex": [0],
+                                   "n13FeatureId": ["a"], "geometry": [parent]}, crs=MATCH_ROAD.METRIC_CRS)
+        connected, _ = MATCH_ROAD.connect_adjacent_selected_runs(
+            curated, stage1, parent, {"endpointSnapMeters": 2})
+        self.assert_curated_rows_unchanged(curated, connected)
+        connectors = connected[connected.selectionStatus == "accepted-continuity-connector"]
+        self.assertEqual(len(connectors), 1)
+        self.assertTrue(connectors.iloc[0].geometry.equals(LineString([(10, 0), (20, 0)])))
+
+    def test_direct_junction_appends_extensions_without_mutating_curated_runs(self):
+        parents = [LineString([(0, 0), (50, 0)]), LineString([(50, 0), (100, 0)])]
+        reference = LineString([(0, 0), (100, 0)])
+        curated, _, _ = select(parents, reference, ["1", "1"], classPriority=["1"])
+        ordered = curated.sort_values("ownedReferenceStartMeters").index
+        curated.at[ordered[0], "geometry"] = MATCH_ROAD.substring(parents[0], 0, 45)
+        curated.at[ordered[0], "sourceEndDistanceMeters"] = 45.
+        curated.at[ordered[1], "geometry"] = MATCH_ROAD.substring(parents[1], 5, 50)
+        curated.at[ordered[1], "sourceStartDistanceMeters"] = 5.
+        stage1 = gpd.GeoDataFrame({"N13_003": ["1", "1"], "sourceFeatureIndex": [0, 1],
+                                   "n13FeatureId": ["a", "b"],
+                                   "geometry": parents}, crs=MATCH_ROAD.METRIC_CRS)
+        connected, _ = MATCH_ROAD.connect_adjacent_selected_runs(curated, stage1, reference)
+        self.assert_curated_rows_unchanged(curated, connected)
+        self.assertAlmostEqual(connected.geometry.union_all().length, 100)
+
     def test_wrong_class_connector_is_not_reintroduced(self):
         lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
                  LineString([(55, 0), (100, 0)])]
@@ -241,6 +299,7 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertLess(indexed_report["candidateComparisonsPerformed"], full_product / 20)
         self.assertEqual(brute_report["candidateComparisonsPerformed"], full_product)
 
+
     def _fixture(self, name):
         path = Path(__file__).parents[2] / "data/fixtures/road-matching" / name
         frame = gpd.read_file(path).to_crs(MATCH_ROAD.METRIC_CRS)
@@ -267,6 +326,50 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertLess(one_report["referencePartInference"][0]["matchedSampleCount"],
                         all_report["referencePartInference"][0]["matchedSampleCount"])
         self.assertEqual(set(all_classes.N13_003), {"1", "2"})
+
+
+class SourceAtomFrontierTests(unittest.TestCase):
+    def atoms(self, lines):
+        return MATCH_ROAD.source_atoms(gpd.GeoDataFrame({
+            "N13_001": [f"source-{index}" for index in range(len(lines))],
+            "N13_003": ["1"] * len(lines), "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS))
+
+    def test_linear_frontier_expands_restores_and_respects_exclusion_barrier(self):
+        atoms = self.atoms([LineString([(0, 0), (10, 0)]), LineString([(10, 0), (20, 0)]),
+                            LineString([(20, 0), (30, 0)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        a, b, c = atoms.n13AtomId
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids([a], graph), [b])
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids(
+            [a], graph, {"include": [b], "exclude": []}), [c])
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids(
+            [a], graph, {"include": [], "exclude": []}), [b])
+        self.assertEqual(MATCH_ROAD.available_source_atom_ids(
+            [a], graph, {"include": [], "exclude": [b]}), [])
+
+    def test_endpoint_to_line_interior_is_adjacent(self):
+        atoms = self.atoms([LineString([(0, 0), (20, 0)]), LineString([(10, 10), (10, 0)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        self.assertEqual(graph[atoms.n13AtomId.iloc[0]], [atoms.n13AtomId.iloc[1]])
+
+    def test_nearby_parallel_interiors_are_not_adjacent(self):
+        atoms = self.atoms([LineString([(0, 0), (20, 0)]), LineString([(5, 1), (15, 1)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        self.assertEqual(graph[atoms.n13AtomId.iloc[0]], [])
+
+    def test_nearby_parallel_endpoints_are_not_adjacent(self):
+        atoms = self.atoms([LineString([(0, 0), (20, 0)]), LineString([(0, 1), (20, 1)])])
+        graph = MATCH_ROAD.source_atom_adjacency(atoms, 2)
+        self.assertEqual(graph[atoms.n13AtomId.iloc[0]], [])
+
+    def test_adjacency_is_stable_under_dataframe_reordering(self):
+        frame = gpd.GeoDataFrame({"N13_001": ["a", "b", "c"], "N13_003": ["1"] * 3,
+            "geometry": [LineString([(0, 0), (10, 0)]), LineString([(10, 0), (20, 0)]),
+                         LineString([(20, 0), (30, 0)])]}, crs=MATCH_ROAD.METRIC_CRS)
+        first = MATCH_ROAD.source_atoms(frame)
+        reordered = MATCH_ROAD.source_atoms(frame.iloc[::-1].reset_index(drop=True))
+        self.assertEqual(MATCH_ROAD.source_atom_adjacency(first, 2),
+                         MATCH_ROAD.source_atom_adjacency(reordered, 2))
 
 
 class DisplayChainTests(unittest.TestCase):
@@ -681,6 +784,53 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         self.assertEqual(set(curated.n13AtomId), {"b:0"})
         self.assertEqual(curated.iloc[0].selectionReason, "accepted-manual")
         self.assertEqual(set(MATCH_ROAD.curate_selection(result,{}).n13AtomId), {"a:0"})
+
+    def test_automatic_partial_atom_none_restores_exact_baseline_substrings(self):
+        result = self.same_atom_substring_result()
+        baseline = result["selected"]
+        curated = MATCH_ROAD.curate_selection(result, {})
+        self.assertEqual([geometry.wkb for geometry in curated.geometry],
+                         [geometry.wkb for geometry in baseline.geometry])
+
+    def test_automatic_partial_atom_exclude_removes_all_substrings(self):
+        curated = MATCH_ROAD.curate_selection(
+            self.same_atom_substring_result(), {"include": [], "exclude": ["a:0"]})
+        self.assertNotIn("a:0", set(curated.n13AtomId))
+
+    def test_automatic_partial_atom_include_promotes_to_one_complete_source_atom(self):
+        result = self.same_atom_substring_result()
+        curated = MATCH_ROAD.curate_selection(result, {"include": ["a:0"], "exclude": []})
+        promoted = curated[curated.n13AtomId == "a:0"]
+        self.assertEqual(len(promoted), 1)
+        self.assertEqual(promoted.iloc[0].geometry.wkb, result["selectionDiagnostics"].iloc[0].geometry.wkb)
+        self.assertEqual(promoted.iloc[0].manualSelection, "include")
+
+    def test_removing_automatic_include_restores_exact_partial_baseline(self):
+        result = self.same_atom_substring_result()
+        MATCH_ROAD.curate_selection(result, {"include": ["a:0"], "exclude": []})
+        restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
+        self.assertEqual([geometry.wkb for geometry in restored.geometry],
+                         [geometry.wkb for geometry in result["selected"].geometry])
+
+    def test_removing_nonautomatic_include_returns_atom_to_unselected(self):
+        result = self.same_atom_substring_result()
+        included = MATCH_ROAD.curate_selection(result, {"include": ["b:0"], "exclude": []})
+        self.assertIn("b:0", set(included.n13AtomId))
+        restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
+        self.assertNotIn("b:0", set(restored.n13AtomId))
+
+    def test_removing_nonautomatic_exclude_does_not_include_atom(self):
+        result = self.same_atom_substring_result()
+        excluded = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": ["b:0"]})
+        self.assertNotIn("b:0", set(excluded.n13AtomId))
+        restored = MATCH_ROAD.curate_selection(result, {"include": [], "exclude": []})
+        self.assertNotIn("b:0", set(restored.n13AtomId))
+
+    def test_atom_outside_preview_candidates_cannot_be_manually_included(self):
+        result = self.same_atom_substring_result()
+        result["candidates"] = result["selectionDiagnostics"]
+        with self.assertRaisesRegex(ValueError, "outside this shortlist"):
+            MATCH_ROAD.curate_selection(result, {"include": ["outside:0"], "exclude": []})
 
     def test_connect_match_preview_preserves_manual_include_in_curated_and_final_selection(self):
         connected = MATCH_ROAD.connect_match_preview(

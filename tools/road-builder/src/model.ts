@@ -18,16 +18,23 @@ export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:
 
 export type PreviewStage='NO_MATCH'|'MATCH_RUNNING'|'MATCH_READY'|'MATCH_EDITED'|'CONNECT_RUNNING'|'FINAL_READY'
 export const emptyManualSelection=():ManualSelection=>({include:[],exclude:[]})
+export const restoreManualAtom=(selection:ManualSelection,atomId:string):ManualSelection=>({
+  include:selection.include.filter(id=>id!==atomId),exclude:selection.exclude.filter(id=>id!==atomId)})
+export const includeManualAtom=(selection:ManualSelection,atomId:string):ManualSelection=>({
+  include:selection.include.includes(atomId)?selection.include:[...selection.include,atomId],
+  exclude:selection.exclude.filter(id=>id!==atomId)})
+export const excludeManualAtom=(selection:ManualSelection,atomId:string):ManualSelection=>({
+  include:selection.include.filter(id=>id!==atomId),
+  exclude:selection.exclude.includes(atomId)?selection.exclude:[...selection.exclude,atomId]})
 export const toggleManualAtom=(selection:ManualSelection,atomId:string,automatic:boolean):ManualSelection=>{
-  if(selection.exclude.includes(atomId))return{...selection,exclude:selection.exclude.filter(id=>id!==atomId)}
-  if(selection.include.includes(atomId))return{...selection,include:selection.include.filter(id=>id!==atomId)}
-  return automatic?{include:selection.include,exclude:[...selection.exclude,atomId]}
-    :{exclude:selection.exclude,include:[...selection.include,atomId]}
+  if(selection.exclude.includes(atomId)||selection.include.includes(atomId))return restoreManualAtom(selection,atomId)
+  return automatic?excludeManualAtom(selection,atomId):includeManualAtom(selection,atomId)
 }
 export type SelectionBounds=[number,number,number,number]
 type LineGeometry={type:'LineString'|'MultiLineString';coordinates:unknown}
 type AtomFeature={properties?:Record<string,unknown>|null;geometry?:LineGeometry|null}
 type AtomCollection={features:AtomFeature[]}
+type Position=[number,number]
 const pointInBounds=([x,y]:[number,number],[west,south,east,north]:SelectionBounds)=>x>=west&&x<=east&&y>=south&&y<=north
 const segmentIntersectsBounds=(a:[number,number],b:[number,number],bounds:SelectionBounds)=>{
   if(pointInBounds(a,bounds)||pointInBounds(b,bounds))return true
@@ -51,24 +58,90 @@ export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:Selecti
   }))]
 }
 export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
-  const excluded=new Set([...selection.exclude,...atomIds])
-  return{include:selection.include.filter(id=>!excluded.has(id)),exclude:[...excluded]}
+  return atomIds.reduce(excludeManualAtom,selection)
 }
-type ReviewCollections={autoSelected:AtomCollection;autoSelectedSourceAtoms:AtomCollection;unselectedShortlist:AtomCollection}
-export const deriveManualReviewLayers=(source:ReviewCollections,selection:ManualSelection)=>{
+export const deriveAvailableAtomIds=(automaticIds:string[],adjacency:Record<string,string[]>,selection:ManualSelection):string[]=>{
+  const excluded=new Set(selection.exclude)
+  const selected=new Set([...automaticIds.filter(id=>!excluded.has(id)),...selection.include.filter(id=>!excluded.has(id))])
+  const available=new Set<string>()
+  selected.forEach(id=>(adjacency[id]||[]).forEach(neighbor=>{
+    if(!selected.has(neighbor)&&!excluded.has(neighbor))available.add(neighbor)
+  }))
+  return [...available].sort()
+}
+type ReviewCollections={autoSelected:AtomCollection;autoSelectedSourceAtoms:AtomCollection;sourceAtoms:AtomCollection;sourceAdjacency:Record<string,string[]>}
+const geometryLines=(geometry?:LineGeometry|null):Position[][]=>{
+  if(!geometry||!Array.isArray(geometry.coordinates))return[]
+  return (geometry.type==='LineString'?[geometry.coordinates]:geometry.coordinates) as Position[][]
+}
+const squaredDistance=(a:Position,b:Position)=>(a[0]-b[0])**2+(a[1]-b[1])**2
+const projection=(point:Position,a:Position,b:Position)=>{
+  const dx=b[0]-a[0],dy=b[1]-a[1],length2=dx*dx+dy*dy
+  if(!length2)return{ratio:0,distance2:squaredDistance(point,a)}
+  const ratio=((point[0]-a[0])*dx+(point[1]-a[1])*dy)/length2
+  const projected:[number,number]=[a[0]+ratio*dx,a[1]+ratio*dy]
+  return{ratio,distance2:squaredDistance(point,projected)}
+}
+const subtractSelectedLines=(complete:LineGeometry,selected:LineGeometry[]):LineGeometry|null=>{
+  const remainder:Position[][]=[]
+  for(const line of geometryLines(complete))for(let index=1;index<line.length;index++){
+    const a=line[index-1],b=line[index],cuts:[number,number][]=[]
+    for(const selectedLine of selected.flatMap(geometryLines))for(let selectedIndex=1;selectedIndex<selectedLine.length;selectedIndex++){
+      const first=projection(selectedLine[selectedIndex-1],a,b),last=projection(selectedLine[selectedIndex],a,b)
+      const epsilon=Math.max(squaredDistance(a,b),1)*1e-16
+      if(first.distance2<=epsilon&&last.distance2<=epsilon){
+        const low=Math.max(0,Math.min(first.ratio,last.ratio)),high=Math.min(1,Math.max(first.ratio,last.ratio))
+        if(high>low)cuts.push([low,high])
+      }
+    }
+    cuts.sort((left,right)=>left[0]-right[0])
+    let cursor=0
+    for(const[low,high]of cuts){
+      if(low>cursor)remainder.push([[a[0]+cursor*(b[0]-a[0]),a[1]+cursor*(b[1]-a[1])],[a[0]+low*(b[0]-a[0]),a[1]+low*(b[1]-a[1])]])
+      cursor=Math.max(cursor,high)
+    }
+    if(cursor<1)remainder.push([[a[0]+cursor*(b[0]-a[0]),a[1]+cursor*(b[1]-a[1])],b])
+  }
+  const nonzero=remainder.filter(line=>squaredDistance(line[0],line[1])>1e-20)
+  if(!nonzero.length)return null
+  return nonzero.length===1?{type:'LineString',coordinates:nonzero[0]}:{type:'MultiLineString',coordinates:nonzero}
+}
+const endpointDistanceMeters=(a:Position,b:Position)=>{
+  const radians=Math.PI/180,latitude=(a[1]+b[1])/2*radians
+  const x=(a[0]-b[0])*radians*Math.cos(latitude),y=(a[1]-b[1])*radians
+  return Math.hypot(x,y)*6371008.8
+}
+const endpoints=(geometry?:LineGeometry|null)=>geometryLines(geometry).flatMap(line=>line.length?[line[0],line.at(-1)!]:[])
+export const deriveManualReviewLayers=(source:ReviewCollections,selection:ManualSelection,endpointSnapMeters=2)=>{
   const included=new Set(selection.include),excluded=new Set(selection.exclude)
   const atom=(feature:AtomFeature)=>String(feature.properties?.n13AtomId||'')
+  const automaticIds=[...new Set(source.autoSelected.features.map(atom))]
+  const available=new Set(deriveAvailableAtomIds(automaticIds,source.sourceAdjacency,selection))
   const state=(feature:AtomFeature,manualSelection:string,finalCuratedSelection:boolean,selectionReason:string)=>
     ({...feature,properties:{...(feature.properties||{}),manualSelection,finalCuratedSelection,selectionReason}})
-  const automatic=source.autoSelected.features.filter(feature=>!excluded.has(atom(feature)))
+  const automatic=source.autoSelected.features.filter(feature=>!excluded.has(atom(feature))&&!included.has(atom(feature)))
     .map(feature=>state(feature,'none',true,'accepted-auto'))
-  const unselected=source.unselectedShortlist.features.filter(feature=>!included.has(atom(feature))&&!excluded.has(atom(feature)))
+  const unselected=source.sourceAtoms.features.filter(feature=>available.has(atom(feature)))
     .map(feature=>state(feature,'none',false,'rejected-auto'))
-  const manuallyIncluded=source.unselectedShortlist.features.filter(feature=>included.has(atom(feature)))
+  const manuallyIncluded=source.sourceAtoms.features
+    .filter(feature=>included.has(atom(feature)))
     .map(feature=>state(feature,'include',true,'accepted-manual'))
-  const manuallyExcluded=[...source.autoSelectedSourceAtoms.features,...source.unselectedShortlist.features]
+  const manuallyExcluded=source.sourceAtoms.features
     .filter(feature=>excluded.has(atom(feature))).map(feature=>state(feature,'exclude',false,'rejected-manual'))
-  return{autoSelected:{features:automatic},unselectedShortlist:{features:unselected},
+  const selectedFrontierEndpoints=source.sourceAtoms.features
+    .filter(feature=>included.has(atom(feature))||automaticIds.includes(atom(feature)))
+  const automaticByAtom=new Map<string,LineGeometry[]>()
+  source.autoSelected.features.forEach(feature=>{if(feature.geometry){const id=atom(feature);automaticByAtom.set(id,[...(automaticByAtom.get(id)||[]),feature.geometry])}})
+  const promotionRemainders=source.sourceAtoms.features.flatMap(feature=>{
+    const id=atom(feature),selected=automaticByAtom.get(id)
+    if(!feature.geometry||!selected||included.has(id)||excluded.has(id))return[]
+    const geometry=subtractSelectedLines(feature.geometry,selected)
+    if(!geometry)return[]
+    const otherEndpoints=selectedFrontierEndpoints.filter(other=>atom(other)!==id).flatMap(other=>endpoints(other.geometry))
+    if(!endpoints(geometry).some(point=>otherEndpoints.some(other=>endpointDistanceMeters(point,other)<=endpointSnapMeters)))return[]
+    return[state({...feature,geometry,properties:{...(feature.properties||{}),automaticSelection:false,promotionRemainder:true}},'none',false,'promotion-remainder')]
+  })
+  return{autoSelected:{features:automatic},unselectedShortlist:{features:[...unselected,...promotionRemainders]},
     manuallyIncluded:{features:manuallyIncluded},manuallyExcluded:{features:manuallyExcluded}}
 }
 export const previewStageAfterManualEdit=(stage:PreviewStage):PreviewStage=>stage==='NO_MATCH'||stage==='MATCH_RUNNING'?stage:'MATCH_EDITED'
