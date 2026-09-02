@@ -98,6 +98,37 @@ describe('road form helpers',()=>{
     expect(promoted.autoSelected.features).toEqual([])
     expect(promoted.manuallyIncluded.features[0].geometry?.coordinates).toEqual([[0,0],[10,0]])
   })
+  it('exposes only a frontier-relevant, non-overlapping remainder of a partial automatic atom',()=>{
+    const feature=(id:string,coordinates:number[][],automaticSelection=true)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates}})
+    const partial=feature('A',[[0,0],[30,0]])
+    const source={autoSelected:{features:[partial]},autoSelectedSourceAtoms:{features:[feature('A',[[0,0],[100,0]])]},
+      sourceAtoms:{features:[feature('A',[[0,0],[100,0]]),feature('B',[[100,0],[110,0]],false)]},sourceAdjacency:{A:['B'],B:['A']}}
+
+    const frontier=deriveManualReviewLayers(source,{include:['B'],exclude:[]})
+    const remainder=frontier.unselectedShortlist.features.find(item=>item.properties?.promotionRemainder)
+    expect(remainder?.properties).toMatchObject({n13AtomId:'A',automaticSelection:false,selectionReason:'promotion-remainder'})
+    expect(remainder?.geometry?.coordinates).toEqual([[30,0],[100,0]])
+    expect(frontier.autoSelected.features[0].geometry?.coordinates).toEqual([[0,0],[30,0]])
+
+    const promotedSelection=toggleManualAtom({include:['B'],exclude:[]},'A',Boolean(remainder?.properties?.automaticSelection))
+    expect(promotedSelection.include).toEqual(['B','A'])
+    const promoted=deriveManualReviewLayers(source,promotedSelection)
+    expect(promoted.autoSelected.features).toEqual([])
+    expect(promoted.unselectedShortlist.features.some(item=>item.properties?.n13AtomId==='A')).toBe(false)
+    expect(promoted.manuallyIncluded.features.filter(item=>item.properties?.n13AtomId==='A')).toHaveLength(1)
+    expect(promoted.manuallyIncluded.features.find(item=>item.properties?.n13AtomId==='A')?.geometry?.coordinates).toEqual([[0,0],[100,0]])
+
+    const restored=deriveManualReviewLayers(source,toggleManualAtom(promotedSelection,'A',false))
+    expect(restored.autoSelected.features[0].geometry?.coordinates).toEqual([[0,0],[30,0]])
+    expect(restored.unselectedShortlist.features.find(item=>item.properties?.promotionRemainder)?.geometry?.coordinates).toEqual([[30,0],[100,0]])
+  })
+  it('does not expose a partial automatic remainder away from the current frontier',()=>{
+    const feature=(id:string,coordinates:number[][],automaticSelection=true)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates}})
+    const source={autoSelected:{features:[feature('A',[[0,0],[30,0]])]},autoSelectedSourceAtoms:{features:[feature('A',[[0,0],[100,0]])]},
+      sourceAtoms:{features:[feature('A',[[0,0],[100,0]]),feature('B',[[200,0],[210,0]],false)]},sourceAdjacency:{A:[],B:[]}}
+    const review=deriveManualReviewLayers(source,{include:['B'],exclude:[]})
+    expect(review.unselectedShortlist.features.some(item=>item.properties?.promotionRemainder)).toBe(false)
+  })
   it('derives mutually disjoint review layers and restores automatic placement on undo',()=>{
     const feature=(id:string,automaticSelection:boolean)=>({properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})
     const source={autoSelected:{features:[feature('auto',true)]},autoSelectedSourceAtoms:{features:[feature('auto',true)]},sourceAtoms:{features:[feature('auto',true),feature('alternative',false)]},sourceAdjacency:{auto:['alternative'],alternative:['auto']}}
