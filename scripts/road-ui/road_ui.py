@@ -6,6 +6,7 @@ import importlib.util
 import hashlib
 import json
 import os
+import pickle
 import re
 import shutil
 import sys
@@ -39,7 +40,7 @@ REGISTRY = ROOT / "data/roads/registry.json"
 SOURCES = ROOT / "data/roads/sources.json"
 PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 PREVIEW_CACHE = ROOT / "data/cache/road-builder/previews"
-STALE_PREVIEW_MESSAGE = "Preview is stale; run Preview Match again."
+STALE_PREVIEW_MESSAGE = "Final preview is stale; run Connect Selected again."
 PREVIEW_JOBS: dict[str, dict] = {}
 PREVIEW_JOBS_LOCK = threading.Lock()
 
@@ -210,7 +211,8 @@ def metadata(sources: Path = SOURCES) -> dict:
     classes = [{"value": value, "label": N13_CLASS_LABELS[value]}
                for value in sorted(SUPPORTED_N13_CLASSES)]
     return {"classes": classes, "availableClasses": sorted(available),
-            "missingClasses": sorted(SUPPORTED_N13_CLASSES - available), "manifest": manifest}
+            "missingClasses": sorted(SUPPORTED_N13_CLASSES - available), "manifest": manifest,
+            "n13SourceFingerprint": _file_hash(manifest_path)}
 
 
 def _context(draft: dict, sources: Path = SOURCES):
@@ -286,6 +288,8 @@ def prepare_class(road_class: str, sources: Path = SOURCES, runner=PREPROCESSOR.
 def draft_hash(draft: dict) -> str:
     """Hash the canonical validated road, preserving meaningful list order."""
     normalized = validate_road(draft)
+    normalized.pop("manualSelection", None)
+    normalized.pop("manualSelectionN13Fingerprint", None)
     payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()
 
@@ -317,28 +321,45 @@ def _cleanup_previews(cache: Path, road_id: str, retain: int = 5) -> None:
         shutil.rmtree(item, ignore_errors=True)
 
 
+def _match_preview_layers(result: dict) -> dict:
+    """Create cheap, atom-disjoint review layers from existing matcher frames."""
+    diagnostics = result["selectionDiagnostics"]
+    automatic_ids = set(result["selected"]["n13AtomId"].astype(str))
+    atom_ids = diagnostics["n13AtomId"].astype(str)
+    auto_selected_atoms = diagnostics[atom_ids.isin(automatic_ids)].copy()
+    unselected = diagnostics[~atom_ids.isin(automatic_ids)].copy()
+    rejected = diagnostics[diagnostics["selectionStatus"].astype(str).str.startswith("rejected-")].copy()
+    stage1_features = set(diagnostics["n13FeatureId"].astype(str))
+    candidates = result["candidates"]
+    residual_rejected = candidates[~candidates["n13FeatureId"].astype(str).isin(stage1_features)].copy()
+    return {"autoSelected": _geojson(result["selected"]),
+            "autoSelectedSourceAtoms": _geojson(auto_selected_atoms),
+            "unselectedShortlist": _geojson(unselected),
+            "allCandidates": _geojson(candidates),
+            "residualRejected": _geojson(residual_rejected),
+            "rejectedDiagnostics": _geojson(rejected)}
+
+
 def preview_match(draft: dict, sources: Path = SOURCES, cache: Path = PREVIEW_CACHE,
                   progress_callback=None, preview_id: str | None = None) -> dict:
     road = validate_road(draft)
     config = MATCHER.load_source_config(sources)
     n13 = Path(config["n13"]["cache"])
-    result = MATCHER.compute_road_build(road, config, n13, progress_callback=progress_callback)
+    result = MATCHER.compute_match_preview(road, config, n13, progress_callback=progress_callback)
     fingerprint = _source_fingerprint(road, config, n13)
     preview_id = preview_id or uuid.uuid4().hex
     directory = cache / preview_id
     directory.mkdir(parents=True, exist_ok=False)
-    diagnostic_path = Path("data/diagnostics") / f"{road['id']}-selection.geojson"
-    artifacts = MATCHER.road_build_artifacts(result, diagnostic_path)
-    for name, content in artifacts.items():
-        (directory / f"{name}.artifact").write_bytes(content)
-    final_n13 = json.loads(artifacts["n13"])
-    response = {"previewId": preview_id, "draftHash": draft_hash(road),
+    with (directory / "match.pickle").open("wb") as output:
+        pickle.dump(result, output, protocol=pickle.HIGHEST_PROTOCOL)
+    response = {"matchPreviewId": preview_id, "previewId": preview_id, "draftHash": draft_hash(road),
         "reference": _geojson(result["reference"]), "referenceExcluded": _geojson(result["referenceExcluded"]),
-        "candidates": _geojson(result["candidates"]), "residualPass": _geojson(result["residualPass"]),
-        "selected": final_n13, "diagnostics": _geojson(result["selectionDiagnostics"]),
-        "ownership": _geojson(result["ownershipSamples"]), "report": json.loads(artifacts["report"])}
+        **_match_preview_layers(result),
+        "selectedSubstrings": _geojson(result["selected"]), "diagnostics": _geojson(result["selectionDiagnostics"]),
+        "ownership": _geojson(result["ownershipSamples"]), "report": result["networkReport"],
+        "sourceFingerprint": fingerprint}
     metadata_payload = {"previewId": preview_id, "roadId": road["id"], "draftHash": response["draftHash"],
-                        "sourceFingerprint": fingerprint, "createdAt": time.time()}
+                        "sourceFingerprint": fingerprint, "stage": "match", "createdAt": time.time()}
     (directory / "metadata.json").write_text(json.dumps(metadata_payload, sort_keys=True), encoding="utf-8")
     (directory / "preview.json").write_text(json.dumps(response, ensure_ascii=False, default=str), encoding="utf-8")
     _cleanup_previews(cache, road["id"])
@@ -388,6 +409,68 @@ def get_preview_job(job_id: str) -> dict:
         return dict(PREVIEW_JOBS[job_id])
 
 
+def manual_selection_hash(value: dict | None) -> str:
+    value = value or {}
+    normalized = {"include": sorted(set(map(str, value.get("include", [])))),
+                  "exclude": sorted(set(map(str, value.get("exclude", []))))}
+    return hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def connect_preview(match_preview_id: str, manual_selection: dict, draft: dict,
+                    sources: Path = SOURCES, cache: Path = PREVIEW_CACHE,
+                    progress_callback=None, final_preview_id: str | None = None) -> dict:
+    road, match_directory = validate_road(draft), cache / str(match_preview_id)
+    try:
+        metadata_payload = json.loads((match_directory / "metadata.json").read_text())
+        config = MATCHER.load_source_config(sources); n13 = Path(config["n13"]["cache"])
+        valid = (metadata_payload.get("stage") == "match" and metadata_payload["draftHash"] == draft_hash(road)
+                 and metadata_payload["sourceFingerprint"] == _source_fingerprint(road, config, n13))
+        with (match_directory / "match.pickle").open("rb") as source:
+            matched = pickle.load(source)
+    except (OSError, KeyError, TypeError, pickle.PickleError, json.JSONDecodeError):
+        valid = False
+    if not valid:
+        raise RuntimeError("Match preview is stale; run Preview Match again.")
+    final = MATCHER.connect_match_preview(matched, manual_selection, progress_callback)
+    final_preview_id = final_preview_id or uuid.uuid4().hex
+    directory = cache / final_preview_id; directory.mkdir(parents=True, exist_ok=False)
+    diagnostic_path = Path("data/diagnostics") / f"{road['id']}-selection.geojson"
+    artifacts = MATCHER.road_build_artifacts(final, diagnostic_path)
+    for name, content in artifacts.items(): (directory / f"{name}.artifact").write_bytes(content)
+    selection_hash = manual_selection_hash(manual_selection)
+    final_metadata = {**metadata_payload, "previewId": final_preview_id, "matchPreviewId": match_preview_id,
+                      "stage": "final", "manualSelectionHash": selection_hash, "createdAt": time.time()}
+    (directory / "metadata.json").write_text(json.dumps(final_metadata, sort_keys=True))
+    response = {"finalPreviewId": final_preview_id, "matchPreviewId": match_preview_id,
+                "manualSelectionHash": selection_hash, "selected": _geojson(final["selected"]),
+                "curated": _geojson(final["curatedSelected"]), "report": json.loads(artifacts["report"]),
+                "connectDiagnostics": final["connectDiagnostics"],
+                "n13SourceFingerprint": metadata_payload["sourceFingerprint"].get("n13Manifest")}
+    (directory / "preview.json").write_text(json.dumps(response, ensure_ascii=False, default=str))
+    return response
+
+
+def _run_connect_job(job_id, match_preview_id, manual_selection, draft, sources, cache):
+    try:
+        result = connect_preview(match_preview_id, manual_selection, draft, sources, cache,
+            lambda **value: _update_preview_job(job_id, **value), job_id)
+        _update_preview_job(job_id, status="complete", progress=100, phase="Connected preview ready", result=result)
+    except Exception as error:
+        _update_preview_job(job_id, status="failed", phase="Connection failed",
+                            error={"type": type(error).__name__, "message": str(error)})
+
+
+def start_connect_job(match_preview_id: str, manual_selection: dict, draft: dict,
+                      sources: Path = SOURCES, cache: Path = PREVIEW_CACHE) -> dict:
+    job_id = uuid.uuid4().hex
+    with PREVIEW_JOBS_LOCK:
+        PREVIEW_JOBS[job_id] = {"jobId": job_id, "status": "running", "operation": "connect",
+                                "progress": 0, "phase": "Preparing curated selection"}
+    threading.Thread(target=_run_connect_job, args=(job_id, match_preview_id, manual_selection,
+                     json.loads(json.dumps(draft)), sources, cache), daemon=True).start()
+    return {"jobId": job_id}
+
+
 def build_road(road_id: str, preview_id: str, draft: dict, registry: Path = REGISTRY,
                sources: Path = SOURCES, cache: Path = PREVIEW_CACHE) -> dict:
     """Promote cached bytes; never recompute or fall back to the matcher."""
@@ -400,7 +483,9 @@ def build_road(road_id: str, preview_id: str, draft: dict, registry: Path = REGI
         valid = (road["id"] == road_id == metadata_payload["roadId"]
                  and draft_hash(road) == metadata_payload["draftHash"]
                  and _source_fingerprint(road, config, n13) == metadata_payload["sourceFingerprint"]
-                 and metadata_payload["sourceFingerprint"]["schemaVersion"] == MATCHER.ROAD_BUILD_SCHEMA_VERSION)
+                 and metadata_payload.get("stage") == "final"
+                 and metadata_payload["sourceFingerprint"]["schemaVersion"] == MATCHER.ROAD_BUILD_SCHEMA_VERSION
+                 and metadata_payload.get("manualSelectionHash") == manual_selection_hash(road.get("manualSelection")))
         artifacts = {name: (directory / f"{name}.artifact").read_bytes()
                      for name in ("n13", "osm", "report", "diagnostics")}
     except (OSError, KeyError, TypeError, json.JSONDecodeError):

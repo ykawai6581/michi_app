@@ -92,6 +92,17 @@ def validate_road(value: dict) -> dict:
         if "excludeNameTags" in reference:
             reference["excludeNameTags"] = _unique(reference["excludeNameTags"])
     road["matching"] = {**MATCHING_DEFAULTS, **road.get("matching", {})}
+    if "manualSelection" in road:
+        selection = road["manualSelection"]
+        if not isinstance(selection, dict):
+            raise ValueError("manualSelection must be an object")
+        selection = {"include": _unique(selection.get("include", [])),
+                     "exclude": _unique(selection.get("exclude", []))}
+        if set(selection["include"]) & set(selection["exclude"]):
+            raise ValueError("manualSelection include and exclude must not overlap")
+        road["manualSelection"] = selection
+        if (selection["include"] or selection["exclude"]) and not isinstance(road.get("manualSelectionN13Fingerprint"), str):
+            raise ValueError("manualSelectionN13Fingerprint is required for manual N13 edits")
     return road
 
 

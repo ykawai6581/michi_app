@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from'react'
 import{Road}from'./model'
 export type PreviewProgress={status:'running'|'complete'|'failed';progress:number;phase:string;completed?:number;total?:number}

@@ -607,5 +607,129 @@ class SourceArchitectureTests(unittest.TestCase):
         self.assertEqual(report["syntheticBridgesAdded"], 0)
 
 
+class StableIdentityAndManualSelectionTests(unittest.TestCase):
+    def match_result(self, automatic_ids):
+        diagnostics = gpd.GeoDataFrame({
+            "n13FeatureId":["a","b"], "n13AtomId":["a:0","b:0"],
+            "sourceFeatureIndex":[0,1], "sourceAtomIndex":[0,0], "N13_003":["1","1"],
+            "match_min_m":[0.,0.], "match_median_m":[0.,0.], "match_p90_m":[0.,0.],
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(20,0),(30,0)])],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        selected = diagnostics[diagnostics.n13AtomId.isin(automatic_ids)].copy()
+        selected["referencePart"] = 0
+        selected["ownedReferenceStartMeters"] = [0. if atom == "a:0" else 20. for atom in selected.n13AtomId]
+        selected["ownedReferenceEndMeters"] = [10. if atom == "a:0" else 30. for atom in selected.n13AtomId]
+        selected["sourceStartDistanceMeters"] = 0.
+        selected["sourceEndDistanceMeters"] = 10.
+        return {"selected":selected, "selectionDiagnostics":diagnostics,
+            "residualPass":diagnostics, "reference":LineString([(0,0),(30,0)]),
+            "road":{"n13":{"classifications":["1"]}, "networkSelection":{},
+                    "matching":{"sampleIntervalMeters":5,"coverageToleranceMeters":5}},
+            "displayConfig":{"endpointSnapMeters":2}, "networkReport":{}}
+
+    def same_atom_substring_result(self):
+        diagnostics = gpd.GeoDataFrame({
+            "n13FeatureId":["a","b"], "n13AtomId":["a:0","b:0"],
+            "sourceFeatureIndex":[0,1], "sourceAtomIndex":[0,0], "N13_003":["1","1"],
+            "match_min_m":[0.,0.], "match_median_m":[0.,0.], "match_p90_m":[0.,0.],
+            "geometry":[LineString([(0,0),(30,0)]),LineString([(40,0),(50,0)])],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        selected = gpd.GeoDataFrame({
+            **{column:[diagnostics.iloc[0][column],diagnostics.iloc[0][column]]
+               for column in diagnostics.columns if column != "geometry"},
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(20,0),(30,0)])],
+        }, crs=MATCH_ROAD.METRIC_CRS)
+        selected["referencePart"] = 0
+        selected["ownedReferenceStartMeters"] = [0.,20.]
+        selected["ownedReferenceEndMeters"] = [10.,30.]
+        selected["sourceStartDistanceMeters"] = [0.,20.]
+        selected["sourceEndDistanceMeters"] = [10.,30.]
+        return {"selected":selected, "selectionDiagnostics":diagnostics,
+            "residualPass":diagnostics, "reference":LineString([(0,0),(50,0)]),
+            "road":{"n13":{"classifications":["1"]}, "networkSelection":{},
+                    "matching":{"sampleIntervalMeters":5,"coverageToleranceMeters":5}},
+            "displayConfig":{"endpointSnapMeters":2}, "networkReport":{}}
+
+    def test_stable_ids_ignore_dataframe_order_and_change_with_geometry(self):
+        frame = gpd.GeoDataFrame({"N13_001":["source-a","source-b"],"N13_003":["1","1"],
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(10,0),(20,0)])]}, crs=MATCH_ROAD.METRIC_CRS)
+        first = MATCH_ROAD.add_stable_n13_ids(frame)
+        reordered = MATCH_ROAD.add_stable_n13_ids(frame.iloc[::-1].reset_index(drop=True))
+        self.assertEqual(set(first.n13FeatureId), set(reordered.n13FeatureId))
+        unchanged = MATCH_ROAD.add_stable_n13_ids(frame.copy())
+        self.assertEqual(list(first.n13AtomId), list(unchanged.n13AtomId))
+        changed = frame.copy(); changed.at[0,"geometry"] = LineString([(0,0),(11,0)])
+        self.assertNotEqual(first.at[0,"n13FeatureId"], MATCH_ROAD.add_stable_n13_ids(changed).at[0,"n13FeatureId"])
+
+    def test_multipart_atoms_receive_distinct_ids(self):
+        geometry = MultiLineString([[(0,0),(5,0)],[(5,0),(10,0)]])
+        frame = MATCH_ROAD.add_stable_n13_ids(gpd.GeoDataFrame({"N13_003":["1"],"geometry":[geometry]}, crs=MATCH_ROAD.METRIC_CRS))
+        exploded = frame.explode(index_parts=True).reset_index(drop=True)
+        exploded["sourceAtomIndex"] = range(len(exploded))
+        exploded["n13AtomId"] = [f"{feature}:{atom}" for feature,atom in zip(exploded.n13FeatureId,exploded.sourceAtomIndex)]
+        self.assertEqual(len(set(exploded.n13AtomId)), 2)
+
+    def test_manual_selection_is_explicit_and_reversible(self):
+        diagnostics = gpd.GeoDataFrame({"n13FeatureId":["a","b"],"n13AtomId":["a:0","b:0"],
+            "sourceFeatureIndex":[0,1],"sourceAtomIndex":[0,0],"N13_003":["1","1"],
+            "geometry":[LineString([(0,0),(10,0)]),LineString([(10,0),(20,0)])]}, crs=MATCH_ROAD.METRIC_CRS)
+        selected = diagnostics.iloc[[0]].copy()
+        selected["referencePart"] = 0; selected["ownedReferenceStartMeters"] = 0.; selected["ownedReferenceEndMeters"] = 10.
+        selected["sourceStartDistanceMeters"] = 0.; selected["sourceEndDistanceMeters"] = 10.
+        result = {"selected":selected,"selectionDiagnostics":diagnostics,"reference":LineString([(0,0),(20,0)])}
+        curated = MATCH_ROAD.curate_selection(result,{"exclude":["a:0"],"include":["b:0"]})
+        self.assertEqual(set(curated.n13AtomId), {"b:0"})
+        self.assertEqual(curated.iloc[0].selectionReason, "accepted-manual")
+        self.assertEqual(set(MATCH_ROAD.curate_selection(result,{}).n13AtomId), {"a:0"})
+
+    def test_connect_match_preview_preserves_manual_include_in_curated_and_final_selection(self):
+        connected = MATCH_ROAD.connect_match_preview(
+            self.match_result(["a:0"]), {"include":["b:0"],"exclude":[]})
+        self.assertEqual(set(connected["curatedSelected"].n13AtomId), {"a:0","b:0"})
+        self.assertEqual(set(connected["selected"].n13AtomId), {"a:0","b:0"})
+        self.assertEqual(connected["networkReport"]["automaticSelectedAtomCount"], 1)
+        self.assertEqual(connected["networkReport"]["manualIncludedAtomCount"], 1)
+        self.assertEqual(connected["networkReport"]["manualExcludedAtomCount"], 0)
+        self.assertEqual(connected["networkReport"]["curatedSelectedAtomCount"], 2)
+        self.assertEqual(connected["networkReport"]["finalSelectedAtomCount"], 2)
+        self.assertEqual(connected["connectDiagnostics"]["curatedManualIncludedAtomIds"], ["b:0"])
+        self.assertEqual(connected["connectDiagnostics"]["finalManualIncludedAtomIds"], ["b:0"])
+
+    def test_connect_match_preview_does_not_restore_manual_exclusion_as_connector(self):
+        connected = MATCH_ROAD.connect_match_preview(
+            self.match_result(["a:0","b:0"]), {"include":[],"exclude":["b:0"]})
+        self.assertEqual(set(connected["curatedSelected"].n13AtomId), {"a:0"})
+        self.assertEqual(set(connected["selected"].n13AtomId), {"a:0"})
+
+    def test_connect_match_preview_raises_if_topology_discards_a_curated_atom(self):
+        result = self.match_result(["a:0"])
+        with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
+                          side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
+            with self.assertRaisesRegex(RuntimeError, "discarded curated N13 atoms: b:0"):
+                MATCH_ROAD.connect_match_preview(result, {"include":["b:0"],"exclude":[]})
+
+    def test_same_atom_multiple_substrings_are_geometrically_preserved_or_merged(self):
+        connected = MATCH_ROAD.connect_match_preview(self.same_atom_substring_result())
+        curated_union = connected["curatedSelected"].geometry.union_all()
+        final_union = connected["selected"].geometry.union_all()
+        self.assertLessEqual(curated_union.difference(final_union).length, 1e-6)
+        self.assertEqual(connected["connectDiagnostics"]["lostCuratedGeometryLengthMeters"], 0)
+
+    def test_geometry_invariant_detects_lost_same_atom_substring(self):
+        result = self.same_atom_substring_result()
+        with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
+                          side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
+            with self.assertRaisesRegex(RuntimeError, "removed 10.000000 m.*atoms: a:0"):
+                MATCH_ROAD.connect_match_preview(result)
+
+    def test_final_geometry_contains_auto_substrings_and_manual_full_atom(self):
+        connected = MATCH_ROAD.connect_match_preview(
+            self.same_atom_substring_result(), {"include":["b:0"],"exclude":[]})
+        visible_before = connected["curatedSelected"].geometry.union_all()
+        final_geometry = connected["selected"].geometry.union_all()
+        self.assertLessEqual(visible_before.difference(final_geometry).length, 1e-6)
+        self.assertEqual(set(connected["selected"].n13AtomId), {"a:0","b:0"})
+
+
 if __name__ == "__main__":
     unittest.main()
