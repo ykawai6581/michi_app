@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,canBuild,canConnect,deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyManualSelection,emptyRoad,findRegisteredRoad,initialLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtoms,findRegisteredRoad,initialLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -47,5 +47,19 @@ describe('road form helpers',()=>{
     expect(canConnect('MATCH_EDITED')).toBe(true)
     expect(canBuild('MATCH_EDITED','final')).toBe(false)
     expect(canBuild('FINAL_READY','final')).toBe(true)
+  })
+  it('region selection uses inclusive line/rectangle intersection for every shortlisted atom',()=>{
+    const feature=(id:string,coordinates:number[][],automaticSelection=false)=>({type:'Feature',properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates}})
+    const candidates={features:[
+      feature('inside',[[1,1],[2,2]],true),
+      feature('crosses',[[-1,2],[5,2]]),
+      feature('touches',[[-1,0],[0,0]]),
+      feature('outside',[[-2,-2],[-1,-1]]),
+    ]}
+    expect(atomIdsIntersectingBounds(candidates,[0,0,4,4])).toEqual(['inside','crosses','touches'])
+  })
+  it('a region exclusion wins over a previous manual include as one atomic state update',()=>{
+    expect(excludeManualAtoms({include:['crosses','safe'],exclude:['old']},['crosses','new']))
+      .toEqual({include:['safe'],exclude:['old','crosses','new']})
   })
 })

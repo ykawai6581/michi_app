@@ -20,6 +20,36 @@ export const emptyManualSelection=():ManualSelection=>({include:[],exclude:[]})
 export const toggleManualAtom=(selection:ManualSelection,atomId:string,automatic:boolean):ManualSelection=>automatic
   ?{include:selection.include.filter(id=>id!==atomId),exclude:selection.exclude.includes(atomId)?selection.exclude.filter(id=>id!==atomId):[...selection.exclude,atomId]}
   :{exclude:selection.exclude.filter(id=>id!==atomId),include:selection.include.includes(atomId)?selection.include.filter(id=>id!==atomId):[...selection.include,atomId]}
+export type SelectionBounds=[number,number,number,number]
+type LineGeometry={type:'LineString'|'MultiLineString';coordinates:unknown}
+type AtomFeature={properties?:{n13AtomId?:unknown}|null;geometry?:LineGeometry|null}
+type AtomCollection={features:AtomFeature[]}
+const pointInBounds=([x,y]:[number,number],[west,south,east,north]:SelectionBounds)=>x>=west&&x<=east&&y>=south&&y<=north
+const segmentIntersectsBounds=(a:[number,number],b:[number,number],bounds:SelectionBounds)=>{
+  if(pointInBounds(a,bounds)||pointInBounds(b,bounds))return true
+  const[west,south,east,north]=bounds,dx=b[0]-a[0],dy=b[1]-a[1]
+  let low=0,high=1
+  for(const[p,q]of[[-dx,a[0]-west],[dx,east-a[0]],[-dy,a[1]-south],[dy,north-a[1]]] as [number,number][]){
+    if(p===0){if(q<0)return false;continue}
+    const ratio=q/p
+    if(p<0){if(ratio>high)return false;low=Math.max(low,ratio)}else{if(ratio<low)return false;high=Math.min(high,ratio)}
+  }
+  return low<=high
+}
+const lineIntersectsBounds=(coordinates:unknown,bounds:SelectionBounds)=>Array.isArray(coordinates)&&coordinates.some((value,index)=>index>0&&segmentIntersectsBounds(coordinates[index-1] as [number,number],value as [number,number],bounds))
+export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:SelectionBounds):string[]=>{
+  const normalized:[number,number,number,number]=[Math.min(bounds[0],bounds[2]),Math.min(bounds[1],bounds[3]),Math.max(bounds[0],bounds[2]),Math.max(bounds[1],bounds[3])]
+  return [...new Set(collection.features.flatMap(feature=>{
+    const id=feature.properties?.n13AtomId,geometry=feature.geometry
+    if(typeof id!=='string'||!geometry)return[]
+    const lines=geometry.type==='LineString'?[geometry.coordinates]:geometry.coordinates
+    return Array.isArray(lines)&&lines.some(line=>lineIntersectsBounds(line,normalized))?[id]:[]
+  }))]
+}
+export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
+  const excluded=new Set([...selection.exclude,...atomIds])
+  return{include:selection.include.filter(id=>!excluded.has(id)),exclude:[...excluded]}
+}
 export const previewStageAfterManualEdit=(stage:PreviewStage):PreviewStage=>stage==='NO_MATCH'||stage==='MATCH_RUNNING'?stage:'MATCH_EDITED'
 export const canConnect=(stage:PreviewStage)=>stage==='MATCH_READY'||stage==='MATCH_EDITED'||stage==='FINAL_READY'
 export const canBuild=(stage:PreviewStage,finalPreviewId?:string)=>stage==='FINAL_READY'&&Boolean(finalPreviewId)

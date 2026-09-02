@@ -88,6 +88,10 @@ Connect Selected → Save & Build**.
 - **Manual Review** is enabled explicitly with **Edit Selection**. A selected atom can be excluded and a Stage-1
   shortlisted atom can be included; **Undo** and **Clear manual edits** preserve the untouched automatic proposal.
   Exclusions are hard constraints and can never be resurrected by continuity reconstruction.
+- **Exclude Region** provides a batch review gesture: drag a visible rectangle and every Stage-1 N13 source atom
+  whose line intersects or touches it is added to the stable-ID exclusion set. The rectangle is session-only UI
+  history—not a persisted geographic build rule—and the entire drag is reverted by one **Undo**. This operation is
+  immediate, does not rerun matching, and invalidates only the connected final preview.
 - **Connect Selected** applies the explicit include/exclude set, then uses topology only to restore source-native
   same-atom ranges, direct source junctions, and conservative local same/transition-class connectors. It does not
   rerun matching. An ambiguous, long, wrong-class, or excluded path remains unresolved rather than being guessed.
