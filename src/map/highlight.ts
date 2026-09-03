@@ -7,6 +7,12 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 
 const activeAnimations = new WeakMap<maplibregl.Map, number>()
 
+export function featureHighlightColor(feature: EntityFeature, style: HighlightStyle): string {
+  if (feature.properties.type === 'road' || feature.properties.type === 'historical-road' || feature.properties.type === 'railway') return style.roadColor
+  if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon' || feature.properties.type === 'jurisdiction') return style.regionColor
+  return style.locationColor
+}
+
 function interpolate(from: Position, to: Position, amount: number): Position {
   return [from[0] + (to[0] - from[0]) * amount, from[1] + (to[1] - from[1]) * amount]
 }
