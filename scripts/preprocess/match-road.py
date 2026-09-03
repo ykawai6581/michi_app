@@ -60,6 +60,7 @@ DEFAULT_NETWORK_SELECTION = {
     # runs on this same OSM part and independently passes the OSM checks below.
     "shortStraightThroughMaximumGapSamples": 2,
     "shortStraightThroughTwoAtomMaximumGapSamples": 4,
+    "sameSourceHoleMaximumGapSamples": 4,
     # Separate OSM parts may be the two sides of a divided road.  A sustained
     # cross-class match across nearby, parallel parts is competition for the
     # same route interval, not evidence for another carriageway.
@@ -671,6 +672,34 @@ def _sample_reference(part: LineString, interval: float) -> tuple[np.ndarray, li
     return offsets, [part.interpolate(float(offset)) for offset in offsets]
 
 
+def _candidate_follows_reference(coordinates, length: float, part: LineString,
+                                 interval_start: float, interval_end: float,
+                                 settings: dict) -> bool:
+    """Validate an oriented local source candidate against one OSM interval."""
+    if len(coordinates) < 2:
+        return False
+    interval = float(settings["progressSampleMeters"])
+    reference_interval = substring(part, interval_start, interval_end)
+    projections = [float(part.project(Point(coordinate))) for coordinate in coordinates]
+    monotonic_steps = sum(second + 1e-9 >= first
+                          for first, second in zip(projections, projections[1:]))
+    monotonicity = monotonic_steps / max(1, len(projections) - 1)
+    candidate_vector = np.asarray(coordinates[-1]) - np.asarray(coordinates[0])
+    reference_vector = (np.asarray(part.interpolate(interval_end).coords[0])
+                        - np.asarray(part.interpolate(interval_start).coords[0]))
+    maximum_vertex_distance = max(
+        Point(coordinate).distance(reference_interval) for coordinate in coordinates)
+    gap_length = max(interval, interval_end - interval_start)
+    return (projections[-1] > projections[0]
+            and projections[0] >= interval_start - interval
+            and projections[-1] <= interval_end + interval
+            and monotonicity >= float(settings["minimumChainageMonotonicity"])
+            and _angle_difference(candidate_vector, reference_vector)
+            <= float(settings["maximumOrientationMismatchDegrees"])
+            and maximum_vertex_distance <= float(settings["maximumSampleDistanceMeters"])
+            and length <= gap_length + 2 * interval)
+
+
 def _ownership_runs(owners: list[int | None]) -> list[dict]:
     """Group an ownership sequence; unmatched samples remain explicit gaps."""
     runs = []
@@ -1019,8 +1048,10 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     # topology test only creates a shortlist: identity still comes from the
     # candidate's monotonic, locally aligned projection onto this OSM interval.
     rescued = []
+    rescued_same_source_holes = []
     rescued_edges = set()
     rescued_two_atom_chains = 0
+    same_source_hole_rejections = {}
     excluded_atom_ids = set(map(str, settings.get("excludedAtomIds", [])))
     maximum_rescue_gap = int(settings["shortStraightThroughMaximumGapSamples"])
     maximum_two_atom_gap = int(settings["shortStraightThroughTwoAtomMaximumGapSamples"])
@@ -1029,14 +1060,51 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         part = parts[part_index]
         for left, right in zip(runs, runs[1:]):
             gap_samples = right["start"] - left["end"]
+            left_edge, right_edge = left["edge"], right["edge"]
+            if left_edge == right_edge:
+                edge = left_edge
+                if gap_samples > int(settings["sameSourceHoleMaximumGapSamples"]):
+                    same_source_hole_rejections[edge] = "same-source-hole-gap-too-large"
+                    continue
+                if str(source_atom_ids[edge]) in excluded_atom_ids:
+                    continue
+                line = geometries[edge]
+                left_projects = [float(line.project(samples[index]))
+                                 for index in range(left["start"], left["end"])]
+                right_projects = [float(line.project(samples[index]))
+                                  for index in range(right["start"], right["end"])]
+                left_range = (max(0., min(left_projects) - interval / 2),
+                              min(float(line.length), max(left_projects) + interval / 2))
+                right_range = (max(0., min(right_projects) - interval / 2),
+                               min(float(line.length), max(right_projects) + interval / 2))
+                lower, upper = sorted((left_range, right_range))
+                missing_start, missing_end = lower[1], upper[0]
+                if missing_end <= missing_start + 1e-9:
+                    continue
+                geometry = substring(line, missing_start, missing_end)
+                coordinates = list(geometry.coords)
+                interval_start = float(offsets[left["end"] - 1])
+                interval_end = float(offsets[right["start"]])
+                if part.project(Point(coordinates[-1])) < part.project(Point(coordinates[0])):
+                    oriented_coordinates = list(reversed(coordinates))
+                else:
+                    oriented_coordinates = coordinates
+                if not _candidate_follows_reference(
+                        oriented_coordinates, float(geometry.length), part,
+                        interval_start, interval_end, settings):
+                    same_source_hole_rejections[edge] = "same-source-hole-alignment-failed"
+                    continue
+                rescued_same_source_holes.append({
+                    "part": part_index, "edge": edge, "geometry": geometry,
+                    "sourceStart": missing_start, "sourceEnd": missing_end,
+                    "intervalStart": interval_start, "intervalEnd": interval_end})
+                continue
             if gap_samples < 0 or gap_samples > maximum_two_atom_gap:
                 continue
-            left_edge, right_edge = left["edge"], right["edge"]
-            if left_edge == right_edge or edge_classes[left_edge] != edge_classes[right_edge]:
+            if edge_classes[left_edge] != edge_classes[right_edge]:
                 continue
             interval_start = float(offsets[left["end"] - 1])
             interval_end = float(offsets[right["start"]])
-            reference_interval = substring(part, interval_start, interval_end)
             eligible = [edge for edge in range(len(geometries))
                         if edge not in rescued_edges and edge not in (left_edge, right_edge)
                         and edge_classes[edge] == edge_classes[left_edge]
@@ -1053,27 +1121,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 return options
 
             def follows_reference(coordinates, length):
-                if len(coordinates) < 2:
-                    return False
-                entry, exit_ = Point(coordinates[0]), Point(coordinates[-1])
-                projections = [float(part.project(Point(coordinate))) for coordinate in coordinates]
-                progress = projections[-1] - projections[0]
-                monotonic_steps = sum(second + 1e-9 >= first
-                                      for first, second in zip(projections, projections[1:]))
-                monotonicity = monotonic_steps / max(1, len(projections) - 1)
-                candidate_vector = np.asarray(exit_.coords[0]) - np.asarray(entry.coords[0])
-                reference_vector = (np.asarray(part.interpolate(interval_end).coords[0])
-                                    - np.asarray(part.interpolate(interval_start).coords[0]))
-                maximum_vertex_distance = max(
-                    Point(coordinate).distance(reference_interval) for coordinate in coordinates)
-                gap_length = max(interval, interval_end - interval_start)
-                return (progress > 0
-                        and projections[0] >= interval_start - interval
-                        and projections[-1] <= interval_end + interval
-                        and monotonicity >= float(settings["minimumChainageMonotonicity"])
-                        and _angle_difference(candidate_vector, reference_vector) <= maximum_angle
-                        and maximum_vertex_distance <= maximum_distance
-                        and length <= gap_length + 2 * interval)
+                return _candidate_follows_reference(
+                    coordinates, length, part, interval_start, interval_end, settings)
 
             passing = []
             if gap_samples <= maximum_rescue_gap:
@@ -1217,6 +1266,30 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         row["selectionStatus"] = row["selectionReason"] = "accepted-short-straight-through"
         run_rows.append(row)
 
+    for rescue in rescued_same_source_holes:
+        edge = rescue["edge"]
+        row = frame.loc[edge].copy()
+        row["geometry"] = rescue["geometry"]
+        row["referencePart"] = rescue["part"]
+        row["firstOwnedReferenceSample"] = None
+        row["lastOwnedReferenceSample"] = None
+        row["ownedReferenceSampleCount"] = 0
+        row["ownedReferenceStartMeters"] = rescue["intervalStart"]
+        row["ownedReferenceEndMeters"] = rescue["intervalEnd"]
+        row["sourceStartDistanceMeters"] = rescue["sourceStart"]
+        row["sourceEndDistanceMeters"] = rescue["sourceEnd"]
+        row["runPosition"] = "interior"
+        row["upstreamSourceConnected"] = True
+        row["downstreamSourceConnected"] = True
+        row["continuityValid"] = True
+        source_range = [round(rescue["sourceStart"], 3), round(rescue["sourceEnd"], 3)]
+        row["sourceRangeBeforeExtension"] = row["sourceRangeAfterExtension"] = json.dumps(source_range)
+        row["junctionExtensionMeters"] = 0.0
+        row["reassignedFromSourceFeatureIndex"] = None
+        row["ownershipRescue"] = "same-source-hole"
+        row["selectionStatus"] = row["selectionReason"] = "accepted-same-source-hole"
+        run_rows.append(row)
+
     accepted = gpd.GeoDataFrame(run_rows, crs=METRIC_CRS) if run_rows else frame.iloc[0:0].copy()
     owned_edges = {run["edge"] for part in owners for run in _ownership_runs(part)} | rescued_edges
     frame["selectionStatus"] = ["accepted-short-straight-through" if edge in rescued_edges
@@ -1225,6 +1298,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     frame["selectionReason"] = frame["selectionStatus"]
     frame["ownershipRescue"] = ["short-straight-through" if edge in rescued_edges else None
                                 for edge in frame.index]
+    frame["sameSourceHoleRejection"] = [same_source_hole_rejections.get(edge)
+                                        for edge in frame.index]
     frame["ownedReferenceSampleCount"] = [sum(owner == edge for part in owners for owner in part) for edge in frame.index]
     ownership_features = []
     for part_index, (offsets, samples) in enumerate(samples_by_part):
@@ -1254,6 +1329,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
               "shortStraightThroughRescueCount": len(rescued_edges),
               "shortStraightThroughTwoAtomRescueCount": rescued_two_atom_chains,
+              "sameSourceHoleRescueCount": len(rescued_same_source_holes),
               "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
               "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,

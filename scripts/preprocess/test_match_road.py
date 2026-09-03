@@ -214,6 +214,67 @@ class OwnershipFixtureDiagnosticsTests(unittest.TestCase):
         ])
 
 
+class SameSourceHoleRescueTests(unittest.TestCase):
+    def test_straight_hole_appends_exact_source_substring(self):
+        diagnostic = OwnershipFixtureDiagnosticsTests().same_source_fixture()
+        selected = diagnostic["accepted"]
+        rescued = selected[selected.ownershipRescue == "same-source-hole"]
+        self.assertEqual(len(rescued), 1)
+        expected = MATCH_ROAD.substring(LineString([(0, 3), (100, 3)]), 37.5, 57.5)
+        self.assertEqual(rescued.iloc[0].geometry.wkb, expected.wkb)
+        self.assertEqual(rescued.iloc[0].sourceStartDistanceMeters, 37.5)
+        self.assertEqual(rescued.iloc[0].sourceEndDistanceMeters, 57.5)
+        parent = diagnostic["source"].iloc[1]
+        for column in ("n13AtomId", "n13FeatureId", "sourceFeatureIndex", "sourceAtomIndex"):
+            self.assertEqual(rescued.iloc[0][column], parent[column])
+        same_atom = selected[selected.n13AtomId == parent.n13AtomId]
+        self.assertTrue(same_atom.geometry.union_all().equals(LineString([(0, 3), (100, 3)])))
+        self.assertEqual(diagnostic["report"]["sameSourceHoleRescueCount"], 1)
+
+    def test_detouring_hole_is_not_rescued(self):
+        diagnostic = OwnershipFixtureDiagnosticsTests().same_source_fixture(detour=True)
+        selected = diagnostic["accepted"]
+        self.assertTrue("ownershipRescue" not in selected.columns
+                        or not (selected.ownershipRescue == "same-source-hole").any())
+        self.assertGreater(Point(47.5, 25).distance(selected.geometry.union_all()), 1)
+        self.assertEqual(diagnostic["report"]["sameSourceHoleRescueCount"], 0)
+        self.assertEqual(diagnostic["source"].iloc[1].sameSourceHoleRejection,
+                         "same-source-hole-alignment-failed")
+
+    def test_reversed_source_rescues_same_physical_substring(self):
+        source = LineString([(100, 3), (0, 3)])
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(40, 0), (55, 0)]), source], LineString([(0, 0), (100, 0)]),
+            ["1", "1"], classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=5, maximumSampleDistanceMeters=4)
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "same-source-hole"].iloc[0]
+        self.assertTrue(rescued.geometry.equals(LineString([(57.5, 3), (37.5, 3)])))
+        self.assertEqual((rescued.sourceStartDistanceMeters, rescued.sourceEndDistanceMeters),
+                         (42.5, 62.5))
+
+    def test_gap_over_local_limit_remains_unresolved(self):
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(40, 0), (60, 0)]), LineString([(0, 3), (100, 3)])],
+            LineString([(0, 0), (100, 0)]), ["1", "1"], classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=6,
+            maximumSampleDistanceMeters=4, sameSourceHoleMaximumGapSamples=4)
+        selected = diagnostic["accepted"]
+        self.assertTrue("ownershipRescue" not in selected.columns
+                        or not (selected.ownershipRescue == "same-source-hole").any())
+        self.assertEqual(diagnostic["source"].iloc[1].sameSourceHoleRejection,
+                         "same-source-hole-gap-too-large")
+
+    def test_manual_exclude_removes_all_same_atom_rows_including_rescue(self):
+        diagnostic = OwnershipFixtureDiagnosticsTests().same_source_fixture()
+        atom_id = diagnostic["source"].iloc[1].n13AtomId
+        curated = MATCH_ROAD.curate_selection(
+            {"selected": diagnostic["accepted"], "selectionDiagnostics": diagnostic["source"],
+             "sourceAtoms": diagnostic["source"]},
+            {"include": [], "exclude": [atom_id]})
+        self.assertNotIn(atom_id, set(curated.n13AtomId))
+
+
 class ReferenceOwnershipTests(unittest.TestCase):
     def assert_curated_rows_unchanged(self, curated, connected):
         for _, row in curated.iterrows():
