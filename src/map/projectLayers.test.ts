@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 import { addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
+import { REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
@@ -14,6 +15,17 @@ describe('project map layer contract', () => {
     addDataLayers(map as never,{collections} as never)
     for(const polygonLayer of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine])expect(layers.indexOf(polygonLayer)).toBeLessThan(layers.indexOf(LAYER_IDS.historicalRoads))
     for(const roadLayer of [LAYER_IDS.historicalRoads,LAYER_IDS.modernRoads,LAYER_IDS.highlightLineGlow,LAYER_IDS.highlightLine,LAYER_IDS.highlightOsmLine])expect(layers.indexOf(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(layers.indexOf(roadLayer))
+  })
+  it('uses region defaults for jurisdiction emphasis and filters road glow to the active road',()=>{
+    const layers:Record<string,unknown>[]=[]
+    const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    for(const id of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine]){
+      expect((layers.find(layer=>layer.id===id)?.paint as Record<string,unknown>)[id===LAYER_IDS.jurisdictionHighlightFill?'fill-color':'line-color']).toBe(REGION_HIGHLIGHT_COLOR)
+    }
+    expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLineGlow)?.filter).toEqual(['any',['==',['geometry-type'],'Polygon'],['all',['==',['geometry-type'],'LineString'],['==',['get','activeRoadGlow'],true]]])
+    expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLine)?.filter).toEqual(['in',['geometry-type'],['literal',['LineString','Polygon']]])
   })
   it('defines independently toggleable rendering layers', () => {
     expect([LAYER_IDS.modernRoads,LAYER_IDS.railways,LAYER_IDS.stations,LAYER_IDS.historicalRoads,LAYER_IDS.historicalPosts]).toEqual(['modern-roads','railway-tracks','railway-stations','historical-roads','historical-posts'])

@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon, Position
 import type maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
 import type { JurisdictionFeature, JurisdictionSelection } from '../data/jurisdictions'
+import type { HighlightStyle } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 
 export const JURISDICTION_EMPHASIS_DURATION = 780
@@ -11,6 +12,7 @@ type Animation = { frame:number; state:EmphasisState }
 type LabelProperties = { parent?:string; primary:string; selectionKey:string }
 const activeAnimations = new WeakMap<maplibregl.Map, Animation>()
 const currentStates = new WeakMap<maplibregl.Map, EmphasisState>()
+const glowEnabled = new WeakMap<maplibregl.Map, boolean>()
 const empty:FeatureCollection = {type:'FeatureCollection',features:[]}
 
 export function jurisdictionDimFilter(features:JurisdictionFeature[]):maplibregl.FilterSpecification {
@@ -73,7 +75,7 @@ function apply(map:maplibregl.Map,state:EmphasisState):void {
   map.setPaintProperty(LAYER_IDS.jurisdictionDim,'fill-opacity',state.dim)
   map.setPaintProperty(LAYER_IDS.jurisdictionHighlightFill,'fill-opacity',state.fill)
   map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLine,'line-opacity',state.line)
-  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-opacity',state.glow)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-opacity',glowEnabled.get(map)===false?0:state.glow)
   currentStates.set(map,state)
 }
 
@@ -84,7 +86,17 @@ export function jurisdictionLabelOpacity(progress:number):number {
   return 1-Math.pow(1-linear,3)
 }
 
-export function updateJurisdictionEmphasis(map:maplibregl.Map,features:JurisdictionFeature[],selection:JurisdictionSelection):void {
+export function updateJurisdictionEmphasisStyle(map:maplibregl.Map,style:Pick<HighlightStyle,'regionColor'|'glow'>):void {
+  glowEnabled.set(map,style.glow)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightFill,'fill-color',style.regionColor)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLine,'line-color',style.regionColor)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-color',style.regionColor)
+  const state=currentStates.get(map)
+  if(state)map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-opacity',style.glow?state.glow:0)
+}
+
+export function updateJurisdictionEmphasis(map:maplibregl.Map,features:JurisdictionFeature[],selection:JurisdictionSelection,glow=true):void {
+  glowEnabled.set(map,glow)
   const previous=activeAnimations.get(map)
   if(previous)cancelAnimationFrame(previous.frame)
   if(features.length)map.setFilter(LAYER_IDS.jurisdictionDim,jurisdictionDimFilter(features))
@@ -105,7 +117,8 @@ export function updateJurisdictionEmphasis(map:maplibregl.Map,features:Jurisdict
     const progress=Math.min((now-started)/JURISDICTION_EMPHASIS_DURATION,1)
     const eased=1-Math.pow(1-progress,3)
     const mix=(key:keyof EmphasisState)=>from[key]+(to[key]-from[key])*eased
-    const state={dim:mix('dim'),fill:mix('fill'),line:mix('line'),glow:features.length?(progress<0.68?0.55*Math.min(eased/0.97,1):0.55+(FINAL.glow-0.55)*((progress-0.68)/0.32)):mix('glow')}
+    const animatedGlow=progress<0.68?0.55*Math.min(eased/0.97,1):0.55+(FINAL.glow-0.55)*((progress-0.68)/0.32)
+    const state={dim:mix('dim'),fill:mix('fill'),line:mix('line'),glow:features.length?animatedGlow:mix('glow')}
     apply(map,state)
     map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLabel,'text-opacity',features.length?jurisdictionLabelOpacity(progress):0)
     if(progress<1){const id=requestAnimationFrame(frame);activeAnimations.set(map,{frame:id,state})}
