@@ -152,6 +152,22 @@ class ParentCityDisplayTests(unittest.TestCase):
         self.assertEqual(len(shape(parent["geometry"]).geoms), 2)
         self.assertEqual(shape(parent["geometry"]).boundary.length, 10.0)
 
+    def test_invalid_source_geometry_is_repaired_only_for_parent_dissolve(self):
+        bow_tie = {"type": "Polygon", "coordinates": [[[0, 0], [2, 2], [0, 2], [2, 0], [0, 0]]]}
+        raw = {"type": "FeatureCollection", "features": [
+            feature("A区", bow_tie, parent_name="東京市", resource_id="invalid-a", pref_name="東京府"),
+            feature("B区", self._square(3), parent_name="東京市", resource_id="valid-b", pref_name="東京府"),
+        ]}
+        canonical = normalize_features(raw, prefecture="13", snapshot_date="1920-12-31", resolution="high")
+        canonical_before = json.loads(json.dumps(canonical))
+        display = parent_city_display(canonical, prefecture="13", snapshot_date="1920-12-31")
+        self.assertEqual(canonical, canonical_before)
+        invalid_source = next(item for item in canonical["features"] if item["properties"]["municipalityName"] == "A区")
+        self.assertEqual(invalid_source["geometry"], bow_tie)
+        parent = next(item for item in display["features"] if item["properties"].get("derived"))
+        self.assertIn(parent["geometry"]["type"], {"Polygon", "MultiPolygon"})
+        self.assertTrue(shape(parent["geometry"]).is_valid)
+
     def test_derived_identity_and_output_are_deterministic(self):
         reversed_collection = {**self.canonical, "features": list(reversed(self.canonical["features"]))}
         first = parent_city_display(self.canonical, prefecture="13", snapshot_date="1932-12-31")

@@ -5,10 +5,9 @@ import type { JurisdictionFeature, JurisdictionSelection } from '../data/jurisdi
 import { LAYER_IDS, SOURCE_IDS } from './config'
 
 export const JURISDICTION_EMPHASIS_DURATION = 780
-export const JURISDICTION_LABEL_REVEAL_PROGRESS = 0.38
 const FINAL = { dim:0.58, fill:0.2, line:0.96, glow:0.32 }
 type EmphasisState = typeof FINAL
-type Animation = { frame:number; state:EmphasisState; labelShown:boolean }
+type Animation = { frame:number; state:EmphasisState }
 type LabelProperties = { parent?:string; primary:string; selectionKey:string }
 const activeAnimations = new WeakMap<maplibregl.Map, Animation>()
 const currentStates = new WeakMap<maplibregl.Map, EmphasisState>()
@@ -78,6 +77,13 @@ function apply(map:maplibregl.Map,state:EmphasisState):void {
   currentStates.set(map,state)
 }
 
+export function jurisdictionLabelOpacity(progress:number):number {
+  if(progress<=0.25)return 0
+  if(progress>=0.7)return 1
+  const linear=(progress-0.25)/0.45
+  return 1-Math.pow(1-linear,3)
+}
+
 export function updateJurisdictionEmphasis(map:maplibregl.Map,features:JurisdictionFeature[],selection:JurisdictionSelection):void {
   const previous=activeAnimations.get(map)
   if(previous)cancelAnimationFrame(previous.frame)
@@ -86,24 +92,24 @@ export function updateJurisdictionEmphasis(map:maplibregl.Map,features:Jurisdict
   const labelSource=map.getSource(SOURCE_IDS.jurisdictionHighlightLabel) as GeoJSONSource
   const polygons:FeatureCollection<Polygon|MultiPolygon>={type:'FeatureCollection',features}
   const label=jurisdictionLabelCollection(features,selection)
-  labelSource.setData(empty)
+  labelSource.setData(label)
   if(features.length)polygonSource.setData(polygons)
   const from:EmphasisState=features.length?{dim:currentStates.get(map)?.dim??0,fill:0,line:0,glow:0}:(currentStates.get(map)??FINAL)
   const to:EmphasisState=features.length?FINAL:{dim:0,fill:0,line:0,glow:0}
   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches
-  if(reduced){apply(map,to);if(features.length)labelSource.setData(label);else {map.setFilter(LAYER_IDS.jurisdictionDim,jurisdictionDimFilter([]));polygonSource.setData(empty)}activeAnimations.delete(map);return}
+  if(reduced){apply(map,to);map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLabel,'text-opacity',features.length?1:0);if(!features.length){map.setFilter(LAYER_IDS.jurisdictionDim,jurisdictionDimFilter([]));polygonSource.setData(empty)}activeAnimations.delete(map);return}
   apply(map,from)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLabel,'text-opacity',0)
   const started=performance.now()
-  let labelShown=false
   const frame=(now:number)=>{
     const progress=Math.min((now-started)/JURISDICTION_EMPHASIS_DURATION,1)
     const eased=1-Math.pow(1-progress,3)
     const mix=(key:keyof EmphasisState)=>from[key]+(to[key]-from[key])*eased
     const state={dim:mix('dim'),fill:mix('fill'),line:mix('line'),glow:features.length?(progress<0.68?0.55*Math.min(eased/0.97,1):0.55+(FINAL.glow-0.55)*((progress-0.68)/0.32)):mix('glow')}
     apply(map,state)
-    if(features.length&&!labelShown&&progress>=JURISDICTION_LABEL_REVEAL_PROGRESS){labelSource.setData(label);labelShown=true}
-    if(progress<1){const id=requestAnimationFrame(frame);activeAnimations.set(map,{frame:id,state,labelShown})}
-    else {apply(map,to);if(!features.length){polygonSource.setData(empty);map.setFilter(LAYER_IDS.jurisdictionDim,jurisdictionDimFilter([]))}activeAnimations.delete(map)}
+    map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLabel,'text-opacity',features.length?jurisdictionLabelOpacity(progress):0)
+    if(progress<1){const id=requestAnimationFrame(frame);activeAnimations.set(map,{frame:id,state})}
+    else {apply(map,to);map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLabel,'text-opacity',features.length?1:0);if(!features.length){polygonSource.setData(empty);map.setFilter(LAYER_IDS.jurisdictionDim,jurisdictionDimFilter([]))}activeAnimations.delete(map)}
   }
-  const id=requestAnimationFrame(frame);activeAnimations.set(map,{frame:id,state:from,labelShown})
+  const id=requestAnimationFrame(frame);activeAnimations.set(map,{frame:id,state:from})
 }
