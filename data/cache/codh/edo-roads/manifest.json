@@ -1,0 +1,276 @@
+{
+  "acquiredAt": "2026-09-03T15:19:49.002761+00:00",
+  "archiveMember": "geopackage/edo-road-v4.gpkg",
+  "archiveMembers": [
+    "geopackage/",
+    "geopackage/edo-road-v4.gpkg"
+  ],
+  "attribution": "Center for Open Data in the Humanities (CODH), ROIS-DS",
+  "availableLayers": [
+    "road_codh_260731"
+  ],
+  "configuredDownloadUrl": "https://codh.rois.ac.jp/historical-gis/edo-road/geopackage.zip",
+  "datasetName": "江戸主要街道データセット version 4 (August 2026)",
+  "downloadUrl": "https://codh.rois.ac.jp/historical-gis/edo-road/geopackage.zip",
+  "extractedPath": "data/raw/codh/extracted/edo-road/geopackage/edo-road-v4.gpkg",
+  "featureCount": 47,
+  "finalResponseUrl": null,
+  "landingPage": "https://codh.rois.ac.jp/historical-gis/edo-road/",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "normalizedCrs": "EPSG:4326",
+  "outputs": {
+    "index": "data/cache/codh/edo-roads/index.json",
+    "roads": "data/cache/codh/edo-roads/roads.parquet"
+  },
+  "payloadFormat": "geopackage",
+  "provider": "Center for Open Data in the Humanities (CODH), ROIS-DS",
+  "rawArchivePath": "data/raw/codh/edo-road-geopackage.zip",
+  "rawPath": "data/raw/codh/edo-road-geopackage.zip",
+  "responseContentType": null,
+  "responseStatus": null,
+  "routeIdsPresent": [
+    "R001",
+    "R002",
+    "R003",
+    "R004",
+    "R005",
+    "R200",
+    "R201",
+    "R202",
+    "R219",
+    "R220",
+    "R221",
+    "R300",
+    "R301",
+    "R303",
+    "R304",
+    "R314",
+    "R400",
+    "R400-1",
+    "R400-2",
+    "R503",
+    "R506",
+    "R516",
+    "R516-1",
+    "R600",
+    "R603",
+    "R611",
+    "R611-1",
+    "R700",
+    "R700-1",
+    "R701",
+    "R701-1",
+    "R810",
+    "R810-1",
+    "R814",
+    "R815",
+    "R816",
+    "R819",
+    "R820",
+    "R821",
+    "R822",
+    "R822-1",
+    "R823",
+    "R900",
+    "R901",
+    "R902",
+    "R902-1"
+  ],
+  "routeStatistics": {
+    "R001": {
+      "featureCount": 1,
+      "lengthKm": 515.674
+    },
+    "R002": {
+      "featureCount": 1,
+      "lengthKm": 534.962
+    },
+    "R003": {
+      "featureCount": 1,
+      "lengthKm": 206.652
+    },
+    "R004": {
+      "featureCount": 1,
+      "lengthKm": 819.186
+    },
+    "R005": {
+      "featureCount": 1,
+      "lengthKm": 145.424
+    },
+    "R200": {
+      "featureCount": 2,
+      "lengthKm": 158.834
+    },
+    "R201": {
+      "featureCount": 1,
+      "lengthKm": 490.81
+    },
+    "R202": {
+      "featureCount": 1,
+      "lengthKm": 204.63
+    },
+    "R219": {
+      "featureCount": 1,
+      "lengthKm": 67.769
+    },
+    "R220": {
+      "featureCount": 1,
+      "lengthKm": 57.633
+    },
+    "R221": {
+      "featureCount": 1,
+      "lengthKm": 99.315
+    },
+    "R300": {
+      "featureCount": 1,
+      "lengthKm": 109.84
+    },
+    "R301": {
+      "featureCount": 1,
+      "lengthKm": 59.736
+    },
+    "R303": {
+      "featureCount": 1,
+      "lengthKm": 114.554
+    },
+    "R304": {
+      "featureCount": 1,
+      "lengthKm": 197.278
+    },
+    "R314": {
+      "featureCount": 1,
+      "lengthKm": 47.302
+    },
+    "R400": {
+      "featureCount": 1,
+      "lengthKm": 582.202
+    },
+    "R400-1": {
+      "featureCount": 1,
+      "lengthKm": 32.306
+    },
+    "R400-2": {
+      "featureCount": 1,
+      "lengthKm": 15.577
+    },
+    "R503": {
+      "featureCount": 1,
+      "lengthKm": 72.723
+    },
+    "R506": {
+      "featureCount": 1,
+      "lengthKm": 132.001
+    },
+    "R516": {
+      "featureCount": 1,
+      "lengthKm": 171.798
+    },
+    "R516-1": {
+      "featureCount": 1,
+      "lengthKm": 55.419
+    },
+    "R600": {
+      "featureCount": 1,
+      "lengthKm": 51.575
+    },
+    "R603": {
+      "featureCount": 1,
+      "lengthKm": 67.639
+    },
+    "R611": {
+      "featureCount": 1,
+      "lengthKm": 197.229
+    },
+    "R611-1": {
+      "featureCount": 1,
+      "lengthKm": 13.382
+    },
+    "R700": {
+      "featureCount": 1,
+      "lengthKm": 579.319
+    },
+    "R700-1": {
+      "featureCount": 1,
+      "lengthKm": 23.841
+    },
+    "R701": {
+      "featureCount": 1,
+      "lengthKm": 599.592
+    },
+    "R701-1": {
+      "featureCount": 1,
+      "lengthKm": 3.893
+    },
+    "R810": {
+      "featureCount": 1,
+      "lengthKm": 67.044
+    },
+    "R810-1": {
+      "featureCount": 1,
+      "lengthKm": 27.755
+    },
+    "R814": {
+      "featureCount": 1,
+      "lengthKm": 98.077
+    },
+    "R815": {
+      "featureCount": 1,
+      "lengthKm": 77.272
+    },
+    "R816": {
+      "featureCount": 1,
+      "lengthKm": 188.007
+    },
+    "R819": {
+      "featureCount": 1,
+      "lengthKm": 157.418
+    },
+    "R820": {
+      "featureCount": 1,
+      "lengthKm": 71.948
+    },
+    "R821": {
+      "featureCount": 1,
+      "lengthKm": 43.549
+    },
+    "R822": {
+      "featureCount": 1,
+      "lengthKm": 47.961
+    },
+    "R822-1": {
+      "featureCount": 1,
+      "lengthKm": 35.97
+    },
+    "R823": {
+      "featureCount": 1,
+      "lengthKm": 61.22
+    },
+    "R900": {
+      "featureCount": 1,
+      "lengthKm": 231.272
+    },
+    "R901": {
+      "featureCount": 1,
+      "lengthKm": 317.644
+    },
+    "R902": {
+      "featureCount": 1,
+      "lengthKm": 443.114
+    },
+    "R902-1": {
+      "featureCount": 1,
+      "lengthKm": 66.197
+    }
+  },
+  "selectedLayer": "road_codh_260731",
+  "sourceContainerFormat": "zip",
+  "sourceCrs": "EPSG:4326",
+  "sourceFormat": "geopackage",
+  "sourceLayers": [
+    "road_codh_260731"
+  ],
+  "sourcePath": "data/raw/codh/extracted/edo-road/geopackage/edo-road-v4.gpkg",
+  "sourceUrl": "https://codh.rois.ac.jp/historical-gis/edo-road/geopackage.zip",
+  "version": "4 (August 2026)"
+}

@@ -1,0 +1,416 @@
+[
+  {
+    "altName": null,
+    "displayName": "東海道",
+    "end": "京都",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R001",
+    "start": "江戸"
+  },
+  {
+    "altName": null,
+    "displayName": "中山道",
+    "end": "京都",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R002",
+    "start": "江戸"
+  },
+  {
+    "altName": null,
+    "displayName": "甲州道中",
+    "end": "下諏訪",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R003",
+    "start": "江戸"
+  },
+  {
+    "altName": null,
+    "displayName": "奥州道中",
+    "end": "三厩",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R004",
+    "start": "江戸"
+  },
+  {
+    "altName": null,
+    "displayName": "日光道中",
+    "end": "日光",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R005",
+    "start": "江戸"
+  },
+  {
+    "altName": "松前路",
+    "displayName": "松前街道",
+    "end": "三厩",
+    "entityType": "historical-road",
+    "featureCount": 2,
+    "id": "R200",
+    "start": "油川"
+  },
+  {
+    "altName": null,
+    "displayName": "羽州街道",
+    "end": "油川",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R201",
+    "start": "桑折"
+  },
+  {
+    "altName": "北国道、浜街道、出羽街道",
+    "displayName": "羽州浜街道",
+    "end": "村上",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R202",
+    "start": "久保田"
+  },
+  {
+    "altName": null,
+    "displayName": "白河街道",
+    "end": "若松",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R219",
+    "start": "白河"
+  },
+  {
+    "altName": null,
+    "displayName": "二本松街道",
+    "end": "本宮",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R220",
+    "start": "若松"
+  },
+  {
+    "altName": "会津街道",
+    "displayName": "越後街道",
+    "end": "新発田",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R221",
+    "start": "若松"
+  },
+  {
+    "altName": null,
+    "displayName": "水戸街道",
+    "end": "水戸",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R300",
+    "start": "江戸"
+  },
+  {
+    "altName": "佐倉道",
+    "displayName": "成田道",
+    "end": "成田",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R301",
+    "start": "江戸"
+  },
+  {
+    "altName": null,
+    "displayName": "日光例幣使街道",
+    "end": "倉賀野",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R303",
+    "start": "今市"
+  },
+  {
+    "altName": null,
+    "displayName": "三国街道",
+    "end": "寺泊",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R304",
+    "start": "高崎"
+  },
+  {
+    "altName": "壬生通",
+    "displayName": "壬生道",
+    "end": "今市",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R314",
+    "start": "小山"
+  },
+  {
+    "altName": "北国路",
+    "displayName": "北陸街道",
+    "end": "村上",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R400",
+    "start": "鳥居本"
+  },
+  {
+    "altName": "北国路",
+    "displayName": "北陸街道【支路】",
+    "end": "木之本",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R400-1",
+    "start": "関ヶ原"
+  },
+  {
+    "altName": "下街道、冬往来",
+    "displayName": "北陸街道【支路】",
+    "end": "三日市",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R400-2",
+    "start": "泊"
+  },
+  {
+    "altName": "伊勢路",
+    "displayName": "伊勢街道",
+    "end": "伊勢",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R503",
+    "start": "日永追分"
+  },
+  {
+    "altName": "北国街道",
+    "displayName": "北国脇往還",
+    "end": "高田",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R506",
+    "start": "追分"
+  },
+  {
+    "altName": null,
+    "displayName": "熊野街道",
+    "end": "熊野",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R516",
+    "start": "伊勢神宮"
+  },
+  {
+    "altName": null,
+    "displayName": "熊野街道【支路】",
+    "end": "長島",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R516-1",
+    "start": "田丸"
+  },
+  {
+    "altName": "大阪街道",
+    "displayName": "京街道",
+    "end": "大阪",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R600",
+    "start": "髭茶屋追分"
+  },
+  {
+    "altName": "紀伊街道、大阪街道",
+    "displayName": "紀州街道",
+    "end": "和歌山",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R603",
+    "start": "大阪"
+  },
+  {
+    "altName": "熊野街道",
+    "displayName": "大辺路",
+    "end": "熊野",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R611",
+    "start": "和歌山"
+  },
+  {
+    "altName": "熊野街道",
+    "displayName": "大辺路",
+    "end": "井田",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R611-1",
+    "start": "川辺"
+  },
+  {
+    "altName": "山陽道",
+    "displayName": "西国街道",
+    "end": "赤間関",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R700",
+    "start": "京都"
+  },
+  {
+    "altName": "山陽道",
+    "displayName": "西国街道【支路】",
+    "end": "西宮",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R700-1",
+    "start": "大阪"
+  },
+  {
+    "altName": null,
+    "displayName": "山陰道",
+    "end": "小郡",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R701",
+    "start": "京都"
+  },
+  {
+    "altName": null,
+    "displayName": "山陰道【支路】",
+    "end": "岩本",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R701-1",
+    "start": "湯村"
+  },
+  {
+    "altName": "志度街道、長尾街道",
+    "displayName": "讃岐街道",
+    "end": "徳島",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R810",
+    "start": "高松"
+  },
+  {
+    "altName": "志度街道、長尾街道",
+    "displayName": "讃岐街道【支路】",
+    "end": "町田",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R810-1",
+    "start": "高松"
+  },
+  {
+    "altName": null,
+    "displayName": "讃岐道",
+    "end": "川之江",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R814",
+    "start": "松山"
+  },
+  {
+    "altName": null,
+    "displayName": "今治道・西条道",
+    "end": "松山",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R815",
+    "start": "西条"
+  },
+  {
+    "altName": "土佐東街道",
+    "displayName": "土佐街道（東街道）",
+    "end": "高知",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R816",
+    "start": "徳島"
+  },
+  {
+    "altName": "土佐西街道",
+    "displayName": "中村街道",
+    "end": "宿毛",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R819",
+    "start": "高知"
+  },
+  {
+    "altName": "大洲街道",
+    "displayName": "八幡浜道",
+    "end": "大洲",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R820",
+    "start": "松山"
+  },
+  {
+    "altName": null,
+    "displayName": "宇和島道",
+    "end": "宇和島",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R821",
+    "start": "大洲"
+  },
+  {
+    "altName": null,
+    "displayName": "宿毛道（灘道）",
+    "end": "宿毛",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R822",
+    "start": "宇和島"
+  },
+  {
+    "altName": null,
+    "displayName": "宿毛道（灘道）【支路】",
+    "end": "緑",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R822-1",
+    "start": "祝森"
+  },
+  {
+    "altName": null,
+    "displayName": "伊予街道",
+    "end": "川之江",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R823",
+    "start": "高松"
+  },
+  {
+    "altName": "長崎路",
+    "displayName": "長崎街道",
+    "end": "長崎",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R900",
+    "start": "大里"
+  },
+  {
+    "altName": "出水筋",
+    "displayName": "薩摩街道",
+    "end": "鹿児島",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R901",
+    "start": "山家"
+  },
+  {
+    "altName": "中津街道",
+    "displayName": "日向街道",
+    "end": "鹿児島",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R902",
+    "start": "小倉"
+  },
+  {
+    "altName": null,
+    "displayName": "日向街道【支路】",
+    "end": "都城",
+    "entityType": "historical-road",
+    "featureCount": 1,
+    "id": "R902-1",
+    "start": "佐土原"
+  }
+]

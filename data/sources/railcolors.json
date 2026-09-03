@@ -1,15 +1,2367 @@
 {
-  "fallbackColor": "#6F7B80",
-  "matchPriority": ["railDisplayName", "name:ja", "name", "name:en", "ref"],
-  "railways": [
-    {"id":"jr-chuo-rapid","color":"#FF4500","aliases":["JR 中央線快速","JR中央線快速","中央線快速"]},
-    {"id":"jr-chuo-sobu-local","color":"#FFD700","aliases":["JR 中央・総武緩行線","JR中央・総武緩行線","中央・総武緩行線"]},
-    {"id":"jr-yamanote","color":"#9ACD32","aliases":["JR 山手線","JR山手線","山手線"]},
-    {"id":"keio-keio","color":"#E3379F","aliases":["京王 京王線","京王線"]},
-    {"id":"keio-inokashira","color":"#1A407B","aliases":["京王 井の頭線","京王井の頭線","井の頭線"]},
-    {"id":"odakyu-odawara","color":"#2683CE","aliases":["小田急 小田原線","小田急小田原線","小田原線"]},
-    {"id":"seibu-shinjuku","color":"#00A6BF","aliases":["西武 新宿線","西武新宿線","新宿線"]},
-    {"id":"toei-shinjuku","color":"#6CBB5A","aliases":["都営 新宿線","都営新宿線","都営地下鉄新宿線","新宿線"]},
-    {"id":"tokyu-toyoko","color":"#DA0042","aliases":["東急 東横線","東急東横線","東横線"]}
+  "schemaVersion": 1,
+  "scope": "Greater Tokyo / Kanto rail display colors for michi_app",
+  "fallbackColor": "#6F7780",
+  "matching": {
+    "fieldsInPriorityOrder": [
+      "railDisplayName",
+      "name:ja",
+      "name",
+      "name:en",
+      "ref"
+    ],
+    "strategy": "exact-normalized-alias",
+    "normalization": [
+      "Unicode NFKC",
+      "trim",
+      "collapse whitespace",
+      "ASCII case-fold"
+    ],
+    "important": [
+      "Do not match operator or network alone.",
+      "Do not use substring/fuzzy matching for ambiguous names such as 新宿線.",
+      "Prefer a unique exact alias match; otherwise use fallbackColor and report the unmatched identity."
+    ]
+  },
+  "sources": [
+    {
+      "id": "wikipedia-jp-line-colors",
+      "title": "日本の鉄道ラインカラー一覧",
+      "url": "https://ja.wikipedia.org/wiki/日本の鉄道ラインカラー一覧",
+      "role": "Line/color-name reference"
+    },
+    {
+      "id": "osm-wiki-japan-railways",
+      "title": "OpenStreetMap Wiki: Japan Railways",
+      "url": "https://wiki.openstreetmap.org/wiki/Japan_Railways",
+      "role": "OSM-style Japanese/English railway names and relation naming reference"
+    },
+    {
+      "id": "rmg-palette-tokyo",
+      "title": "Rail Map Generator Palette: Tokyo (Greater Tokyo Area)",
+      "url": "https://github.com/railmapgen/rmg-palette/issues/2151",
+      "role": "Practical Greater-Tokyo hex palette cross-reference"
+    }
+  ],
+  "notes": [
+    "OSM-style aliases are based on the naming forms documented by the OpenStreetMap Wiki Japan Railways table and common operator-prefixed variants expected in OSM route relations.",
+    "Japanese Wikipedia is used for the recognized line-color identity/color-name context. Exact hex values are practical display values cross-referenced against Greater-Tokyo palette data and, for selected lines, structured color data.",
+    "This file is intentionally a display-style lookup, not an authoritative infrastructure classification."
+  ],
+  "lines": [
+    {
+      "id": "jr-yamanote",
+      "operator": "JR East",
+      "displayName": "山手線",
+      "code": "JY",
+      "color": "#9ACD32",
+      "colorName": "黄緑",
+      "aliases": [
+        "山手線",
+        "JR 山手線",
+        "JR山手線",
+        "JR Yamanote Line",
+        "Yamanote Line",
+        "JY"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-saikyo",
+      "operator": "JR East",
+      "displayName": "埼京線",
+      "code": "JA",
+      "color": "#2E8B57",
+      "colorName": "ビリジアングリーン",
+      "aliases": [
+        "埼京線",
+        "JR 埼京線",
+        "JR埼京線",
+        "JR Saikyo Line",
+        "JR Saikyō Line",
+        "Saikyo Line",
+        "Saikyō Line",
+        "JA"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-keihin-tohoku",
+      "operator": "JR East",
+      "displayName": "京浜東北線",
+      "code": "JK",
+      "color": "#00BFFF",
+      "colorName": "水色",
+      "aliases": [
+        "京浜東北線",
+        "JR 京浜東北線",
+        "JR京浜東北線",
+        "JR Keihin-Tohoku Line",
+        "JR Keihin-Tōhoku Line",
+        "Keihin-Tohoku Line",
+        "Keihin-Tōhoku Line",
+        "JK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-negishi",
+      "operator": "JR East",
+      "displayName": "根岸線",
+      "code": "JK",
+      "color": "#00BFFF",
+      "colorName": "水色",
+      "aliases": [
+        "根岸線",
+        "JR 根岸線",
+        "JR根岸線",
+        "JR Negishi Line",
+        "Negishi Line",
+        "JK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-chuo-rapid",
+      "operator": "JR East",
+      "displayName": "中央線快速",
+      "code": "JC",
+      "color": "#FF4500",
+      "colorName": "朱 / オレンジバーミリオン",
+      "aliases": [
+        "中央線快速",
+        "JR 中央線快速",
+        "JR中央線快速",
+        "JR Chou Rapid Line",
+        "JR Chuo Rapid Line",
+        "JR Chūō Rapid Line",
+        "Chuo Rapid Line",
+        "Chūō Rapid Line",
+        "中央快速線",
+        "JC"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-chuo-main",
+      "operator": "JR East",
+      "displayName": "中央本線",
+      "code": "JC",
+      "color": "#FF4500",
+      "colorName": "朱（東京近郊のJC系統）",
+      "aliases": [
+        "中央本線",
+        "中央本線（上り）",
+        "中央本線（下り）",
+        "JR 中央本線",
+        "JR中央本線",
+        "JR Chou Line",
+        "JR Chuo Line",
+        "JR Chūō Line",
+        "Chuo Line",
+        "Chūō Main Line",
+        "中央線",
+        "JC"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-ome",
+      "operator": "JR East",
+      "displayName": "青梅線",
+      "code": "JC",
+      "color": "#FF4500",
+      "colorName": "朱",
+      "aliases": [
+        "青梅線",
+        "JR 青梅線",
+        "JR青梅線",
+        "JR Ome Line",
+        "JR Ōme Line",
+        "Ome Line",
+        "Ōme Line",
+        "JC"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-itsukaichi",
+      "operator": "JR East",
+      "displayName": "五日市線",
+      "code": "JC",
+      "color": "#FF4500",
+      "colorName": "朱",
+      "aliases": [
+        "五日市線",
+        "JR 五日市線",
+        "JR五日市線",
+        "JR Itsukaichi Line",
+        "Itsukaichi Line",
+        "JC"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-chuo-sobu-local",
+      "operator": "JR East",
+      "displayName": "中央・総武緩行線",
+      "code": "JB",
+      "color": "#FFD700",
+      "colorName": "黄 / カナリアイエロー",
+      "aliases": [
+        "中央・総武緩行線",
+        "JR 中央・総武緩行線",
+        "JR中央・総武緩行線",
+        "中央・総武線各駅停車",
+        "JR 中央・総武線各駅停車",
+        "JR Chou-Sobu Line",
+        "JR Chuo-Sobu Line",
+        "JR Chūō-Sōbu Line",
+        "Chuo-Sobu Line",
+        "Chūō-Sōbu Line",
+        "JB"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-joban-main",
+      "operator": "JR East",
+      "displayName": "常磐線",
+      "color": "#0070B9",
+      "colorName": "青",
+      "aliases": [
+        "常磐線",
+        "JR 常磐線",
+        "JR常磐線",
+        "JR Joban Line",
+        "JR Jōban Line",
+        "Joban Line",
+        "Jōban Line"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-joban-rapid",
+      "operator": "JR East",
+      "displayName": "常磐線快速",
+      "code": "JJ",
+      "color": "#3CB371",
+      "colorName": "エメラルドグリーン",
+      "aliases": [
+        "常磐線快速",
+        "JR 常磐線快速",
+        "JR常磐線快速",
+        "JR 常磐快速線",
+        "JR常磐快速線",
+        "JR Joban Rapid Line",
+        "JR Jōban Rapid Line",
+        "Jōban Line (Rapid)",
+        "JJ"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-joban-local",
+      "operator": "JR East",
+      "displayName": "常磐緩行線",
+      "code": "JL",
+      "color": "#3CB371",
+      "colorName": "エメラルドグリーン",
+      "aliases": [
+        "常磐緩行線",
+        "JR 常磐緩行線",
+        "JR常磐緩行線",
+        "常磐線各駅停車",
+        "JR Joban Local Line",
+        "JR Jōban Local Line",
+        "Jōban Line (Local)",
+        "JL"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "jr-keiyo",
+      "operator": "JR East",
+      "displayName": "京葉線",
+      "code": "JE",
+      "color": "#DC143C",
+      "colorName": "赤 / ワインレッド",
+      "aliases": [
+        "京葉線",
+        "JR 京葉線",
+        "JR京葉線",
+        "JR Keiyo Line",
+        "JR Keiyō Line",
+        "Keiyo Line",
+        "Keiyō Line",
+        "JE"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-musashino",
+      "operator": "JR East",
+      "displayName": "武蔵野線",
+      "code": "JM",
+      "color": "#FF4500",
+      "colorName": "朱",
+      "aliases": [
+        "武蔵野線",
+        "JR 武蔵野線",
+        "JR武蔵野線",
+        "JR Musashino Line",
+        "Musashino Line",
+        "JM"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-nambu",
+      "operator": "JR East",
+      "displayName": "南武線",
+      "code": "JN",
+      "color": "#F2D01F",
+      "colorName": "黄",
+      "aliases": [
+        "南武線",
+        "JR 南武線",
+        "JR南武線",
+        "JR Nambu Line",
+        "Nambu Line",
+        "JN"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-tsurumi",
+      "operator": "JR East",
+      "displayName": "鶴見線",
+      "code": "JI",
+      "color": "#F2D01F",
+      "colorName": "黄",
+      "aliases": [
+        "鶴見線",
+        "JR 鶴見線",
+        "JR鶴見線",
+        "JR Tsurumi Line",
+        "Tsurumi Line",
+        "JI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-yokohama",
+      "operator": "JR East",
+      "displayName": "横浜線",
+      "code": "JH",
+      "color": "#9ACD32",
+      "colorName": "黄緑",
+      "aliases": [
+        "横浜線",
+        "JR 横浜線",
+        "JR横浜線",
+        "JR Yokohama Line",
+        "Yokohama Line",
+        "JH"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-sagami",
+      "operator": "JR East",
+      "displayName": "相模線",
+      "color": "#009793",
+      "colorName": "青緑",
+      "aliases": [
+        "相模線",
+        "JR 相模線",
+        "JR相模線",
+        "JR Sagami Line",
+        "Sagami Line"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-hachiko",
+      "operator": "JR East",
+      "displayName": "八高線",
+      "color": "#A09D95",
+      "colorName": "グレー系",
+      "aliases": [
+        "八高線",
+        "JR 八高線",
+        "JR八高線",
+        "JR Hachiko Line",
+        "JR Hachikō Line",
+        "Hachiko Line",
+        "Hachikō Line"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-kawagoe",
+      "operator": "JR East",
+      "displayName": "川越線",
+      "color": "#A6A9AB",
+      "colorName": "グレー系",
+      "aliases": [
+        "川越線",
+        "JR 川越線",
+        "JR川越線",
+        "JR Kawagoe Line",
+        "Kawagoe Line"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-shonan-shinjuku",
+      "operator": "JR East",
+      "displayName": "湘南新宿ライン",
+      "code": "JS",
+      "color": "#FF0000",
+      "colorName": "赤",
+      "aliases": [
+        "湘南新宿ライン",
+        "JR 湘南新宿ライン",
+        "JR湘南新宿ライン",
+        "JR Shonan-Shinjuku Line",
+        "JR Shōnan-Shinjuku Line",
+        "Shonan-Shinjuku Line",
+        "Shōnan-Shinjuku Line",
+        "JS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-ueno-tokyo",
+      "operator": "JR East",
+      "displayName": "上野東京ライン",
+      "color": "#91268F",
+      "colorName": "紫",
+      "aliases": [
+        "上野東京ライン",
+        "JR 上野東京ライン",
+        "JR上野東京ライン",
+        "JR Ueno-Tokyo Line",
+        "Ueno Tokyo Line",
+        "Ueno-Tokyo Line"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-tokaido",
+      "operator": "JR East",
+      "displayName": "東海道本線",
+      "code": "JT",
+      "color": "#FFA500",
+      "colorName": "オレンジ",
+      "aliases": [
+        "東海道本線",
+        "JR 東海道本線",
+        "JR東海道本線",
+        "東海道線",
+        "JR 東海道線",
+        "JR Tokaido Main Line",
+        "JR Tōkaidō Main Line",
+        "Tokaido Line",
+        "Tōkaidō Line",
+        "JT"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-utsunomiya",
+      "operator": "JR East",
+      "displayName": "宇都宮線",
+      "code": "JU",
+      "color": "#FFA500",
+      "colorName": "オレンジ",
+      "aliases": [
+        "宇都宮線",
+        "JR 宇都宮線",
+        "JR宇都宮線",
+        "JR Utsunomiya Line",
+        "Utsunomiya Line",
+        "JU"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-takasaki",
+      "operator": "JR East",
+      "displayName": "高崎線",
+      "code": "JU",
+      "color": "#FFA500",
+      "colorName": "オレンジ",
+      "aliases": [
+        "高崎線",
+        "JR 高崎線",
+        "JR高崎線",
+        "JR Takasaki Line",
+        "Takasaki Line",
+        "JU"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-yokosuka",
+      "operator": "JR East",
+      "displayName": "横須賀線",
+      "code": "JO",
+      "color": "#0070B9",
+      "colorName": "青",
+      "aliases": [
+        "横須賀線",
+        "JR 横須賀線",
+        "JR横須賀線",
+        "JR Yokosuka Line",
+        "Yokosuka Line",
+        "横須賀・総武快速線",
+        "JO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-sobu-rapid",
+      "operator": "JR East",
+      "displayName": "総武快速線",
+      "code": "JO",
+      "color": "#0070B9",
+      "colorName": "青",
+      "aliases": [
+        "総武快速線",
+        "JR 総武快速線",
+        "JR総武快速線",
+        "JR Sobu Rapid Line",
+        "JR Sōbu Rapid Line",
+        "Sobu Rapid Line",
+        "Sōbu Rapid Line",
+        "横須賀・総武快速線",
+        "JO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "jr-sobu-main",
+      "operator": "JR East",
+      "displayName": "総武本線",
+      "code": "JO",
+      "color": "#0070B9",
+      "colorName": "青（JO案内系統）",
+      "aliases": [
+        "総武本線",
+        "JR 総武本線",
+        "JR総武本線",
+        "JR Sobu Main Line",
+        "JR Sōbu Main Line",
+        "Sobu Main Line",
+        "Sōbu Main Line",
+        "JO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-ginza",
+      "operator": "Tokyo Metro",
+      "displayName": "銀座線",
+      "code": "G",
+      "color": "#FF9500",
+      "colorName": "オレンジ",
+      "aliases": [
+        "銀座線",
+        "東京メトロ 銀座線",
+        "東京メトロ銀座線",
+        "東京地下鉄 銀座線",
+        "東京地下鉄銀座線",
+        "Ginza Line",
+        "Tokyo Metro Ginza Line",
+        "G"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-marunouchi",
+      "operator": "Tokyo Metro",
+      "displayName": "丸ノ内線",
+      "code": "M",
+      "color": "#F62E36",
+      "colorName": "スカーレット",
+      "aliases": [
+        "丸ノ内線",
+        "東京メトロ 丸ノ内線",
+        "東京メトロ丸ノ内線",
+        "東京地下鉄 丸ノ内線",
+        "東京地下鉄丸ノ内線",
+        "Marunouchi Line",
+        "Tokyo Metro Marunouchi Line",
+        "M"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-hibiya",
+      "operator": "Tokyo Metro",
+      "displayName": "日比谷線",
+      "code": "H",
+      "color": "#B5B5AC",
+      "colorName": "シルバー",
+      "aliases": [
+        "日比谷線",
+        "東京メトロ 日比谷線",
+        "東京メトロ日比谷線",
+        "東京地下鉄 日比谷線",
+        "東京地下鉄日比谷線",
+        "Hibiya Line",
+        "Tokyo Metro Hibiya Line",
+        "H"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-tozai",
+      "operator": "Tokyo Metro",
+      "displayName": "東西線",
+      "code": "T",
+      "color": "#009BBF",
+      "colorName": "スカイブルー",
+      "aliases": [
+        "東西線",
+        "東京メトロ 東西線",
+        "東京メトロ東西線",
+        "東京地下鉄 東西線",
+        "東京地下鉄東西線",
+        "Tozai Line",
+        "Tokyo Metro Tozai Line",
+        "T"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-chiyoda",
+      "operator": "Tokyo Metro",
+      "displayName": "千代田線",
+      "code": "C",
+      "color": "#00BB85",
+      "colorName": "グリーン",
+      "aliases": [
+        "千代田線",
+        "東京メトロ 千代田線",
+        "東京メトロ千代田線",
+        "東京地下鉄 千代田線",
+        "東京地下鉄千代田線",
+        "Chiyoda Line",
+        "Tokyo Metro Chiyoda Line",
+        "C"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-yurakucho",
+      "operator": "Tokyo Metro",
+      "displayName": "有楽町線",
+      "code": "Y",
+      "color": "#C1A470",
+      "colorName": "ゴールド",
+      "aliases": [
+        "有楽町線",
+        "東京メトロ 有楽町線",
+        "東京メトロ有楽町線",
+        "東京地下鉄 有楽町線",
+        "東京地下鉄有楽町線",
+        "Yurakucho Line",
+        "Tokyo Metro Yurakucho Line",
+        "Y"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-hanzomon",
+      "operator": "Tokyo Metro",
+      "displayName": "半蔵門線",
+      "code": "Z",
+      "color": "#8F76D6",
+      "colorName": "パープル",
+      "aliases": [
+        "半蔵門線",
+        "東京メトロ 半蔵門線",
+        "東京メトロ半蔵門線",
+        "東京地下鉄 半蔵門線",
+        "東京地下鉄半蔵門線",
+        "Hanzomon Line",
+        "Tokyo Metro Hanzomon Line",
+        "Z"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-namboku",
+      "operator": "Tokyo Metro",
+      "displayName": "南北線",
+      "code": "N",
+      "color": "#00AC9B",
+      "colorName": "エメラルドグリーン",
+      "aliases": [
+        "南北線",
+        "東京メトロ 南北線",
+        "東京メトロ南北線",
+        "東京地下鉄 南北線",
+        "東京地下鉄南北線",
+        "Namboku Line",
+        "Tokyo Metro Namboku Line",
+        "N"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-metro-fukutoshin",
+      "operator": "Tokyo Metro",
+      "displayName": "副都心線",
+      "code": "F",
+      "color": "#9C5E31",
+      "colorName": "ブラウン",
+      "aliases": [
+        "副都心線",
+        "東京メトロ 副都心線",
+        "東京メトロ副都心線",
+        "東京地下鉄 副都心線",
+        "東京地下鉄副都心線",
+        "Fukutoshin Line",
+        "Tokyo Metro Fukutoshin Line",
+        "F"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "toei-asakusa",
+      "operator": "Toei Subway",
+      "displayName": "浅草線",
+      "code": "A",
+      "color": "#EC6E65",
+      "colorName": "ローズ系",
+      "aliases": [
+        "浅草線",
+        "都営 浅草線",
+        "都営浅草線",
+        "都営地下鉄 浅草線",
+        "都営地下鉄浅草線",
+        "Asakusa Line",
+        "Toei Asakusa Line",
+        "A"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "toei-mita",
+      "operator": "Toei Subway",
+      "displayName": "三田線",
+      "code": "I",
+      "color": "#006CB6",
+      "colorName": "ブルー",
+      "aliases": [
+        "三田線",
+        "都営 三田線",
+        "都営三田線",
+        "都営地下鉄 三田線",
+        "都営地下鉄三田線",
+        "Mita Line",
+        "Toei Mita Line",
+        "I"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "toei-shinjuku",
+      "operator": "Toei Subway",
+      "displayName": "新宿線",
+      "code": "S",
+      "color": "#B0C124",
+      "colorName": "リーフ系",
+      "aliases": [
+        "新宿線",
+        "都営 新宿線",
+        "都営新宿線",
+        "都営地下鉄 新宿線",
+        "都営地下鉄新宿線",
+        "Shinjuku Line",
+        "Toei Shinjuku Line",
+        "S"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "toei-oedo",
+      "operator": "Toei Subway",
+      "displayName": "大江戸線",
+      "code": "E",
+      "color": "#CE045B",
+      "colorName": "マゼンタ系",
+      "aliases": [
+        "大江戸線",
+        "都営 大江戸線",
+        "都営大江戸線",
+        "都営地下鉄 大江戸線",
+        "都営地下鉄大江戸線",
+        "Oedo Line",
+        "Toei Oedo Line",
+        "E"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-keio",
+      "operator": "Keio",
+      "displayName": "京王線",
+      "code": "KO",
+      "color": "#E3379F",
+      "colorName": "京王レッド / チェリーレッド",
+      "aliases": [
+        "京王電鉄京王線",
+        "京王線",
+        "京王 線",
+        "線",
+        "Keio Line",
+        "KO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-new",
+      "operator": "Keio",
+      "displayName": "京王新線",
+      "code": "KO",
+      "color": "#E3379F",
+      "colorName": "京王レッド / チェリーレッド",
+      "aliases": [
+        "京王新線",
+        "京王 新線",
+        "新線",
+        "Keio New Line",
+        "KO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-sagamihara",
+      "operator": "Keio",
+      "displayName": "相模原線",
+      "code": "KO",
+      "color": "#E3379F",
+      "colorName": "京王レッド / チェリーレッド",
+      "aliases": [
+        "相模原線",
+        "京王電鉄相模原線",
+        "京王 相模原線",
+        "京王相模原線",
+        "Keio Sagamihara Line",
+        "KO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-keibajo",
+      "operator": "Keio",
+      "displayName": "競馬場線",
+      "code": "KO",
+      "color": "#E3379F",
+      "colorName": "京王レッド / チェリーレッド",
+      "aliases": [
+        "競馬場線",
+        "京王 競馬場線",
+        "京王競馬場線",
+        "京王電鉄競馬場線",
+        "Keio Keibajo Line",
+        "KO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-dobutsuen",
+      "operator": "Keio",
+      "displayName": "動物園線",
+      "code": "KO",
+      "color": "#E3379F",
+      "colorName": "京王レッド / チェリーレッド",
+      "aliases": [
+        "動物園線",
+        "京王 動物園線",
+        "京王動物園線",
+        "京王電鉄動物園線",
+        "Keio Dobutsuen Line",
+        "KO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-takao",
+      "operator": "Keio",
+      "displayName": "高尾線",
+      "code": "KO",
+      "color": "#E3379F",
+      "colorName": "京王レッド / チェリーレッド",
+      "aliases": [
+        "高尾線",
+        "京王 高尾線",
+        "京王高尾線",
+        "京王電鉄高尾線",
+        "Keio Takao Line",
+        "KO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keio-inokashira",
+      "operator": "Keio",
+      "displayName": "井の頭線",
+      "code": "IN",
+      "color": "#1A407B",
+      "colorName": "京王ブルー / インディゴブルー",
+      "aliases": [
+        "井の頭線",
+        "京王 井の頭線",
+        "京王井の頭線",
+        "京王電鉄井の頭線",
+        "Keio Inokashira Line",
+        "Inokashira Line",
+        "IN"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "odakyu-odawara",
+      "operator": "Odakyu",
+      "displayName": "小田原線",
+      "code": "OH",
+      "color": "#2683CE",
+      "colorName": "ブルー",
+      "aliases": [
+        "小田原線",
+        "小田急 小田原線",
+        "小田急小田原線",
+        "Odakyu Odawara Line",
+        "OH"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "odakyu-enoshima",
+      "operator": "Odakyu",
+      "displayName": "江ノ島線",
+      "code": "OE",
+      "color": "#2683CE",
+      "colorName": "ブルー",
+      "aliases": [
+        "江ノ島線",
+        "小田急 江ノ島線",
+        "小田急江ノ島線",
+        "Odakyu Enoshima Line",
+        "OE"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "odakyu-tama",
+      "operator": "Odakyu",
+      "displayName": "多摩線",
+      "code": "OT",
+      "color": "#2683CE",
+      "colorName": "ブルー",
+      "aliases": [
+        "多摩線",
+        "小田急 多摩線",
+        "小田急多摩線",
+        "Odakyu Tama Line",
+        "OT"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-ikebukuro",
+      "operator": "Seibu",
+      "displayName": "池袋線",
+      "code": "SI",
+      "color": "#ED772D",
+      "aliases": [
+        "池袋線",
+        "西武 池袋線",
+        "西武池袋線",
+        "Seibu Ikebukuro Line",
+        "SI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-chichibu",
+      "operator": "Seibu",
+      "displayName": "秩父線",
+      "code": "SI",
+      "color": "#ED772D",
+      "aliases": [
+        "秩父線",
+        "西武 秩父線",
+        "西武秩父線",
+        "Seibu Chichibu Line",
+        "SI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-yurakucho",
+      "operator": "Seibu",
+      "displayName": "有楽町線",
+      "code": "SI",
+      "color": "#ED772D",
+      "aliases": [
+        "有楽町線",
+        "西武 有楽町線",
+        "西武有楽町線",
+        "Seibu Yurakucho Line",
+        "SI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-toshima",
+      "operator": "Seibu",
+      "displayName": "豊島線",
+      "code": "SI",
+      "color": "#ED772D",
+      "aliases": [
+        "豊島線",
+        "西武 豊島線",
+        "西武豊島線",
+        "Seibu Toshima Line",
+        "SI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-sayama",
+      "operator": "Seibu",
+      "displayName": "狭山線",
+      "code": "SI",
+      "color": "#ED772D",
+      "aliases": [
+        "狭山線",
+        "西武 狭山線",
+        "西武狭山線",
+        "Seibu Sayama Line",
+        "SI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-shinjuku",
+      "operator": "Seibu",
+      "displayName": "新宿線",
+      "code": "SS",
+      "color": "#00A6BF",
+      "aliases": [
+        "新宿線",
+        "西武 新宿線",
+        "西武新宿線",
+        "Seibu Shinjuku Line",
+        "SS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-haijima",
+      "operator": "Seibu",
+      "displayName": "拝島線",
+      "code": "SS",
+      "color": "#00A6BF",
+      "aliases": [
+        "拝島線",
+        "西武 拝島線",
+        "西武拝島線",
+        "Seibu Haijima Line",
+        "SS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-tamako",
+      "operator": "Seibu",
+      "displayName": "多摩湖線",
+      "code": "ST",
+      "color": "#FAAA27",
+      "aliases": [
+        "多摩湖線",
+        "西武 多摩湖線",
+        "西武多摩湖線",
+        "Seibu Tamako Line",
+        "ST"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-kokubunji",
+      "operator": "Seibu",
+      "displayName": "国分寺線",
+      "code": "SK",
+      "color": "#34B559",
+      "aliases": [
+        "国分寺線",
+        "西武 国分寺線",
+        "西武国分寺線",
+        "Seibu Kokubunji Line",
+        "SK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-seibuen",
+      "operator": "Seibu",
+      "displayName": "西武園線",
+      "code": "SK",
+      "color": "#34B559",
+      "aliases": [
+        "西武園線",
+        "西武 西武園線",
+        "西武西武園線",
+        "Seibu Seibu-en Line",
+        "SK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-tamagawa",
+      "operator": "Seibu",
+      "displayName": "多摩川線",
+      "code": "SW",
+      "color": "#ED772D",
+      "aliases": [
+        "多摩川線",
+        "西武 多摩川線",
+        "西武多摩川線",
+        "Seibu Tamagawa Line",
+        "SW"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "seibu-yamaguchi",
+      "operator": "Seibu",
+      "displayName": "山口線",
+      "code": "SY",
+      "color": "#EF473D",
+      "aliases": [
+        "山口線",
+        "西武 山口線",
+        "西武山口線",
+        "Seibu Yamaguchi Line",
+        "SY"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-skytree",
+      "operator": "Tobu",
+      "displayName": "スカイツリーライン",
+      "code": "TS",
+      "color": "#005AAA",
+      "aliases": [
+        "スカイツリーライン",
+        "東武 スカイツリーライン",
+        "東武スカイツリーライン",
+        "Tobu Skytree Line",
+        "東武 伊勢崎線 / 東武 スカイツリーライン",
+        "TS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-kameido",
+      "operator": "Tobu",
+      "displayName": "亀戸線",
+      "code": "TS",
+      "color": "#005AAA",
+      "aliases": [
+        "亀戸線",
+        "東武 亀戸線",
+        "東武亀戸線",
+        "Tobu Kameido Line",
+        "TS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-daishi",
+      "operator": "Tobu",
+      "displayName": "大師線",
+      "code": "TS",
+      "color": "#005AAA",
+      "aliases": [
+        "大師線",
+        "東武 大師線",
+        "東武大師線",
+        "Tobu Daishi Line",
+        "TS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-isesaki",
+      "operator": "Tobu",
+      "displayName": "伊勢崎線",
+      "code": "TI",
+      "color": "#DC143C",
+      "aliases": [
+        "伊勢崎線",
+        "東武 伊勢崎線",
+        "東武伊勢崎線",
+        "Tobu Isesaki Line",
+        "TI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-sano",
+      "operator": "Tobu",
+      "displayName": "佐野線",
+      "code": "TI",
+      "color": "#DC143C",
+      "aliases": [
+        "佐野線",
+        "東武 佐野線",
+        "東武佐野線",
+        "Tobu Sano Line",
+        "TI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-kiryu",
+      "operator": "Tobu",
+      "displayName": "桐生線",
+      "code": "TI",
+      "color": "#DC143C",
+      "aliases": [
+        "桐生線",
+        "東武 桐生線",
+        "東武桐生線",
+        "Tobu Kiryu Line",
+        "TI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-koizumi",
+      "operator": "Tobu",
+      "displayName": "小泉線",
+      "code": "TI",
+      "color": "#DC143C",
+      "aliases": [
+        "小泉線",
+        "東武 小泉線",
+        "東武小泉線",
+        "Tobu Koizumi Line",
+        "TI"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-nikko",
+      "operator": "Tobu",
+      "displayName": "日光線",
+      "code": "TN",
+      "color": "#FFA500",
+      "aliases": [
+        "日光線",
+        "東武 日光線",
+        "東武日光線",
+        "Tobu Nikko Line",
+        "TN"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-utsunomiya",
+      "operator": "Tobu",
+      "displayName": "宇都宮線",
+      "code": "TN",
+      "color": "#FFA500",
+      "aliases": [
+        "宇都宮線",
+        "東武 宇都宮線",
+        "東武宇都宮線",
+        "Tobu Utsunomiya Line",
+        "TN"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-kinugawa",
+      "operator": "Tobu",
+      "displayName": "鬼怒川線",
+      "code": "TN",
+      "color": "#FFA500",
+      "aliases": [
+        "鬼怒川線",
+        "東武 鬼怒川線",
+        "東武鬼怒川線",
+        "Tobu Kinugawa Line",
+        "TN"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-urban-park",
+      "operator": "Tobu",
+      "displayName": "アーバンパークライン",
+      "code": "TD",
+      "color": "#00BFFF",
+      "aliases": [
+        "アーバンパークライン",
+        "東武 アーバンパークライン",
+        "東武アーバンパークライン",
+        "Tobu Urban Park Line",
+        "TD"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-tojo",
+      "operator": "Tobu",
+      "displayName": "東上線",
+      "code": "TJ",
+      "color": "#004098",
+      "aliases": [
+        "東上線",
+        "東武 東上線",
+        "東武東上線",
+        "Tobu Tojo Line",
+        "TJ"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tobu-ogose",
+      "operator": "Tobu",
+      "displayName": "越生線",
+      "code": "TJ",
+      "color": "#004098",
+      "aliases": [
+        "越生線",
+        "東武 越生線",
+        "東武越生線",
+        "Tobu Ogose Line",
+        "TJ"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-main",
+      "operator": "Keisei",
+      "displayName": "本線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "本線",
+        "京成 本線",
+        "京成本線",
+        "Keisei Main Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-oshiage",
+      "operator": "Keisei",
+      "displayName": "押上線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "押上線",
+        "京成 押上線",
+        "京成押上線",
+        "Keisei Oshiage Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-kanamachi",
+      "operator": "Keisei",
+      "displayName": "金町線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "金町線",
+        "京成 金町線",
+        "京成金町線",
+        "Keisei Kanamachi Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-chiba",
+      "operator": "Keisei",
+      "displayName": "千葉線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "千葉線",
+        "京成 千葉線",
+        "京成千葉線",
+        "Keisei Chiba Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-chihara",
+      "operator": "Keisei",
+      "displayName": "千原線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "千原線",
+        "京成 千原線",
+        "京成千原線",
+        "Keisei Chihara Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-higashi-narita",
+      "operator": "Keisei",
+      "displayName": "東成田線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "東成田線",
+        "京成 東成田線",
+        "京成東成田線",
+        "Keisei Higashi-Narita Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-matsudo",
+      "operator": "Keisei",
+      "displayName": "松戸線",
+      "code": "KS",
+      "color": "#005AAA",
+      "colorName": "ブルー",
+      "aliases": [
+        "松戸線",
+        "京成 松戸線",
+        "京成松戸線",
+        "Keisei Matsudo Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keisei-narita-sky-access",
+      "operator": "Keisei",
+      "displayName": "成田空港線",
+      "code": "KS",
+      "color": "#FF8620",
+      "colorName": "オレンジ",
+      "aliases": [
+        "成田空港線",
+        "京成 成田空港線",
+        "京成成田空港線",
+        "成田スカイアクセス",
+        "Narita Sky Access",
+        "Keisei Narita Airport Line",
+        "KS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-toyoko",
+      "operator": "Tokyu",
+      "displayName": "東横線",
+      "code": "TY",
+      "color": "#DA0042",
+      "aliases": [
+        "東横線",
+        "東急 東横線",
+        "東急東横線",
+        "Tokyu Toyoko Line",
+        "TY"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-meguro",
+      "operator": "Tokyu",
+      "displayName": "目黒線",
+      "code": "MG",
+      "color": "#009CD2",
+      "aliases": [
+        "目黒線",
+        "東急 目黒線",
+        "東急目黒線",
+        "Tokyu Meguro Line",
+        "MG"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-shin-yokohama",
+      "operator": "Tokyu",
+      "displayName": "新横浜線",
+      "code": "SH",
+      "color": "#890D84",
+      "aliases": [
+        "新横浜線",
+        "東急 新横浜線",
+        "東急新横浜線",
+        "Tokyu Shin-Yokohama Line",
+        "SH"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-denentoshi",
+      "operator": "Tokyu",
+      "displayName": "田園都市線",
+      "code": "DT",
+      "color": "#20A288",
+      "aliases": [
+        "田園都市線",
+        "東急 田園都市線",
+        "東急田園都市線",
+        "Tokyu Den-en-toshi Line",
+        "DT"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-oimachi",
+      "operator": "Tokyu",
+      "displayName": "大井町線",
+      "code": "OM",
+      "color": "#F18C43",
+      "aliases": [
+        "大井町線",
+        "東急 大井町線",
+        "東急大井町線",
+        "Tokyu Oimachi Line",
+        "OM"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-ikegami",
+      "operator": "Tokyu",
+      "displayName": "池上線",
+      "code": "IK",
+      "color": "#EE86A7",
+      "aliases": [
+        "池上線",
+        "東急 池上線",
+        "東急池上線",
+        "Tokyu Ikegami Line",
+        "IK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-tamagawa",
+      "operator": "Tokyu",
+      "displayName": "多摩川線",
+      "code": "TM",
+      "color": "#AE0079",
+      "aliases": [
+        "多摩川線",
+        "東急 多摩川線",
+        "東急多摩川線",
+        "Tokyu Tamagawa Line",
+        "TM"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyu-setagaya",
+      "operator": "Tokyu",
+      "displayName": "世田谷線",
+      "code": "SG",
+      "color": "#FCC70D",
+      "aliases": [
+        "世田谷線",
+        "東急 世田谷線",
+        "東急世田谷線",
+        "Tokyu Setagaya Line",
+        "SG"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "minatomirai",
+      "operator": "Yokohama Minatomirai Railway",
+      "displayName": "みなとみらい線",
+      "code": "MM",
+      "color": "#19559F",
+      "colorName": "紺",
+      "aliases": [
+        "みなとみらい線",
+        "横浜高速鉄道 みなとみらい線",
+        "横浜高速鉄道みなとみらい線",
+        "Minatomirai Line",
+        "Yokohama Minatomirai Minatomirai Line",
+        "MM"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "kodomonokuni",
+      "operator": "Yokohama Minatomirai Railway",
+      "displayName": "こどもの国線",
+      "code": "KD",
+      "color": "#0068B7",
+      "colorName": "青",
+      "aliases": [
+        "こどもの国線",
+        "横浜高速鉄道 こどもの国線",
+        "横浜高速鉄道こどもの国線",
+        "Kodomonokuni Line",
+        "Yokohama Minatomirai Kodomonokuni Line",
+        "KD"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "keikyu-main",
+      "operator": "Keikyu",
+      "displayName": "本線",
+      "code": "KK",
+      "color": "#00BFFF",
+      "colorName": "スカイブルー",
+      "aliases": [
+        "本線",
+        "京急 本線",
+        "京急本線",
+        "Keikyu Main Line",
+        "KK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "keikyu-airport",
+      "operator": "Keikyu",
+      "displayName": "空港線",
+      "code": "KK",
+      "color": "#00BFFF",
+      "colorName": "スカイブルー",
+      "aliases": [
+        "空港線",
+        "京急 空港線",
+        "京急空港線",
+        "Keikyu Airport Line",
+        "KK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "keikyu-daishi",
+      "operator": "Keikyu",
+      "displayName": "大師線",
+      "code": "KK",
+      "color": "#00BFFF",
+      "colorName": "スカイブルー",
+      "aliases": [
+        "大師線",
+        "京急 大師線",
+        "京急大師線",
+        "Keikyu Daishi Line",
+        "KK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "keikyu-zushi",
+      "operator": "Keikyu",
+      "displayName": "逗子線",
+      "code": "KK",
+      "color": "#00BFFF",
+      "colorName": "スカイブルー",
+      "aliases": [
+        "逗子線",
+        "京急 逗子線",
+        "京急逗子線",
+        "Keikyu Zushi Line",
+        "KK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "keikyu-kurihama",
+      "operator": "Keikyu",
+      "displayName": "久里浜線",
+      "code": "KK",
+      "color": "#00BFFF",
+      "colorName": "スカイブルー",
+      "aliases": [
+        "久里浜線",
+        "京急 久里浜線",
+        "京急久里浜線",
+        "Keikyu Kurihama Line",
+        "KK"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "sotetsu-main",
+      "operator": "Sotetsu",
+      "displayName": "本線",
+      "code": "SO",
+      "color": "#0071C1",
+      "colorName": "ブルー",
+      "aliases": [
+        "本線",
+        "相模鉄道 本線",
+        "相鉄 本線",
+        "相鉄本線",
+        "Sagami Railway Sotetsu Main Line",
+        "SO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "sotetsu-izumino",
+      "operator": "Sotetsu",
+      "displayName": "いずみ野線",
+      "code": "SO",
+      "color": "#0071C1",
+      "colorName": "ブルー",
+      "aliases": [
+        "いずみ野線",
+        "相模鉄道 いずみ野線",
+        "相鉄 いずみ野線",
+        "相鉄いずみ野線",
+        "Sagami Railway Izumino Line",
+        "SO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "sotetsu-shin-yokohama",
+      "operator": "Sotetsu",
+      "displayName": "新横浜線",
+      "code": "SO",
+      "color": "#0071C1",
+      "colorName": "ブルー",
+      "aliases": [
+        "新横浜線",
+        "相模鉄道 新横浜線",
+        "相鉄 新横浜線",
+        "相鉄新横浜線",
+        "Sotetsu Shin-Yokohama Line",
+        "SO"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "hokuso",
+      "operator": "Hokuso Railway",
+      "displayName": "北総線",
+      "code": "HS",
+      "color": "#00BFFF",
+      "colorName": "水色",
+      "aliases": [
+        "北総線",
+        "北総鉄道 北総線",
+        "北総鉄道北総線",
+        "Hokuso Line",
+        "Hokusō Line",
+        "HS"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "rinkai",
+      "operator": "Tokyo Waterfront Area Rapid Transit",
+      "displayName": "りんかい線",
+      "code": "R",
+      "color": "#00389E",
+      "colorName": "紺",
+      "aliases": [
+        "りんかい線",
+        "東京臨海高速鉄道 りんかい線",
+        "東京臨海高速鉄道りんかい線",
+        "Tokyo Waterfront Area Rapid Transit Rinkai Line",
+        "Rinkai Line",
+        "R"
+      ],
+      "sourceIds": [
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "toyo-rapid",
+      "operator": "Toyo Rapid Railway",
+      "displayName": "東葉高速線",
+      "code": "TR",
+      "color": "#0AAA3C",
+      "colorName": "緑",
+      "aliases": [
+        "東葉高速線",
+        "東葉 高速線",
+        "東葉高速鉄道 東葉高速線",
+        "Toyo Rapid Railway Line",
+        "Tōyō Rapid Railway Line",
+        "TR"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "saitama-rapid",
+      "operator": "Saitama Railway Corporation",
+      "displayName": "埼玉高速鉄道線",
+      "code": "SR",
+      "color": "#345CAA",
+      "colorName": "青紫",
+      "aliases": [
+        "埼玉高速鉄道線",
+        "Saitama Rapid Railway Line",
+        "SR"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tsukuba-express",
+      "operator": "Metropolitan Intercity Railway Company",
+      "displayName": "つくばエクスプレス",
+      "code": "TX",
+      "color": "#000084",
+      "colorName": "濃紺",
+      "aliases": [
+        "つくばエクスプレス",
+        "つくばエクスプレス線",
+        "Tsukuba Express",
+        "首都圏新都市鉄道 つくばエクスプレス",
+        "首都圏新都市鉄道つくばエクスプレス",
+        "TX"
+      ],
+      "sourceIds": [
+        "osm-wiki-japan-railways"
+      ]
+    },
+    {
+      "id": "yurikamome",
+      "operator": "Yurikamome",
+      "displayName": "ゆりかもめ",
+      "code": "U",
+      "color": "#1662B8",
+      "colorName": "青",
+      "aliases": [
+        "ゆりかもめ",
+        "新交通ゆりかもめ",
+        "東京臨海新交通臨海線",
+        "Yurikamome",
+        "New Transit Yurikamome",
+        "U"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "nippori-toneri",
+      "operator": "Toei",
+      "displayName": "日暮里・舎人ライナー",
+      "code": "NT",
+      "color": "#D53A77",
+      "colorName": "ピンク",
+      "aliases": [
+        "日暮里・舎人ライナー",
+        "Nippori-Toneri Liner",
+        "NT"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-sakura-tram",
+      "operator": "Toei",
+      "displayName": "東京さくらトラム",
+      "code": "SA",
+      "color": "#D75B80",
+      "colorName": "ローズ",
+      "aliases": [
+        "東京さくらトラム",
+        "都電荒川線",
+        "東京さくらトラム（都電荒川線）",
+        "Tokyo Sakura Tram",
+        "Toden Arakawa Line",
+        "SA"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tama-monorail",
+      "operator": "Tokyo Tama Intercity Monorail",
+      "displayName": "多摩都市モノレール線",
+      "code": "TT",
+      "color": "#27625E",
+      "colorName": "深緑",
+      "aliases": [
+        "多摩都市モノレール線",
+        "多摩モノレール",
+        "Tama Toshi Monorail Line",
+        "Tama Monorail",
+        "TT"
+      ],
+      "sourceIds": [
+        "wikipedia-jp-line-colors",
+        "osm-wiki-japan-railways",
+        "rmg-palette-tokyo"
+      ]
+    },
+    {
+      "id": "tokyo-monorail",
+      "operator": "Tokyo Monorail",
+      "displayName": "東京モノレール羽田空港線",
+      "code": "MO",
+      "color": "#26326A",
+      "colorName": "濃紺",
+      "aliases": [
+        "東京モノレール羽田空港線",
+        "東京モノレール 羽田空港線",
+        "Tokyo Monorail Haneda Airport Line",
+        "Haneda Airport Line",
+        "MO"
+      ],
+      "sourceIds": [
+        "osm-wiki-japan-railways"
+      ]
+    }
   ]
 }
