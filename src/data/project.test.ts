@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadProject, PROJECT_FILES, railwaySearchFeatures, resolveProjectId } from './project'
+import type { EntityFeature } from '../types/geo'
+import { canonicalRailwayRoutes, loadProject, PROJECT_FILES, railwaySearchFeatures, resolveProjectId } from './project'
+
+const line = (id: string, properties: Partial<EntityFeature['properties']> = {}, coordinates = [[0, 0], [1, 1]]): EntityFeature => ({
+  type: 'Feature', properties: { id, name: '新宿線', type: 'railway', railRouteId: id, ...properties }, geometry: { type: 'LineString', coordinates },
+})
 
 describe('project loading', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -32,11 +37,34 @@ describe('project loading', () => {
     expect(resolveProjectId('?project=/absolute')).toBe('shinjuku')
   })
   it('rejects an unsafe explicit ID',async()=>{await expect(loadProject('../secret')).rejects.toThrow('Unsafe project ID')})
-  it('creates one searchable railway per exact group and excludes unnamed tracks',()=>{
-    const line=(id:string,group?:string,name='中央本線')=>({type:'Feature' as const,properties:{id,name,type:'railway',...(group?{railGroupId:group,railDisplayName:name}:{})},geometry:{type:'LineString' as const,coordinates:[[0,0],[1,1]]}})
-    const result=railwaySearchFeatures({type:'FeatureCollection',features:[line('1','rail:a'),line('2','rail:a'),line('3','rail:b','別線'),line('4')]})
-    expect(result.map(feature=>feature.properties.id)).toEqual(['rail:a','rail:b'])
-    expect(result[0].geometry.type).toBe('MultiLineString')
-    if(result[0].geometry.type==='MultiLineString')expect(result[0].geometry.coordinates).toHaveLength(2)
+  it('merges route relations sharing Wikidata and preserves provenance and geometry', () => {
+    const result = canonicalRailwayRoutes([line('A', { wikidata: 'Q123', name: '山手線' }), line('B', { wikidata: 'Q123', name: '山手線' }, [[2, 2], [3, 3]])])
+    expect(result).toHaveLength(1)
+    expect(result[0].properties).toMatchObject({ id: 'railway:wikidata:Q123', railCanonicalId: 'wikidata:Q123', railRouteIds: ['A', 'B'] })
+    expect(result[0].geometry).toMatchObject({ type: 'MultiLineString', coordinates: [[[0, 0], [1, 1]], [[2, 2], [3, 3]]] })
+  })
+  it('uses catalog identity only when Wikidata is absent', () => {
+    expect(canonicalRailwayRoutes([line('A', { railColorId: 'jr-yamanote' }), line('B', { railColorId: 'jr-yamanote' })])).toHaveLength(1)
+    const distinct = canonicalRailwayRoutes([line('A', { wikidata: 'Q1', railColorId: 'same-color-id' }), line('B', { wikidata: 'Q2', railColorId: 'same-color-id' })])
+    expect(distinct.map(({ properties }) => properties.id)).toEqual(['railway:wikidata:Q1', 'railway:wikidata:Q2'])
+  })
+  it('never merges route relations by name alone', () => {
+    expect(canonicalRailwayRoutes([line('A'), line('B')]).map(({ properties }) => properties.id)).toEqual(['railway:route:A', 'railway:route:B'])
+  })
+  it('uses the canonical catalog display name while retaining OSM names as aliases', () => {
+    const [result] = canonicalRailwayRoutes([line('A', { name: '京王電鉄井の頭線', railColorId: 'keio-inokashira', railDisplayName: '井の頭線' })])
+    expect(result.properties.name).toBe('井の頭線')
+    expect(result.properties.aliases).toContain('京王電鉄井の頭線')
+  })
+  it('keeps physical tracks on the map but only promotes grouped catalog orphans', () => {
+    const member = line('way-member', { railRouteId: undefined, railRouteIds: ['route-A'], railColorId: 'keio-keio', name: '京王電鉄京王線' })
+    const platform = line('platform', { railRouteId: undefined, name: '京王電鉄京王線;飛田給;1番線' })
+    const structure = line('structure', { railRouteId: undefined, name: '山手線;新宿大ガード' })
+    const orphanA = line('orphan-a', { railRouteId: undefined, railColorId: 'orphan', railDisplayName: '既知線' })
+    const orphanB = line('orphan-b', { railRouteId: undefined, railColorId: 'orphan', railDisplayName: '既知線' }, [[2, 2], [3, 3]])
+    const collection = { type: 'FeatureCollection' as const, features: [member, platform, structure, orphanA, orphanB] }
+    expect(collection.features).toHaveLength(5)
+    expect(railwaySearchFeatures(collection).map(({ properties }) => properties.id)).toEqual(['railway:catalog:orphan'])
+    expect(railwaySearchFeatures(collection, [line('route-A', { railColorId: 'orphan' })])).toHaveLength(0)
   })
 })
