@@ -1051,6 +1051,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     rescued_same_source_holes = []
     rescued_edges = set()
     rescued_two_atom_chains = 0
+    rescued_class_transition_chains = 0
+    rescued_class_transition_edges = set()
     same_source_hole_rejections = {}
     excluded_atom_ids = set(map(str, settings.get("excludedAtomIds", [])))
     maximum_rescue_gap = int(settings["shortStraightThroughMaximumGapSamples"])
@@ -1101,13 +1103,13 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                 continue
             if gap_samples < 0 or gap_samples > maximum_two_atom_gap:
                 continue
-            if edge_classes[left_edge] != edge_classes[right_edge]:
-                continue
+            class_transition = edge_classes[left_edge] != edge_classes[right_edge]
             interval_start = float(offsets[left["end"] - 1])
             interval_end = float(offsets[right["start"]])
+            eligible_classes = set(classes) if class_transition else {edge_classes[left_edge]}
             eligible = [edge for edge in range(len(geometries))
                         if edge not in rescued_edges and edge not in (left_edge, right_edge)
-                        and edge_classes[edge] == edge_classes[left_edge]
+                        and edge_classes[edge] in eligible_classes
                         and str(source_atom_ids[edge]) not in excluded_atom_ids]
 
             def endpoint_orientations(edge, neighbor_edge, at_start):
@@ -1162,6 +1164,9 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             # Ambiguity is deliberately left unresolved; topology path length
             # is not an OSM identity discriminator.
             if chosen:
+                if class_transition:
+                    rescued_class_transition_chains += 1
+                    rescued_class_transition_edges.update(chosen)
                 for edge in chosen:
                     rescued_edges.add(edge)
                     rescued.append((part_index, left, right, edge, interval_start, interval_end))
@@ -1263,6 +1268,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         row["junctionExtensionMeters"] = 0.0
         row["reassignedFromSourceFeatureIndex"] = None
         row["ownershipRescue"] = "short-straight-through"
+        row["ownershipClassTransition"] = edge in rescued_class_transition_edges
         row["selectionStatus"] = row["selectionReason"] = "accepted-short-straight-through"
         run_rows.append(row)
 
@@ -1298,6 +1304,8 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     frame["selectionReason"] = frame["selectionStatus"]
     frame["ownershipRescue"] = ["short-straight-through" if edge in rescued_edges else None
                                 for edge in frame.index]
+    frame["ownershipClassTransition"] = [edge in rescued_class_transition_edges
+                                         for edge in frame.index]
     frame["sameSourceHoleRejection"] = [same_source_hole_rejections.get(edge)
                                         for edge in frame.index]
     frame["ownedReferenceSampleCount"] = [sum(owner == edge for part in owners for owner in part) for edge in frame.index]
@@ -1329,6 +1337,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
               "shortStraightThroughRescueCount": len(rescued_edges),
               "shortStraightThroughTwoAtomRescueCount": rescued_two_atom_chains,
+              "shortStraightThroughClassTransitionRescueCount": rescued_class_transition_chains,
               "sameSourceHoleRescueCount": len(rescued_same_source_holes),
               "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
               "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,

@@ -275,6 +275,79 @@ class SameSourceHoleRescueTests(unittest.TestCase):
         self.assertNotIn(atom_id, set(curated.n13AtomId))
 
 
+class ClassTransitionRescueTests(unittest.TestCase):
+    reference = LineString([(0, 0), (100, 0)])
+    left = LineString([(0, 0), (40, 0)])
+    right = LineString([(40, 0), (50, 10), (55, 0), (100, 0)])
+
+    def fixture(self, candidates, candidate_classes=None, **settings):
+        lines = [self.left, self.right, *candidates]
+        classes = ["1", "2", *(candidate_classes or ["3"] * len(candidates))]
+        return ownership_fixture_diagnostics(
+            lines, self.reference, classes, classPriority=["1", "2", "3"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=5,
+            maximumSampleDistanceMeters=4, **settings)
+
+    def test_diagnostic_fixture_rescues_exact_class_three_bridge(self):
+        candidate = LineString([(40, 0), (55, 0)])
+        diagnostic = self.fixture([candidate])
+        rescued = diagnostic["accepted"][diagnostic["accepted"].sourceFeatureIndex == 2]
+        self.assertEqual(set(diagnostic["accepted"].sourceFeatureIndex), {0, 1, 2})
+        self.assertEqual(rescued.iloc[0].geometry.wkb, candidate.wkb)
+        self.assertEqual(rescued.iloc[0].ownershipRescue, "short-straight-through")
+        self.assertTrue(rescued.iloc[0].ownershipClassTransition)
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 1)
+
+    def test_detouring_class_transition_candidate_is_not_rescued(self):
+        candidate = LineString([(40, 0), (47.5, 20), (55, 0)])
+        diagnostic = self.fixture([candidate])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertGreater(Point(47.5, 20).distance(diagnostic["accepted"].geometry.union_all()), 1)
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 0)
+
+    def test_excluded_class_transition_candidate_is_not_rescued(self):
+        baseline = self.fixture([LineString([(40, 0), (55, 0)])])
+        atom_id = baseline["source"].iloc[2].n13AtomId
+        diagnostic = self.fixture([LineString([(40, 0), (55, 0)])],
+                                  excludedAtomIds=[atom_id])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_different_class_stem_touching_only_left_is_not_rescued(self):
+        diagnostic = self.fixture([LineString([(40, 0), (40, 15)])])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_different_class_stem_touching_only_right_is_not_rescued(self):
+        diagnostic = self.fixture([LineString([(55, 0), (55, -15)])])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_two_equally_aligned_class_transition_bridges_are_ambiguous(self):
+        candidate = LineString([(40, 0), (55, 0)])
+        diagnostic = self.fixture([candidate, candidate], ["3", "1"])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertNotIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 0)
+
+    def test_unique_two_atom_class_transition_chain_is_rescued(self):
+        candidates = [LineString([(40, 0), (47.5, 0)]),
+                      LineString([(47.5, 0), (55, 0)])]
+        diagnostic = self.fixture(candidates, ["3", "1"])
+        self.assertTrue({2, 3}.issubset(set(diagnostic["accepted"].sourceFeatureIndex)))
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 1)
+
+    def test_excluding_one_atom_blocks_two_atom_class_transition_chain(self):
+        candidates = [LineString([(40, 0), (47.5, 0)]),
+                      LineString([(47.5, 0), (55, 0)])]
+        baseline = self.fixture(candidates, ["3", "1"])
+        atom_id = baseline["source"].iloc[2].n13AtomId
+        diagnostic = self.fixture(candidates, ["3", "1"], excludedAtomIds=[atom_id])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertNotIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
+
+
 class ReferenceOwnershipTests(unittest.TestCase):
     def assert_curated_rows_unchanged(self, curated, connected):
         for _, row in curated.iterrows():
