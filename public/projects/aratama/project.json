@@ -13,6 +13,13 @@
       "jp-national-20"
     ],
     "historicalRoads": [],
-    "historicalPosts": []
+    "historicalPosts": [],
+    "railways": {
+      "mode": "near-modern-roads",
+      "distanceKm": 3
+    },
+    "stations": {
+      "mode": "bbox"
+    }
   }
 }

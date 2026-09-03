@@ -19,13 +19,15 @@ export interface EntityProperties {
   note?: string
   relatedEntities?: string[]
   illustrationWidthScale?: number
-  activeRoadGlow?: boolean
+  activeLineGlow?: boolean
   roadSourceGeometries?: RoadSourceGeometries
   osm_id?: number
   ref?: string
   highway?: string
   railGroupId?: string
   railDisplayName?: string
+  railColor?: string
+  railColorId?: string
   railRouteId?: string
   railRouteIds?: string[]
   memberWayIds?: string[]

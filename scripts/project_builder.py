@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import math
+import unicodedata
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -23,6 +24,8 @@ CACHES = {
 }
 RAIL_ROUTES_CACHE = Path("data/cache/osm/rail/routes.parquet")
 RAIL_MEMBERS_CACHE = Path("data/cache/osm/rail/route-members.parquet")
+RAIL_COLOR_SOURCE = Path("data/sources/railcolors.json")
+RAIL_COLOR_FIELDS = ("railDisplayName", "name:ja", "name", "name:en", "ref")
 PREPROCESS = {
     "railways": "python scripts/preprocess/preprocess-rail.py",
     "stations": "python scripts/preprocess/preprocess-rail.py",
@@ -31,6 +34,41 @@ PREPROCESS = {
 }
 
 class ProjectBuildError(RuntimeError): pass
+
+def normalize_rail_alias(value: object) -> str:
+    """Normalize only compatibility, whitespace, and ASCII case for exact lookup."""
+    normalized = " ".join(unicodedata.normalize("NFKC", str(value or "")).strip().split())
+    return "".join(character.lower() if "A" <= character <= "Z" else character for character in normalized)
+
+def load_rail_colors(root: Path) -> dict[str, Any]:
+    path = root / RAIL_COLOR_SOURCE
+    if not path.exists(): raise ProjectBuildError(f"Railway color source missing: {path}")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document.get("fallbackColor"), str) or not isinstance(document.get("railways"), list):
+        raise ProjectBuildError(f"Malformed railway color source: {path}")
+    return document
+
+def resolve_rail_color(properties: dict, colors: dict[str, Any]) -> tuple[str, str | None]:
+    alias_index: dict[str, list[dict]] = {}
+    for entry in colors["railways"]:
+        for alias in entry.get("aliases", []):
+            normalized = normalize_rail_alias(alias)
+            if normalized: alias_index.setdefault(normalized, []).append(entry)
+    fields = tuple(field for field in colors.get("matchPriority", RAIL_COLOR_FIELDS) if field in RAIL_COLOR_FIELDS)
+    for field in fields:
+        value = normalize_rail_alias(properties.get(field))
+        matches = {entry["id"]: entry for entry in alias_index.get(value, [])} if value else {}
+        if len(matches) == 1:
+            entry = next(iter(matches.values()))
+            return entry["color"], entry["id"]
+        if len(matches) > 1:
+            return colors["fallbackColor"], None
+    return colors["fallbackColor"], None
+
+def stamp_rail_color(properties: dict, colors: dict[str, Any]) -> None:
+    color, color_id = resolve_rail_color(properties, colors)
+    properties["railColor"] = color
+    if color_id: properties["railColorId"] = color_id
 
 def load_project_config(root: Path, project_id: str) -> dict[str, Any]:
     path = root / "projects" / project_id / "project.json"
@@ -166,15 +204,17 @@ def select_routes(path: Path, route_ids: list[str], family: str) -> list[dict]:
     if missing: raise ProjectBuildError(f"Requested {family} route ID absent from cache: {', '.join(missing)}. Run: {PREPROCESS[family]}")
     return features
 
-def _browser_properties(features: list[dict], family: str) -> None:
+def _browser_properties(features: list[dict], family: str, rail_colors: dict[str, Any] | None = None) -> None:
     for index, feature in enumerate(features):
         p = feature["properties"]
         if family == "railways":
             p.update(id=f"rail:{p.get('osm_element_type','way')}:{p.get('osm_element_id',index)}", type="railway")
             group = rail_group_properties(p)
             if group: p.update(group)
+            if rail_colors: stamp_rail_color(p, rail_colors)
         elif family == "railwayRoutes":
             p.update(id=p["railRouteId"], name=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"], type="railway", railDisplayName=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"])
+            if rail_colors: stamp_rail_color(p, rail_colors)
         elif family == "stations": p.update(id=f"station:{p.get('osm_element_type','element')}:{p.get('osm_element_id',index)}", name=p.get("name:ja") or p.get("name") or "名称不明駅", type="station")
         elif family == "historicalRoads": p.update(id=f"historical-road:{p['routeId']}:{index}", type="historical-road")
         elif family == "historicalPosts": p.update(id=f"historical-post:{p['postId']}", name=p.get("name") or p.get("historicalLabel") or p["postId"], type="historical-place")
@@ -253,7 +293,8 @@ def materialize_project(root: Path, project_id: str, output_root: Path | None = 
     if "stations" in layers: features["stations"] = select_bbox_features(_require_cache(root, "stations"), bounds)
     for family in ("historicalRoads", "historicalPosts"):
         if family in layers: features[family] = select_routes(_require_cache(root, family), layers[family], family)
-    for family, selected in features.items(): _browser_properties(selected, family)
+    rail_colors = load_rail_colors(root) if "railways" in layers else None
+    for family, selected in features.items(): _browser_properties(selected, family, rail_colors)
     output = output_root or root / "public/projects" / project_id
     (output / "data").mkdir(parents=True, exist_ok=True); (output / "search").mkdir(parents=True, exist_ok=True)
     (output / "project.json").write_text(json.dumps(config, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")

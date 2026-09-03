@@ -1,6 +1,6 @@
 {
   "projectId": "aratama",
-  "builtAt": "2026-09-03T13:25:02.440582+00:00",
+  "builtAt": "2026-09-03T15:20:19.427242+00:00",
   "bounds": [
     138.9629140721503,
     35.540580877981824,
@@ -17,21 +17,28 @@
       "jp-national-20"
     ]
   },
-  "railwaySelection": null,
+  "railwaySelection": {
+    "mode": "near-modern-roads",
+    "distanceKm": 3
+  },
   "sourceLayerFamilies": [
     "modernRoads",
     "historicalRoads",
-    "historicalPosts"
+    "historicalPosts",
+    "railways",
+    "stations"
   ],
   "featureCounts": {
     "modernRoads": 3,
-    "railwayTracks": 0,
-    "railwayRoutes": 0,
-    "stations": 0,
+    "railwayTracks": 12025,
+    "railwayRoutes": 46,
+    "stations": 908,
     "historicalRoadFeatures": 0,
     "historicalPosts": 0
   },
   "inputs": {
+    "railways": "data/cache/osm/rail/tracks.parquet",
+    "stations": "data/cache/osm/rail/stations.parquet",
     "historicalRoads": "data/cache/codh/edo-roads/roads.parquet",
     "historicalPosts": "data/cache/codh/edo-posts/posts.parquet"
   },

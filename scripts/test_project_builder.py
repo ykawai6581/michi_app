@@ -6,12 +6,13 @@ import unittest
 import geopandas as gpd
 from shapely.geometry import LineString, Point
 
-from project_builder import ProjectBuildError, load_project_config, materialize_project, rail_group_properties, resolve_project_bounds, select_bbox_features, select_modern_roads, select_routes
+from project_builder import ProjectBuildError, load_project_config, load_rail_colors, materialize_project, normalize_rail_alias, rail_group_properties, resolve_rail_color, resolve_project_bounds, select_bbox_features, select_modern_roads, select_routes
 
 class ProjectBuilderTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.root = Path(self.temp.name)
         (self.root / "projects/demo").mkdir(parents=True); (self.root / "data/roads").mkdir(parents=True); (self.root / "public/data/roads").mkdir(parents=True)
+        (self.root / "data/sources").mkdir(parents=True); (self.root / "data/sources/railcolors.json").write_text((Path(__file__).parents[1]/"data/sources/railcolors.json").read_text(encoding="utf-8"),encoding="utf-8")
         self.config = {"id":"demo","displayName":"Demo","bounds":[139.0,35.0,140.0,36.0],"layers":{"modernRoads":["road-a"],"railways":{"mode":"bbox"},"stations":{"mode":"bbox"},"historicalRoads":["R003"],"historicalPosts":["R003"]}}
         self.write_config(self.config)
         (self.root / "data/roads/registry.json").write_text(json.dumps({"roads":[{"id":"road-a","displayName":"Road A","aliases":["A"]},{"id":"road-b","displayName":"Road B","aliases":[]}]}))
@@ -75,6 +76,14 @@ class ProjectBuilderTest(unittest.TestCase):
         self.assertNotEqual(first,rail_group_properties({"name:ja":"中央本線","operator":"別会社"}))
         self.assertIsNone(rail_group_properties({"railway":"rail"}))
         self.assertTrue(rail_group_properties({"wikidata":"Q123"})["railGroupId"].endswith("Q123"))
+    def test_rail_color_aliases_normalization_ambiguity_and_fallback(self):
+        colors=load_rail_colors(self.root)
+        expected={"JR 中央線快速":"#FF4500","JR 中央・総武緩行線":"#FFD700","JR 山手線":"#9ACD32","京王 京王線":"#E3379F","京王 井の頭線":"#1A407B","小田急 小田原線":"#2683CE","西武 新宿線":"#00A6BF","東急 東横線":"#DA0042"}
+        for alias,color in expected.items(): self.assertEqual(resolve_rail_color({"railDisplayName":alias},colors)[0],color)
+        self.assertEqual(resolve_rail_color({"railDisplayName":"  JR\u3000中央線快速  "},colors),("#FF4500","jr-chuo-rapid"))
+        self.assertEqual(normalize_rail_alias(" ＪＲ   CHUO "),"jr chuo")
+        self.assertEqual(resolve_rail_color({"railDisplayName":"新宿線"},colors),(colors["fallbackColor"],None))
+        self.assertEqual(resolve_rail_color({"railDisplayName":"未知線","operator":"西武"},colors),(colors["fallbackColor"],None))
     def test_bbox_stations(self): self.assertEqual(len(select_bbox_features(self.root/"data/cache/osm/rail/stations.parquet",self.config["bounds"])),1)
     def test_select_historical_road(self): self.assertEqual(len(select_routes(self.root/"data/cache/codh/edo-roads/roads.parquet",["R003"],"historicalRoads")),1)
     def test_select_distinct_posts_with_shared_place_id(self): self.assertEqual(len(select_routes(self.root/"data/cache/codh/edo-posts/posts.parquet",["R003"],"historicalPosts")),2)
