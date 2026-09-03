@@ -15,8 +15,10 @@ For another unambiguous object, pass `--topology-object NAME`.
 For example, locally downloaded source files may be stored at:
 
 ```text
-data/raw/geoshape/13/1931.l.topojson
-data/raw/geoshape/13/1932.l.topojson
+data/raw/geoshape/13/low/1931.l.topojson
+data/raw/geoshape/13/low/1932.l.topojson
+data/raw/geoshape/13/high/1931.h.topojson
+data/raw/geoshape/13/high/1932.h.topojson
 ```
 
 Process those two snapshots with:
@@ -25,14 +27,16 @@ Process those two snapshots with:
 python scripts/preprocess/preprocess-jurisdictions.py \
   --provider geoshape \
   --prefecture 13 \
+  --resolution low \
   --snapshot-date 1931-12-31 \
-  --input data/raw/geoshape/13/1931.l.topojson
+  --input data/raw/geoshape/13/low/1931.l.topojson
 
 python scripts/preprocess/preprocess-jurisdictions.py \
   --provider geoshape \
   --prefecture 13 \
+  --resolution high \
   --snapshot-date 1932-12-31 \
-  --input data/raw/geoshape/13/1932.l.topojson
+  --input data/raw/geoshape/13/high/1932.h.topojson
 ```
 
 The utility intentionally does not guess download URLs or scrape HTML. Raw inputs belong under the gitignored
@@ -51,17 +55,22 @@ Polygon/MultiPolygon normalization path used for WGS84 GeoJSON. The verified Geo
 `snapshotDate`. Empty or null `N03_003` values are omitted rather than exposed as parent names. Existing source aliases
 remain supported. Normalized properties include `jurisdictionId`, `snapshotDate`, `prefectureName`,
 `parentJurisdictionName`, `municipalityName`, `administrativeCode`, `sourceResourceId`, `sourceProvider`, and
-`sourceDataset`.
+`sourceDataset`, and the explicit `sourceResolution` (`low` or `high`).
 
 Each command writes two deterministic, unsimplified display assets:
 
 ```text
 public/data/jurisdictions/manifest.json
-public/data/jurisdictions/geoshape/13/1931-12-31.geojson
-public/data/jurisdictions/geoshape/13/1931-12-31.parents.geojson
-public/data/jurisdictions/geoshape/13/1932-12-31.geojson
-public/data/jurisdictions/geoshape/13/1932-12-31.parents.geojson
+public/data/jurisdictions/geoshape/13/low/1931-12-31.geojson
+public/data/jurisdictions/geoshape/13/low/1931-12-31.parents.geojson
+public/data/jurisdictions/geoshape/13/high/1932-12-31.geojson
+public/data/jurisdictions/geoshape/13/high/1932-12-31.parents.geojson
 ```
+
+`low` is the CLI and project-config default. `high` is optional and provides finer boundary detail only when a
+separately supplied `.h.topojson` source has been processed. Each resolution is normalized independently; high
+geometry is never derived from low geometry. Its parent-city asset is likewise dissolved from the selected
+resolution's own ward polygons.
 
 The ordinary `.geojson` snapshot remains the canonical, unchanged municipality/ward representation. The derived
 `.parents.geojson` display remains geographically complete, but replaces each eligible ward group with a real Shapely
@@ -77,6 +86,9 @@ The manifest snapshot entry supplies both `path` and `parentDisplayPath` (plus t
 not guess filenames. The compact **表示単位** control switches between canonical `市区町村` and `親自治体で統合（区のみ）`,
 and old project configurations default to the canonical municipality display.
 
+Manifest schema version 2 nests `availableDates` and `snapshots` below `resolutions.low` and `resolutions.high`, so
+each resolution can have a different date set. Schema version 1 prefecture entries remain readable as low resolution,
+and the preprocessor migrates that metadata without changing legacy paths until each low asset is regenerated.
 The manifest is the only date/file registry used by the UI. The browser has no Geoshape network dependency. Running
 the command for another actual date updates both asset entries; there is no date interpolation. Parent membership
 remains source-derived from `parentJurisdictionName` rather than a hard-coded ward list. As a local source-data sanity

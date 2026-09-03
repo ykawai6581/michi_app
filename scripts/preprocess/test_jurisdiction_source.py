@@ -40,7 +40,9 @@ class JurisdictionSourceTests(unittest.TestCase):
             serialized=(output/"manifest.json").read_text()
             second=write_snapshot(source,output,prefecture="13",prefecture_name="Tokyo",snapshot_date="1932-12-31")
             self.assertEqual(first,second); self.assertEqual(serialized,(output/"manifest.json").read_text())
-            self.assertEqual(first["providers"]["geoshape"]["prefectures"]["13"]["availableDates"],["1932-12-31"])
+            low = first["providers"]["geoshape"]["prefectures"]["13"]["resolutions"]["low"]
+            self.assertEqual(low["availableDates"],["1932-12-31"])
+            self.assertEqual(json.loads((output / low["snapshots"]["1932-12-31"]["path"]).read_text())["features"][0]["properties"]["sourceResolution"], "low")
 
     def test_rejects_non_polygon_without_network(self):
         bad={"type":"FeatureCollection","features":[feature("point",{"type":"Point","coordinates":[0,0]})]}
@@ -91,7 +93,7 @@ class TopoJsonTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             write_snapshot(self.fixture, root, prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31")
-            self.assertEqual(json.loads((root / "geoshape/13/1932-12-31.geojson").read_text())["type"], "FeatureCollection")
+            self.assertEqual(json.loads((root / "geoshape/13/low/1932-12-31.geojson").read_text())["type"], "FeatureCollection")
 
     def test_object_selection_and_failures_are_clear(self):
         fallback = json.loads(json.dumps(self.topology))
@@ -167,13 +169,42 @@ class ParentCityDisplayTests(unittest.TestCase):
                 feature("B区", self._square(1), parent_name="東京市", resource_id="b", pref_name="東京府"),
             ]}), encoding="utf-8")
             first = write_snapshot(source, root / "out", prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31")
-            first_parent = (root / "out/geoshape/13/1932-12-31.parents.geojson").read_text()
+            first_parent = (root / "out/geoshape/13/low/1932-12-31.parents.geojson").read_text()
             second = write_snapshot(source, root / "out", prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31")
             self.assertEqual(first, second)
-            self.assertEqual(first_parent, (root / "out/geoshape/13/1932-12-31.parents.geojson").read_text())
-            snapshot = first["providers"]["geoshape"]["prefectures"]["13"]["snapshots"]["1932-12-31"]
-            self.assertEqual(snapshot["parentDisplayPath"], "geoshape/13/1932-12-31.parents.geojson")
+            self.assertEqual(first_parent, (root / "out/geoshape/13/low/1932-12-31.parents.geojson").read_text())
+            snapshot = first["providers"]["geoshape"]["prefectures"]["13"]["resolutions"]["low"]["snapshots"]["1932-12-31"]
+            self.assertEqual(snapshot["parentDisplayPath"], "geoshape/13/low/1932-12-31.parents.geojson")
             self.assertEqual(snapshot["parentDisplayFeatureCount"], 1)
+
+    def test_low_high_assets_manifest_and_provenance_are_independent(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); source = root / "source.geojson"; output = root / "out"
+            source.write_text(json.dumps({"type": "FeatureCollection", "features": [
+                feature("A区", self._square(0), parent_name="東京市", resource_id="a", pref_name="東京府"),
+                feature("B区", self._square(1), parent_name="東京市", resource_id="b", pref_name="東京府"),
+            ]}), encoding="utf-8")
+            write_snapshot(source, output, prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31")
+            manifest = write_snapshot(source, output, prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31", resolution="high")
+            resolutions = manifest["providers"]["geoshape"]["prefectures"]["13"]["resolutions"]
+            self.assertEqual(set(resolutions), {"low", "high"})
+            for resolution in ("low", "high"):
+                snapshot = resolutions[resolution]["snapshots"]["1932-12-31"]
+                self.assertTrue((output / snapshot["path"]).exists())
+                parent = json.loads((output / snapshot["parentDisplayPath"]).read_text())
+                self.assertEqual({feature["properties"]["sourceResolution"] for feature in parent["features"]}, {resolution})
+
+    def test_legacy_manifest_is_migrated_as_low_without_losing_dates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); source = root / "source.geojson"; output = root / "out"; output.mkdir()
+            source.write_text(json.dumps(self.canonical), encoding="utf-8")
+            legacy_snapshot = {"path": "geoshape/13/1931-12-31.geojson", "featureCount": 6}
+            legacy = {"schemaVersion": 1, "providers": {"geoshape": {"displayName": "Geoshape", "dataset": "x", "datasetName": "x", "sourceUrl": "x", "caution": "x", "prefectures": {"13": {"displayName": "Tokyo", "availableDates": ["1931-12-31"], "snapshots": {"1931-12-31": legacy_snapshot}}}}}}
+            (output / "manifest.json").write_text(json.dumps(legacy), encoding="utf-8")
+            manifest = write_snapshot(source, output, prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31", resolution="high")
+            prefecture = manifest["providers"]["geoshape"]["prefectures"]["13"]
+            self.assertEqual(manifest["schemaVersion"], 2)
+            self.assertEqual(prefecture["resolutions"]["low"]["snapshots"]["1931-12-31"], legacy_snapshot)
 
 
 if __name__ == "__main__": unittest.main()
