@@ -1,0 +1,36 @@
+{
+  "type": "Topology",
+  "transform": {"scale": [0.1, 0.1], "translate": [139.0, 35.0]},
+  "objects": {
+    "city": {
+      "type": "GeometryCollection",
+      "geometries": [
+        {
+          "type": "Polygon",
+          "id": "東京府東京市杉並区",
+          "properties": {"id": "gci:13115A1968", "N03_001": "東京府", "N03_003": "東京市", "N03_004": "杉並区", "N03_007": "13115", "STARTYEAR": 1932, "ENDYEAR": 2006, "PREF": "東京都", "GUN": null, "CITY": "杉並区", "ISFINISHED": 1},
+          "arcs": [[0, -2]]
+        },
+        {
+          "type": "MultiPolygon",
+          "id": "東京府東京市中野区",
+          "properties": {"id": "gci:13114A1968", "N03_001": "東京府", "N03_003": "東京市", "N03_004": "中野区", "N03_007": "13114", "STARTYEAR": 1932, "ENDYEAR": 2006, "PREF": "東京都", "GUN": null, "CITY": "中野区", "ISFINISHED": 1},
+          "arcs": [[[2]], [[3]]]
+        },
+        {
+          "type": "Polygon",
+          "id": "東京府Example村",
+          "properties": {"id": "gci:example", "N03_001": "東京府", "N03_003": "", "N03_004": "Example村", "N03_007": "13999", "STARTYEAR": 1932, "ENDYEAR": 1940, "PREF": "東京都", "GUN": null, "CITY": "Example村", "ISFINISHED": 1},
+          "arcs": [[4]]
+        }
+      ]
+    }
+  },
+  "arcs": [
+    [[0, 0], [10, 0], [0, 10]],
+    [[0, 0], [0, 10], [10, 0]],
+    [[20, 0], [5, 0], [0, 5], [-5, 0], [0, -5]],
+    [[30, 0], [5, 0], [0, 5], [-5, 0], [0, -5]],
+    [[40, 0], [5, 0], [0, 5], [-5, 0], [0, -5]]
+  ]
+}

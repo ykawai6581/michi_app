@@ -1,0 +1,45 @@
+{
+  "projectId": "shinjuku",
+  "builtAt": "2026-09-02T16:20:09.151121+00:00",
+  "bounds": [
+    139.66765894323038,
+    35.66037685067556,
+    139.7490588949157,
+    35.71966505682174
+  ],
+  "boundsSource": {
+    "mode": "auto",
+    "from": "modernRoads",
+    "paddingKm": 3,
+    "roadIds": [
+      "tokyo-named-ome-do"
+    ]
+  },
+  "railwaySelection": null,
+  "sourceLayerFamilies": [
+    "modernRoads",
+    "historicalRoads",
+    "historicalPosts"
+  ],
+  "featureCounts": {
+    "modernRoads": 1,
+    "railwayTracks": 0,
+    "railwayRoutes": 0,
+    "stations": 0,
+    "historicalRoadFeatures": 0,
+    "historicalPosts": 0
+  },
+  "inputs": {
+    "historicalRoads": "data/cache/codh/edo-roads/roads.parquet",
+    "historicalPosts": "data/cache/codh/edo-posts/posts.parquet"
+  },
+  "outputs": {
+    "modernRoads": "data/modern-roads.geojson",
+    "railways": "data/railways.geojson",
+    "railwayRoutes": "data/railway-routes.geojson",
+    "stations": "data/stations.geojson",
+    "historicalRoads": "data/historical-roads.geojson",
+    "historicalPosts": "data/historical-posts.geojson",
+    "search": "search/entities.json"
+  }
+}

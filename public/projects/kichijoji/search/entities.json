@@ -1,0 +1,16 @@
+[
+  {
+    "id": "tokyo-named-inokashira-dori",
+    "entityType": "modern-road",
+    "displayName": "井の頭通り",
+    "aliases": [
+      "井ノ頭通り"
+    ],
+    "searchTerms": [
+      "井の頭通り",
+      "井ノ頭通り"
+    ],
+    "source": "canonical-road",
+    "geometryHint": "MultiLineString"
+  }
+]

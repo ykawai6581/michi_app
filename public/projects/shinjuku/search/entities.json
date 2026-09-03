@@ -1,0 +1,13 @@
+[
+  {
+    "id": "tokyo-named-ome-do",
+    "entityType": "modern-road",
+    "displayName": "青梅道",
+    "aliases": [],
+    "searchTerms": [
+      "青梅道"
+    ],
+    "source": "canonical-road",
+    "geometryHint": "MultiLineString"
+  }
+]
