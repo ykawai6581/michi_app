@@ -16,7 +16,7 @@ describe('project map layer contract', () => {
     expect(calls).toContainEqual(['railway-tracks','visibility','none'])
     expect(calls).toContainEqual(['railway-stations','visibility','visible'])
     expect(calls).toContainEqual(['jurisdiction-fill','visibility','none'])
-    expect(calls).toHaveLength(8)
+    expect(calls).toHaveLength(12)
   })
   it('starts railways and stations hidden while historical posts remain visible',()=>{
     expect(initialLayerVisibility()).toMatchObject({basemap:'presentation',darkBasemap:false,railways:false,stations:false,historicalPosts:true,jurisdictions:false})
