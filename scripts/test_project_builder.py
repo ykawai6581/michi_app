@@ -76,14 +76,25 @@ class ProjectBuilderTest(unittest.TestCase):
         self.assertNotEqual(first,rail_group_properties({"name:ja":"中央本線","operator":"別会社"}))
         self.assertIsNone(rail_group_properties({"railway":"rail"}))
         self.assertTrue(rail_group_properties({"wikidata":"Q123"})["railGroupId"].endswith("Q123"))
+    def test_rail_color_catalog_uses_supplied_schema(self):
+        colors=load_rail_colors(self.root)
+        self.assertGreater(len(colors["lines"]),100)
+        self.assertEqual(colors["matching"]["fieldsInPriorityOrder"],["railDisplayName","name:ja","name","name:en","ref"])
+        self.assertNotIn("railways",colors); self.assertNotIn("matchPriority",colors)
     def test_rail_color_aliases_normalization_ambiguity_and_fallback(self):
         colors=load_rail_colors(self.root)
-        expected={"JR 中央線快速":"#FF4500","JR 中央・総武緩行線":"#FFD700","JR 山手線":"#9ACD32","京王 京王線":"#E3379F","京王 井の頭線":"#1A407B","小田急 小田原線":"#2683CE","西武 新宿線":"#00A6BF","東急 東横線":"#DA0042"}
+        expected={"JR 中央線快速":"#FF4500","JR 中央・総武緩行線":"#FFD700","JR 山手線":"#9ACD32","京王電鉄京王線":"#E3379F","京王 井の頭線":"#1A407B","小田急 小田原線":"#2683CE","西武 新宿線":"#00A6BF","東急 東横線":"#DA0042"}
         for alias,color in expected.items(): self.assertEqual(resolve_rail_color({"railDisplayName":alias},colors)[0],color)
         self.assertEqual(resolve_rail_color({"railDisplayName":"  JR\u3000中央線快速  "},colors),("#FF4500","jr-chuo-rapid"))
         self.assertEqual(normalize_rail_alias(" ＪＲ   CHUO "),"jr chuo")
         self.assertEqual(resolve_rail_color({"railDisplayName":"新宿線"},colors),(colors["fallbackColor"],None))
         self.assertEqual(resolve_rail_color({"railDisplayName":"未知線","operator":"西武"},colors),(colors["fallbackColor"],None))
+        self.assertEqual(resolve_rail_color({"operator":"JR East","network":"JR"},colors),(colors["fallbackColor"],None))
+    def test_rail_color_uses_catalog_field_priority_and_fallback(self):
+        colors=load_rail_colors(self.root)
+        colors={**colors,"fallbackColor":"#010203","matching":{**colors["matching"],"fieldsInPriorityOrder":["ref","name:ja"]}}
+        self.assertEqual(resolve_rail_color({"ref":"JY","name:ja":"中央本線"},colors),("#9ACD32","jr-yamanote"))
+        self.assertEqual(resolve_rail_color({"name:ja":"存在しない路線"},colors),("#010203",None))
     def test_bbox_stations(self): self.assertEqual(len(select_bbox_features(self.root/"data/cache/osm/rail/stations.parquet",self.config["bounds"])),1)
     def test_select_historical_road(self): self.assertEqual(len(select_routes(self.root/"data/cache/codh/edo-roads/roads.parquet",["R003"],"historicalRoads")),1)
     def test_select_distinct_posts_with_shared_place_id(self): self.assertEqual(len(select_routes(self.root/"data/cache/codh/edo-posts/posts.parquet",["R003"],"historicalPosts")),2)
@@ -99,6 +110,12 @@ class ProjectBuilderTest(unittest.TestCase):
             self.assertEqual(count,manifest["featureCounts"][manifest_key])
         self.assertEqual(manifest["bounds"],self.config["bounds"]); self.assertEqual(manifest["boundsSource"],{"mode":"explicit"})
         self.assertEqual(manifest["featureCounts"]["railwayRoutes"],1)
+        colors=load_rail_colors(self.root)
+        tracks=json.loads((output/"data/railways.geojson").read_text())["features"]
+        routes=json.loads((output/"data/railway-routes.geojson").read_text())["features"]
+        expected=resolve_rail_color({"name:ja":"中央本線"},colors)
+        for feature in [*tracks,*routes]:
+            self.assertEqual((feature["properties"]["railColor"],feature["properties"]["railColorId"]),expected)
 
     def test_near_road_selects_full_unclipped_route(self):
         self.write_config({**self.config,"layers":{**self.config["layers"],"railways":{"mode":"near-modern-roads","distanceKm":3}}})
