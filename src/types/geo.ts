@@ -19,6 +19,7 @@ export interface EntityProperties {
   note?: string
   relatedEntities?: string[]
   illustrationWidthScale?: number
+  activeRoadGlow?: boolean
   roadSourceGeometries?: RoadSourceGeometries
   osm_id?: number
   ref?: string

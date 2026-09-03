@@ -108,11 +108,19 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
   activeAnimations.set(map, requestAnimationFrame(frame))
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, focusFeature?: EntityFeature, animate = false): void {
+export function roadGlowFeatures(features: EntityFeature[], activeFeature: EntityFeature | null): EntityFeature[] {
+  const activeRoadId = activeFeature?.properties.type === 'road' ? activeFeature.properties.id : null
+  return features.map((feature) => feature.properties.type === 'road'
+    ? { ...feature, properties: { ...feature.properties, activeRoadGlow: feature.properties.id === activeRoadId } }
+    : feature)
+}
+
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  const { primary, osm } = splitRoadSourceFeatures(features, roadSources)
-  if (focusFeature && primary.includes(focusFeature) && animate && (focusFeature.geometry.type === 'LineString' || focusFeature.geometry.type === 'MultiLineString' || focusFeature.geometry.type === 'Polygon')) revealFeature(map, primary, focusFeature)
+  const { primary, osm } = splitRoadSourceFeatures(roadGlowFeatures(features, activeFeature), roadSources)
+  const revealFocus = focusFeature && primary.find((feature) => feature.properties.id === focusFeature.properties.id)
+  if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
   ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
   if (!focusFeature) return
