@@ -62,6 +62,7 @@ class ReferenceOwnershipTests(unittest.TestCase):
         accepted, _, _ = select(lines, reference, classes, **settings)
         stage1 = gpd.GeoDataFrame({"N13_003": classes, "sourceFeatureIndex": range(len(lines)),
                                    "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
+        stage1 = MATCH_ROAD.source_atoms(stage1)
         return MATCH_ROAD.connect_adjacent_selected_runs(accepted, stage1, reference, settings)
 
     def test_straight_road_rejects_t_stem(self):
@@ -147,19 +148,84 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertLessEqual(report["crossClassParallelCandidatePairs"],
                              report["crossClassParallelSampleComparisons"])
 
-    def test_short_unowned_source_feature_is_recovered_as_connector(self):
+    def test_short_unowned_source_feature_is_rescued_during_ownership(self):
         lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
                  LineString([(55, 0), (100, 0)])]
         connected, report = self.connect(
             lines, LineString([(0, 0), (100, 0)]), ["1", "1", "1"],
             classPriority=["1"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
-        connectors = connected[connected.selectionStatus == "accepted-continuity-connector"]
-        self.assertEqual(set(connectors.sourceFeatureIndex), {1})
-        self.assertEqual(report["continuityConnectorCount"], 1)
-        self.assertEqual(report["ownershipGapCount"], 1)
-        self.assertEqual(report["connectorGraphSearchCount"], 1)
-        self.assertEqual(report["connectorCandidateEdgeCount"], 1)
+        rescued = connected[connected.selectionStatus == "accepted-short-straight-through"]
+        self.assertEqual(set(rescued.sourceFeatureIndex), {1})
+        self.assertEqual(report["continuityConnectorCount"], 0)
         self.assertAlmostEqual(connected.geometry.union_all().length, 100)
+
+    def test_short_bridge_with_opposite_side_stems_is_the_only_rescue(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (50, 0)]),
+                 LineString([(50, 0), (100, 0)]), LineString([(40, 0), (40, 15)]),
+                 LineString([(50, 0), (50, -15)])]
+        accepted, diagnostics, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertEqual(report["shortStraightThroughRescueCount"], 1)
+        self.assertEqual(diagnostics.iloc[1].ownershipRescue, "short-straight-through")
+        self.assertTrue(all(diagnostics.iloc[index].selectionStatus == "rejected-no-owned-run"
+                            for index in (3, 4)))
+
+    def test_one_sample_short_bridge_is_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (46, 0)]),
+             LineString([(46, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 1)
+
+    def test_two_sample_short_bridge_is_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (51, 0)]),
+             LineString([(51, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 1)
+
+    def test_ambiguous_direct_bridges_remain_unresolved(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (50, 0)]),
+             LineString([(40, 0), (50, 0)]), LineString([(50, 0), (100, 0)])],
+            LineString([(0, 0), (100, 0)]), ["1"] * 4,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_branch_touching_only_one_neighbor_is_not_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (40, 10)]),
+             LineString([(50, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_excluded_direct_bridge_is_never_rescued(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (50, 0)]),
+                 LineString([(50, 0), (100, 0)])]
+        baseline, diagnostics, _ = select(lines, LineString([(0, 0), (100, 0)]), ["1"] * 3,
+                                           classPriority=["1"])
+        atom_id = diagnostics.iloc[1].n13AtomId
+        accepted, _, report = select(lines, LineString([(0, 0), (100, 0)]), ["1"] * 3,
+                                     classPriority=["1"], excludedAtomIds=[atom_id])
+        self.assertIn(1, set(baseline.sourceFeatureIndex))
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_direct_topology_with_far_bend_is_not_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (45, 50), (50, 0)]),
+             LineString([(50, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=20)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
 
     def test_intermediate_connector_keeps_both_curated_endpoints_unchanged(self):
         lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
@@ -855,7 +921,7 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         result = self.match_result(["a:0"])
         with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
                           side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
-            with self.assertRaisesRegex(RuntimeError, "discarded curated N13 atoms: b:0"):
+            with self.assertRaisesRegex(RuntimeError, "removed or changed curated N13 runs: b:0"):
                 MATCH_ROAD.connect_match_preview(result, {"include":["b:0"],"exclude":[]})
 
     def test_same_atom_multiple_substrings_are_geometrically_preserved_or_merged(self):
@@ -863,14 +929,42 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         curated_union = connected["curatedSelected"].geometry.union_all()
         final_union = connected["selected"].geometry.union_all()
         self.assertLessEqual(curated_union.difference(final_union).length, 1e-6)
-        self.assertEqual(connected["connectDiagnostics"]["lostCuratedGeometryLengthMeters"], 0)
+        self.assertEqual(connected["connectDiagnostics"]["unionNumericalResidualLengthMeters"], 0)
 
     def test_geometry_invariant_detects_lost_same_atom_substring(self):
         result = self.same_atom_substring_result()
         with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
                           side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
-            with self.assertRaisesRegex(RuntimeError, "removed 10.000000 m.*atoms: a:0"):
+            with self.assertRaisesRegex(RuntimeError, "removed or changed curated N13 runs: a:0"):
                 MATCH_ROAD.connect_match_preview(result)
+
+    def test_exact_row_invariant_detects_changed_substring_with_same_atom_id(self):
+        result = self.same_atom_substring_result()
+        def changed(curated, *_args, **_kwargs):
+            output = curated.copy()
+            output.at[output.index[1], "geometry"] = LineString([(20, 0), (29.999, 0)])
+            return output, {}
+        with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs", side_effect=changed):
+            with self.assertRaisesRegex(RuntimeError, "removed or changed curated N13 runs: a:0"):
+                MATCH_ROAD.connect_match_preview(result)
+
+    def test_exact_rows_survive_nonzero_union_overlay_diagnostic(self):
+        result = self.same_atom_substring_result()
+        parent = LineString([(0, 0), (60, 0)])
+        rows = []
+        for index in range(40):
+            start = index * 1.25
+            row = result["selected"].iloc[0].copy()
+            row["geometry"] = MATCH_ROAD.substring(parent, start, start + 1)
+            row["sourceStartDistanceMeters"] = start
+            row["sourceEndDistanceMeters"] = start + 1
+            rows.append(row)
+        result["selected"] = gpd.GeoDataFrame(rows, crs=MATCH_ROAD.METRIC_CRS)
+        with patch.object(MATCH_ROAD, "_union_numerical_residual_length", return_value=.001):
+            connected = MATCH_ROAD.connect_match_preview(result)
+        self.assertEqual(len(connected["curatedSelected"]), 40)
+        self.assertEqual(len(connected["selected"]), 40)
+        self.assertEqual(connected["connectDiagnostics"]["unionNumericalResidualLengthMeters"], .001)
 
     def test_final_geometry_contains_auto_substrings_and_manual_full_atom(self):
         connected = MATCH_ROAD.connect_match_preview(

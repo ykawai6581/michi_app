@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 from shapely.geometry import LineString, MultiLineString, Point, box, mapping
 from shapely.ops import linemerge, substring, unary_union
 
@@ -54,6 +55,10 @@ DEFAULT_NETWORK_SELECTION = {
     "maximumOwnershipBridgeSamples": 2,
     "maximumJunctionExtensionMeters": 35.0,
     "ownershipContinuityIterations": 4,
+    # A complete, short atom may fall below the ordinary three-sample seed
+    # threshold.  It is considered only when it directly joins two established
+    # runs on this same OSM part and independently passes the OSM checks below.
+    "shortStraightThroughMaximumGapSamples": 2,
     # Separate OSM parts may be the two sides of a divided road.  A sustained
     # cross-class match across nearby, parallel parts is competition for the
     # same route interval, not evidence for another carriageway.
@@ -1009,6 +1014,67 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                         part_owners[left["end"]:right["start"]] = [left["edge"]] * (right["start"] - left["end"])
                     break
 
+    # Rescue complete atoms that are too short to seed ordinary ownership.  The
+    # topology test only creates a shortlist: identity still comes from the
+    # candidate's monotonic, locally aligned projection onto this OSM interval.
+    rescued = []
+    rescued_edges = set()
+    excluded_atom_ids = set(map(str, settings.get("excludedAtomIds", [])))
+    maximum_rescue_gap = int(settings["shortStraightThroughMaximumGapSamples"])
+    for part_index, (offsets, samples) in enumerate(samples_by_part):
+        runs = _ownership_runs(owners[part_index])
+        part = parts[part_index]
+        for left, right in zip(runs, runs[1:]):
+            gap_samples = right["start"] - left["end"]
+            if gap_samples < 0 or gap_samples > maximum_rescue_gap:
+                continue
+            left_edge, right_edge = left["edge"], right["edge"]
+            if left_edge == right_edge or edge_classes[left_edge] != edge_classes[right_edge]:
+                continue
+            interval_start = float(offsets[left["end"] - 1])
+            interval_end = float(offsets[right["start"]])
+            reference_interval = substring(part, interval_start, interval_end)
+            passing = []
+            for edge, line in enumerate(geometries):
+                if (edge in rescued_edges or edge in (left_edge, right_edge)
+                        or edge_classes[edge] != edge_classes[left_edge]
+                        or str(source_atom_ids[edge]) in excluded_atom_ids):
+                    continue
+                endpoints = [Point(line.coords[0]), Point(line.coords[-1])]
+                orientations = []
+                if endpoints[0].distance(geometries[left_edge]) <= tolerance and endpoints[1].distance(geometries[right_edge]) <= tolerance:
+                    orientations.append((endpoints[0], endpoints[1], list(line.coords)))
+                if endpoints[1].distance(geometries[left_edge]) <= tolerance and endpoints[0].distance(geometries[right_edge]) <= tolerance:
+                    orientations.append((endpoints[1], endpoints[0], list(reversed(line.coords))))
+                if not orientations:
+                    continue
+                for entry, exit_, coordinates in orientations:
+                    projections = [float(part.project(Point(coordinate))) for coordinate in coordinates]
+                    progress = projections[-1] - projections[0]
+                    monotonic_steps = sum(second + 1e-9 >= first for first, second in zip(projections, projections[1:]))
+                    monotonicity = monotonic_steps / max(1, len(projections) - 1)
+                    candidate_vector = np.asarray(exit_.coords[0]) - np.asarray(entry.coords[0])
+                    reference_vector = np.asarray(part.interpolate(interval_end).coords[0]) - np.asarray(part.interpolate(interval_start).coords[0])
+                    maximum_vertex_distance = max(Point(coordinate).distance(reference_interval) for coordinate in coordinates)
+                    gap_length = max(interval, interval_end - interval_start)
+                    if (progress <= 0
+                            or projections[0] < interval_start - interval
+                            or projections[-1] > interval_end + interval
+                            or monotonicity < float(settings["minimumChainageMonotonicity"])
+                            or _angle_difference(candidate_vector, reference_vector) > maximum_angle
+                            or maximum_vertex_distance > maximum_distance
+                            or line.length > gap_length + 2 * interval):
+                        continue
+                    passing.append(edge)
+                    break
+            passing = sorted(set(passing))
+            # Ambiguity is deliberately left unresolved; topology path length
+            # is not an OSM identity discriminator.
+            if len(passing) == 1:
+                edge = passing[0]
+                rescued_edges.add(edge)
+                rescued.append((part_index, left, right, edge, interval_start, interval_end))
+
     if progress_callback:
         progress_callback(progress=88, phase="Connecting selected N13 segments")
     run_rows = []
@@ -1086,11 +1152,37 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             row["selectionStatus"] = row["selectionReason"] = "accepted-owned-samples"
             run_rows.append(row)
 
+    for part_index, left, right, edge, interval_start, interval_end in rescued:
+        row = frame.loc[edge].copy()
+        row["geometry"] = geometries[edge]
+        row["referencePart"] = part_index
+        row["firstOwnedReferenceSample"] = None
+        row["lastOwnedReferenceSample"] = None
+        row["ownedReferenceSampleCount"] = 0
+        row["ownedReferenceStartMeters"] = interval_start
+        row["ownedReferenceEndMeters"] = interval_end
+        row["sourceStartDistanceMeters"] = 0.0
+        row["sourceEndDistanceMeters"] = float(geometries[edge].length)
+        row["runPosition"] = "interior"
+        row["upstreamSourceConnected"] = True
+        row["downstreamSourceConnected"] = True
+        row["continuityValid"] = True
+        row["sourceRangeBeforeExtension"] = row["sourceRangeAfterExtension"] = json.dumps(
+            [0.0, round(float(geometries[edge].length), 3)])
+        row["junctionExtensionMeters"] = 0.0
+        row["reassignedFromSourceFeatureIndex"] = None
+        row["ownershipRescue"] = "short-straight-through"
+        row["selectionStatus"] = row["selectionReason"] = "accepted-short-straight-through"
+        run_rows.append(row)
+
     accepted = gpd.GeoDataFrame(run_rows, crs=METRIC_CRS) if run_rows else frame.iloc[0:0].copy()
-    owned_edges = {run["edge"] for part in owners for run in _ownership_runs(part)}
-    frame["selectionStatus"] = ["accepted-owned-samples" if edge in owned_edges else "rejected-no-owned-run"
-                                for edge in frame.index]
+    owned_edges = {run["edge"] for part in owners for run in _ownership_runs(part)} | rescued_edges
+    frame["selectionStatus"] = ["accepted-short-straight-through" if edge in rescued_edges
+                                else "accepted-owned-samples" if edge in owned_edges
+                                else "rejected-no-owned-run" for edge in frame.index]
     frame["selectionReason"] = frame["selectionStatus"]
+    frame["ownershipRescue"] = ["short-straight-through" if edge in rescued_edges else None
+                                for edge in frame.index]
     frame["ownedReferenceSampleCount"] = [sum(owner == edge for part in owners for owner in part) for edge in frame.index]
     ownership_features = []
     for part_index, (offsets, samples) in enumerate(samples_by_part):
@@ -1118,6 +1210,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "sourceDisconnectedRunTransitions": disconnected_transitions,
               "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
               "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
+              "shortStraightThroughRescueCount": len(rescued_edges),
               "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
               "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,
@@ -1504,6 +1597,11 @@ def curate_selection(result: dict, manual_selection: dict | None = None) -> gpd.
     return selected
 
 
+def _union_numerical_residual_length(curated, connected) -> float:
+    """Return the GEOS overlay residual for diagnostics, never preservation."""
+    return float(curated.geometry.union_all().difference(connected.geometry.union_all()).length)
+
+
 def connect_match_preview(result: dict, manual_selection: dict | None = None, progress_callback=None) -> dict:
     manual_selection = manual_selection or {"include": [], "exclude": []}
     if progress_callback: progress_callback(progress=5, phase="Preparing curated selection")
@@ -1518,21 +1616,24 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
         frozenset(manual_selection.get("exclude", [])), progress_callback)
     curated_atom_ids = set(curated.n13AtomId.astype(str))
     connected_atom_ids = set(connected.n13AtomId.astype(str))
-    missing_curated_atoms = curated_atom_ids - connected_atom_ids
-    if missing_curated_atoms:
-        raise RuntimeError("Connectivity reconstruction discarded curated N13 atoms: "
-                           + ", ".join(sorted(missing_curated_atoms)))
+    # Preserve rows, not merely atom IDs: one atom can contribute multiple
+    # curated substrings, while appended connector rows may share that atom ID.
+    def row_identity(row):
+        return str(row.n13AtomId), bytes(row.geometry.wkb)
+    curated_rows = Counter(row_identity(row) for _, row in curated.iterrows())
+    connected_rows = Counter(row_identity(row) for _, row in connected.iterrows())
+    missing_rows = curated_rows - connected_rows
+    missing_curated_atoms = {identity[0] for identity in missing_rows}
+    if missing_rows:
+        descriptions = []
+        for (atom_id, geometry_wkb), count in sorted(missing_rows.items(), key=lambda item: item[0][0]):
+            geometry = shapely.from_wkb(geometry_wkb)
+            descriptions.append(f"{atom_id} [{geometry.wkt}]" + (f" x{count}" if count > 1 else ""))
+        raise RuntimeError("Connectivity reconstruction removed or changed curated N13 runs: "
+                           + "; ".join(descriptions))
     curated_union = curated.geometry.union_all()
     connected_union = connected.geometry.union_all()
-    lost_curated_geometry = curated_union.difference(connected_union)
-    lost_curated_length = float(lost_curated_geometry.length)
-    geometry_tolerance_meters = 1e-6
-    if lost_curated_length > geometry_tolerance_meters:
-        affected = sorted({str(row.n13AtomId) for _, row in curated.iterrows()
-                           if row.geometry.difference(connected_union).length > geometry_tolerance_meters})
-        raise RuntimeError(
-            f"Connectivity reconstruction removed {lost_curated_length:.6f} m of curated N13 geometry"
-            + (f" (atoms: {', '.join(affected)})" if affected else ""))
+    union_numerical_residual_length = _union_numerical_residual_length(curated, connected)
     if progress_callback: progress_callback(progress=94, phase="Building final display geometry/report")
     final = dict(result)
     final["selected"] = connected
@@ -1552,7 +1653,7 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
         "missingCuratedAtomIds": sorted(missing_curated_atoms),
         "curatedGeometryLengthMeters": round(float(curated_union.length), 6),
         "finalGeometryLengthMeters": round(float(connected_union.length), 6),
-        "lostCuratedGeometryLengthMeters": round(lost_curated_length, 6),
+        "unionNumericalResidualLengthMeters": round(union_numerical_residual_length, 6),
         "curatedSelectedRunCount": len(curated),
         "finalSelectedRunCount": len(connected)}
     final["coverage"], final["unresolved"] = reference_coverage(
