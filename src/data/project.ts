@@ -1,5 +1,5 @@
-import type { FeatureCollection } from 'geojson'
-import type { EntityFeature } from '../types/geo'
+import type { FeatureCollection, Position } from 'geojson'
+import type { EntityFeature, EntityProperties } from '../types/geo'
 import type { JurisdictionLayerConfig } from './jurisdictions'
 
 export const DEFAULT_PROJECT_ID = 'shinjuku'
@@ -10,15 +10,60 @@ export interface ProjectConfigMetadata { id: string; displayName: string; jurisd
 export interface ProjectManifest { projectId: string; bounds: [number, number, number, number]; featureCounts: Record<string, number> }
 export interface ProjectData { config: ProjectConfigMetadata; manifest: ProjectManifest; collections: Record<ProjectFile, FeatureCollection>; searchable: EntityFeature[] }
 
-export function railwaySearchFeatures(collection: FeatureCollection): EntityFeature[] {
+function lines(feature: EntityFeature): Position[][] {
+  if (feature.geometry.type === 'LineString') return [feature.geometry.coordinates]
+  return feature.geometry.type === 'MultiLineString' ? feature.geometry.coordinates : []
+}
+
+function mergedLines(features: EntityFeature[]): Position[][] {
+  const seen = new Set<string>()
+  return features.flatMap(lines).filter((line) => {
+    const key = JSON.stringify(line)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function routeCanonicalId(properties: EntityProperties): string {
+  const wikidata = properties.wikidata?.trim()
+  if (wikidata) return `wikidata:${wikidata}`
+  if (properties.railColorId) return `catalog:${properties.railColorId}`
+  return `route:${properties.railRouteId || properties.id}`
+}
+
+/** Build one runtime search entity per semantic OSM route identity. */
+export function canonicalRailwayRoutes(routes: EntityFeature[]): EntityFeature[] {
+  const groups = new Map<string, EntityFeature[]>()
+  for (const route of routes) {
+    const canonicalId = routeCanonicalId(route.properties)
+    groups.set(canonicalId, [...(groups.get(canonicalId) ?? []), route])
+  }
+  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([canonicalId, members]) => {
+    const ordered = [...members].sort((left, right) => (left.properties.railRouteId || left.properties.id).localeCompare(right.properties.railRouteId || right.properties.id))
+    const first = ordered[0]
+    const railRouteIds = [...new Set(ordered.map((route) => route.properties.railRouteId || route.properties.id))].sort()
+    const colorIds = new Set(ordered.map((route) => route.properties.railColorId).filter(Boolean))
+    const aliases = [...new Set(ordered.flatMap(({ properties }) => [properties.name, properties['name:ja'], properties['name:en'], properties.ref, properties.operator, properties.network]).filter((value): value is string => Boolean(value)))]
+    const name = (colorIds.size === 1 ? first.properties.railDisplayName : undefined) || first.properties['name:ja'] || first.properties.name || first.properties.ref || railRouteIds[0]
+    return { type: 'Feature', properties: { ...first.properties, id: `railway:${canonicalId}`, name, aliases: aliases.filter((alias) => alias !== name), type: 'railway', railCanonicalId: canonicalId, railRouteIds }, geometry: { type: 'MultiLineString', coordinates: mergedLines(ordered) } }
+  })
+}
+
+/** Conservatively promote only catalog-backed, grouped, orphan physical tracks. */
+export function railwaySearchFeatures(collection: FeatureCollection, logicalRoutes: EntityFeature[] = []): EntityFeature[] {
+  const representedColors = new Set(logicalRoutes.map((route) => route.properties.railColorId).filter(Boolean))
   const groups = new Map<string, EntityFeature[]>()
   for (const candidate of collection.features as EntityFeature[]) {
-    const id = candidate.properties.railGroupId
-    if (id) groups.set(id, [...(groups.get(id) ?? []), candidate])
+    const colorId = candidate.properties.railColorId
+    if (!colorId || representedColors.has(colorId) || candidate.properties.railRouteIds?.length) continue
+    groups.set(colorId, [...(groups.get(colorId) ?? []), candidate])
   }
-  return [...groups].map(([id, features]) => ({ type:'Feature', properties:{
-    ...features[0].properties, id, name:features[0].properties.railDisplayName ?? features[0].properties.name, type:'railway' as const,
-  }, geometry:{ type:'MultiLineString', coordinates:features.flatMap((feature) => feature.geometry.type === 'MultiLineString' ? feature.geometry.coordinates : feature.geometry.type === 'LineString' ? [feature.geometry.coordinates] : []) } }))
+  return [...groups.entries()].filter(([, features]) => features.length > 1 || features.some((feature) => feature.geometry.type === 'MultiLineString')).map(([colorId, features]) => {
+    const first = [...features].sort((left, right) => left.properties.id.localeCompare(right.properties.id))[0]
+    const name = first.properties.railDisplayName || first.properties.name
+    return { type: 'Feature', properties: { ...first.properties, id: `railway:catalog:${colorId}`, name, type: 'railway', railCanonicalId: `catalog:${colorId}` }, geometry: { type: 'MultiLineString', coordinates: mergedLines(features) } }
+  })
 }
 
 export function resolveProjectId(search = typeof window === 'undefined' ? '' : window.location.search): string {
@@ -36,9 +81,8 @@ export async function loadProject(projectId = resolveProjectId()): Promise<Proje
   if (!PROJECT_ID_PATTERN.test(projectId)) throw new Error(`Unsafe project ID: ${projectId}`)
   const [config, manifest, ...loaded] = await Promise.all([getJson<ProjectConfigMetadata>(projectId, 'project.json'), getJson<ProjectManifest>(projectId, 'manifest.json'), ...PROJECT_FILES.map((file) => getJson<FeatureCollection>(projectId, `data/${file}.geojson`))])
   const collections = Object.fromEntries(PROJECT_FILES.map((file, index) => [file, loaded[index]])) as Record<ProjectFile, FeatureCollection>
-  const logicalRoutes=collections['railway-routes'].features as EntityFeature[]
-  const relationWayIds=new Set(logicalRoutes.flatMap(feature=>feature.properties.memberWayIds??[]).map(String))
-  const fallbacks={...collections.railways,features:collections.railways.features.filter(feature=>!relationWayIds.has(String((feature as EntityFeature).properties.osm_way_id??'')))} as FeatureCollection
-  const searchable = [...(['modern-roads', 'stations', 'historical-roads', 'historical-posts'].flatMap((file) => collections[file as ProjectFile].features) as EntityFeature[]), ...logicalRoutes, ...railwaySearchFeatures(fallbacks)]
+  const logicalRoutes = collections['railway-routes'].features as EntityFeature[]
+  const searchableRoutes = canonicalRailwayRoutes(logicalRoutes)
+  const searchable = [...(['modern-roads', 'stations', 'historical-roads', 'historical-posts'].flatMap((file) => collections[file as ProjectFile].features) as EntityFeature[]), ...searchableRoutes, ...railwaySearchFeatures(collections.railways, logicalRoutes)]
   return { config, manifest, collections, searchable }
 }

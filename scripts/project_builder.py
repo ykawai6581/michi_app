@@ -81,6 +81,7 @@ def stamp_rail_color(properties: dict, colors: dict[str, Any]) -> None:
     properties["railColor"] = color
     if color_id:
         properties["railColorId"] = color_id
+        properties["railDisplayName"] = next(entry["displayName"] for entry in colors["lines"] if entry["id"] == color_id)
     else:
         properties.pop("railColorId", None)
 

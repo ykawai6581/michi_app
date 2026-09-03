@@ -30,6 +30,7 @@ export interface EntityProperties {
   railColorId?: string
   railRouteId?: string
   railRouteIds?: string[]
+  railCanonicalId?: string
   memberWayIds?: string[]
   osm_way_id?: string | number
   routeId?: string
@@ -39,6 +40,9 @@ export interface EntityProperties {
   end?: string
   operator?: string
   network?: string
+  wikidata?: string
+  'name:ja'?: string
+  'name:en'?: string
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>

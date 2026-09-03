@@ -6,7 +6,7 @@ import unittest
 import geopandas as gpd
 from shapely.geometry import LineString, Point
 
-from project_builder import ProjectBuildError, load_project_config, load_rail_colors, materialize_project, normalize_rail_alias, rail_group_properties, resolve_rail_color, resolve_project_bounds, select_bbox_features, select_modern_roads, select_routes
+from project_builder import ProjectBuildError, load_project_config, load_rail_colors, materialize_project, normalize_rail_alias, rail_group_properties, resolve_rail_color, resolve_project_bounds, select_bbox_features, select_modern_roads, select_routes, stamp_rail_color
 
 class ProjectBuilderTest(unittest.TestCase):
     def setUp(self):
@@ -90,6 +90,11 @@ class ProjectBuilderTest(unittest.TestCase):
         self.assertEqual(resolve_rail_color({"railDisplayName":"新宿線"},colors),(colors["fallbackColor"],None))
         self.assertEqual(resolve_rail_color({"railDisplayName":"未知線","operator":"西武"},colors),(colors["fallbackColor"],None))
         self.assertEqual(resolve_rail_color({"operator":"JR East","network":"JR"},colors),(colors["fallbackColor"],None))
+    def test_rail_color_stamps_canonical_catalog_display_name(self):
+        properties={"railDisplayName":"京王電鉄井の頭線"}
+        stamp_rail_color(properties,load_rail_colors(self.root))
+        self.assertEqual(properties["railColorId"],"keio-inokashira")
+        self.assertEqual(properties["railDisplayName"],"井の頭線")
     def test_rail_color_uses_catalog_field_priority_and_fallback(self):
         colors=load_rail_colors(self.root)
         colors={**colors,"fallbackColor":"#010203","matching":{**colors["matching"],"fieldsInPriorityOrder":["ref","name:ja"]}}
