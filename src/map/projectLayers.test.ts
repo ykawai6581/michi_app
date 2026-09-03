@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { LAYER_IDS, SOURCE_IDS } from './config'
-import { SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
+import { addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
     expect(SOURCE_IDS).toMatchObject({ modernRoads:'project-modern-roads', railways:'project-railways', stations:'project-stations', historicalRoads:'project-historical-roads', historicalPosts:'project-historical-posts' })
+  })
+  it('keeps jurisdiction polygons below roads and its Point label above every road layer',()=>{
+    const layers:string[]=[]
+    const map={addLayer:(layer:{id:string})=>layers.push(layer.id),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    for(const polygonLayer of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine])expect(layers.indexOf(polygonLayer)).toBeLessThan(layers.indexOf(LAYER_IDS.historicalRoads))
+    for(const roadLayer of [LAYER_IDS.historicalRoads,LAYER_IDS.modernRoads,LAYER_IDS.highlightLineGlow,LAYER_IDS.highlightLine,LAYER_IDS.highlightOsmLine])expect(layers.indexOf(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(layers.indexOf(roadLayer))
   })
   it('defines independently toggleable rendering layers', () => {
     expect([LAYER_IDS.modernRoads,LAYER_IDS.railways,LAYER_IDS.stations,LAYER_IDS.historicalRoads,LAYER_IDS.historicalPosts]).toEqual(['modern-roads','railway-tracks','railway-stations','historical-roads','historical-posts'])
@@ -16,7 +24,7 @@ describe('project map layer contract', () => {
     expect(calls).toContainEqual(['railway-tracks','visibility','none'])
     expect(calls).toContainEqual(['railway-stations','visibility','visible'])
     expect(calls).toContainEqual(['jurisdiction-fill','visibility','none'])
-    expect(calls).toHaveLength(8)
+    expect(calls).toHaveLength(12)
   })
   it('starts railways and stations hidden while historical posts remain visible',()=>{
     expect(initialLayerVisibility()).toMatchObject({basemap:'presentation',darkBasemap:false,railways:false,stations:false,historicalPosts:true,jurisdictions:false})

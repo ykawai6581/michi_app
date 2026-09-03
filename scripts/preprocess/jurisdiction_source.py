@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from shapely import union_all
-from shapely.geometry import mapping, shape
+from shapely import make_valid, union_all
+from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, mapping, shape
 
 PROVIDER = "geoshape"
 DATASET = "historical-administrative-areas-beta"
@@ -335,6 +335,23 @@ def is_parent_city_merge_eligible(
     )
 
 
+def _polygonal_geometry_for_dissolve(geometry: dict[str, Any]):
+    """Repair only an in-memory dissolve operand, preserving source geometry."""
+    candidate = shape(geometry)
+    repaired = candidate if candidate.is_valid else make_valid(candidate)
+    if isinstance(repaired, (Polygon, MultiPolygon)):
+        return repaired
+    if isinstance(repaired, GeometryCollection):
+        polygonal = [
+            part
+            for part in repaired.geoms
+            if isinstance(part, (Polygon, MultiPolygon)) and not part.is_empty
+        ]
+        if polygonal:
+            return union_all(polygonal)
+    raise ValueError("valid geometry contains no polygonal components for dissolve")
+
+
 def parent_city_display(
     collection: dict[str, Any],
     *,
@@ -397,7 +414,10 @@ def parent_city_display(
 
         dissolved = mapping(
             union_all(
-                [shape(feature["geometry"]) for feature in members]
+                [
+                    _polygonal_geometry_for_dissolve(feature["geometry"])
+                    for feature in members
+                ]
             )
         )
         if dissolved["type"] not in {"Polygon", "MultiPolygon"}:
