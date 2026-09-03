@@ -1,0 +1,16 @@
+{
+  "id": "kichijoji",
+  "displayName": "吉祥寺",
+  "bounds": {
+    "mode": "auto",
+    "from": "modernRoads",
+    "paddingKm": 3
+  },
+  "layers": {
+    "modernRoads": [
+      "tokyo-named-inokashira-dori"
+    ],
+    "historicalRoads": [],
+    "historicalPosts": []
+  }
+}

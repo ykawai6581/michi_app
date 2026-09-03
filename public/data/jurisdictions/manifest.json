@@ -7,9 +7,522 @@
       "displayName": "Geoshape",
       "prefectures": {
         "13": {
-          "availableDates": [],
+          "availableDates": [
+            "1920-12-31",
+            "1921-12-31",
+            "1922-12-31",
+            "1923-12-31",
+            "1924-12-31",
+            "1925-12-31",
+            "1926-12-31",
+            "1927-12-31",
+            "1928-12-31",
+            "1929-12-31",
+            "1930-12-31",
+            "1931-12-31",
+            "1932-12-31",
+            "1933-12-31",
+            "1934-12-31",
+            "1935-12-31",
+            "1936-12-31",
+            "1937-12-31",
+            "1938-12-31",
+            "1939-12-31",
+            "1940-12-31",
+            "1941-12-31",
+            "1942-12-31",
+            "1943-12-31",
+            "1944-12-31",
+            "1945-12-31",
+            "1946-12-31",
+            "1947-12-31",
+            "1948-12-31",
+            "1949-12-31",
+            "1950-12-31",
+            "1951-12-31",
+            "1952-12-31",
+            "1953-12-31",
+            "1954-12-31",
+            "1955-12-31",
+            "1956-12-31",
+            "1957-12-31",
+            "1958-12-31",
+            "1959-12-31",
+            "1960-12-31",
+            "1961-12-31",
+            "1962-12-31",
+            "1963-12-31",
+            "1964-12-31",
+            "1965-12-31",
+            "1966-12-31",
+            "1967-12-31",
+            "1968-12-31",
+            "1970-10-01",
+            "1975-10-01",
+            "1980-10-01",
+            "1985-10-01",
+            "1995-10-01",
+            "2000-10-01",
+            "2005-01-01",
+            "2006-01-01",
+            "2007-10-01",
+            "2009-03-20",
+            "2010-10-01",
+            "2011-03-31",
+            "2012-04-01",
+            "2013-04-01",
+            "2014-04-01",
+            "2015-01-01",
+            "2016-01-01",
+            "2017-01-01",
+            "2018-01-01",
+            "2019-01-01",
+            "2020-01-01",
+            "2021-01-01",
+            "2022-01-01",
+            "2023-01-01"
+          ],
           "displayName": "Tokyo",
-          "snapshots": {}
+          "snapshots": {
+            "1920-12-31": {
+              "featureCount": 204,
+              "parentDisplayFeatureCount": 190,
+              "parentDisplayPath": "geoshape/13/1920-12-31.parents.geojson",
+              "path": "geoshape/13/1920-12-31.geojson"
+            },
+            "1921-12-31": {
+              "featureCount": 204,
+              "parentDisplayFeatureCount": 190,
+              "parentDisplayPath": "geoshape/13/1921-12-31.parents.geojson",
+              "path": "geoshape/13/1921-12-31.geojson"
+            },
+            "1922-12-31": {
+              "featureCount": 201,
+              "parentDisplayFeatureCount": 187,
+              "parentDisplayPath": "geoshape/13/1922-12-31.parents.geojson",
+              "path": "geoshape/13/1922-12-31.geojson"
+            },
+            "1923-12-31": {
+              "featureCount": 201,
+              "parentDisplayFeatureCount": 187,
+              "parentDisplayPath": "geoshape/13/1923-12-31.parents.geojson",
+              "path": "geoshape/13/1923-12-31.geojson"
+            },
+            "1924-12-31": {
+              "featureCount": 201,
+              "parentDisplayFeatureCount": 187,
+              "parentDisplayPath": "geoshape/13/1924-12-31.parents.geojson",
+              "path": "geoshape/13/1924-12-31.geojson"
+            },
+            "1925-12-31": {
+              "featureCount": 201,
+              "parentDisplayFeatureCount": 187,
+              "parentDisplayPath": "geoshape/13/1925-12-31.parents.geojson",
+              "path": "geoshape/13/1925-12-31.geojson"
+            },
+            "1926-12-31": {
+              "featureCount": 201,
+              "parentDisplayFeatureCount": 187,
+              "parentDisplayPath": "geoshape/13/1926-12-31.parents.geojson",
+              "path": "geoshape/13/1926-12-31.geojson"
+            },
+            "1927-12-31": {
+              "featureCount": 201,
+              "parentDisplayFeatureCount": 187,
+              "parentDisplayPath": "geoshape/13/1927-12-31.parents.geojson",
+              "path": "geoshape/13/1927-12-31.geojson"
+            },
+            "1928-12-31": {
+              "featureCount": 194,
+              "parentDisplayFeatureCount": 180,
+              "parentDisplayPath": "geoshape/13/1928-12-31.parents.geojson",
+              "path": "geoshape/13/1928-12-31.geojson"
+            },
+            "1929-12-31": {
+              "featureCount": 194,
+              "parentDisplayFeatureCount": 180,
+              "parentDisplayPath": "geoshape/13/1929-12-31.parents.geojson",
+              "path": "geoshape/13/1929-12-31.geojson"
+            },
+            "1930-12-31": {
+              "featureCount": 194,
+              "parentDisplayFeatureCount": 180,
+              "parentDisplayPath": "geoshape/13/1930-12-31.parents.geojson",
+              "path": "geoshape/13/1930-12-31.geojson"
+            },
+            "1931-12-31": {
+              "featureCount": 194,
+              "parentDisplayFeatureCount": 180,
+              "parentDisplayPath": "geoshape/13/1931-12-31.parents.geojson",
+              "path": "geoshape/13/1931-12-31.geojson"
+            },
+            "1932-12-31": {
+              "featureCount": 138,
+              "parentDisplayFeatureCount": 106,
+              "parentDisplayPath": "geoshape/13/1932-12-31.parents.geojson",
+              "path": "geoshape/13/1932-12-31.geojson"
+            },
+            "1933-12-31": {
+              "featureCount": 134,
+              "parentDisplayFeatureCount": 100,
+              "parentDisplayPath": "geoshape/13/1933-12-31.parents.geojson",
+              "path": "geoshape/13/1933-12-31.geojson"
+            },
+            "1934-12-31": {
+              "featureCount": 135,
+              "parentDisplayFeatureCount": 101,
+              "parentDisplayPath": "geoshape/13/1934-12-31.parents.geojson",
+              "path": "geoshape/13/1934-12-31.geojson"
+            },
+            "1935-12-31": {
+              "featureCount": 135,
+              "parentDisplayFeatureCount": 101,
+              "parentDisplayPath": "geoshape/13/1935-12-31.parents.geojson",
+              "path": "geoshape/13/1935-12-31.geojson"
+            },
+            "1936-12-31": {
+              "featureCount": 133,
+              "parentDisplayFeatureCount": 99,
+              "parentDisplayPath": "geoshape/13/1936-12-31.parents.geojson",
+              "path": "geoshape/13/1936-12-31.geojson"
+            },
+            "1937-12-31": {
+              "featureCount": 133,
+              "parentDisplayFeatureCount": 99,
+              "parentDisplayPath": "geoshape/13/1937-12-31.parents.geojson",
+              "path": "geoshape/13/1937-12-31.geojson"
+            },
+            "1938-12-31": {
+              "featureCount": 133,
+              "parentDisplayFeatureCount": 99,
+              "parentDisplayPath": "geoshape/13/1938-12-31.parents.geojson",
+              "path": "geoshape/13/1938-12-31.geojson"
+            },
+            "1939-12-31": {
+              "featureCount": 133,
+              "parentDisplayFeatureCount": 99,
+              "parentDisplayPath": "geoshape/13/1939-12-31.parents.geojson",
+              "path": "geoshape/13/1939-12-31.geojson"
+            },
+            "1940-12-31": {
+              "featureCount": 129,
+              "parentDisplayFeatureCount": 95,
+              "parentDisplayPath": "geoshape/13/1940-12-31.parents.geojson",
+              "path": "geoshape/13/1940-12-31.geojson"
+            },
+            "1941-12-31": {
+              "featureCount": 128,
+              "parentDisplayFeatureCount": 94,
+              "parentDisplayPath": "geoshape/13/1941-12-31.parents.geojson",
+              "path": "geoshape/13/1941-12-31.geojson"
+            },
+            "1942-12-31": {
+              "featureCount": 128,
+              "parentDisplayFeatureCount": 94,
+              "parentDisplayPath": "geoshape/13/1942-12-31.parents.geojson",
+              "path": "geoshape/13/1942-12-31.geojson"
+            },
+            "1943-12-31": {
+              "featureCount": 128,
+              "parentDisplayFeatureCount": 128,
+              "parentDisplayPath": "geoshape/13/1943-12-31.parents.geojson",
+              "path": "geoshape/13/1943-12-31.geojson"
+            },
+            "1944-12-31": {
+              "featureCount": 128,
+              "parentDisplayFeatureCount": 128,
+              "parentDisplayPath": "geoshape/13/1944-12-31.parents.geojson",
+              "path": "geoshape/13/1944-12-31.geojson"
+            },
+            "1945-12-31": {
+              "featureCount": 128,
+              "parentDisplayFeatureCount": 128,
+              "parentDisplayPath": "geoshape/13/1945-12-31.parents.geojson",
+              "path": "geoshape/13/1945-12-31.geojson"
+            },
+            "1946-12-31": {
+              "featureCount": 123,
+              "parentDisplayFeatureCount": 123,
+              "parentDisplayPath": "geoshape/13/1946-12-31.parents.geojson",
+              "path": "geoshape/13/1946-12-31.geojson"
+            },
+            "1947-12-31": {
+              "featureCount": 111,
+              "parentDisplayFeatureCount": 111,
+              "parentDisplayPath": "geoshape/13/1947-12-31.parents.geojson",
+              "path": "geoshape/13/1947-12-31.geojson"
+            },
+            "1948-12-31": {
+              "featureCount": 111,
+              "parentDisplayFeatureCount": 111,
+              "parentDisplayPath": "geoshape/13/1948-12-31.parents.geojson",
+              "path": "geoshape/13/1948-12-31.geojson"
+            },
+            "1949-12-31": {
+              "featureCount": 111,
+              "parentDisplayFeatureCount": 111,
+              "parentDisplayPath": "geoshape/13/1949-12-31.parents.geojson",
+              "path": "geoshape/13/1949-12-31.geojson"
+            },
+            "1950-12-31": {
+              "featureCount": 111,
+              "parentDisplayFeatureCount": 111,
+              "parentDisplayPath": "geoshape/13/1950-12-31.parents.geojson",
+              "path": "geoshape/13/1950-12-31.geojson"
+            },
+            "1951-12-31": {
+              "featureCount": 109,
+              "parentDisplayFeatureCount": 109,
+              "parentDisplayPath": "geoshape/13/1951-12-31.parents.geojson",
+              "path": "geoshape/13/1951-12-31.geojson"
+            },
+            "1952-12-31": {
+              "featureCount": 109,
+              "parentDisplayFeatureCount": 109,
+              "parentDisplayPath": "geoshape/13/1952-12-31.parents.geojson",
+              "path": "geoshape/13/1952-12-31.geojson"
+            },
+            "1953-12-31": {
+              "featureCount": 109,
+              "parentDisplayFeatureCount": 109,
+              "parentDisplayPath": "geoshape/13/1953-12-31.parents.geojson",
+              "path": "geoshape/13/1953-12-31.geojson"
+            },
+            "1954-12-31": {
+              "featureCount": 102,
+              "parentDisplayFeatureCount": 102,
+              "parentDisplayPath": "geoshape/13/1954-12-31.parents.geojson",
+              "path": "geoshape/13/1954-12-31.geojson"
+            },
+            "1955-12-31": {
+              "featureCount": 76,
+              "parentDisplayFeatureCount": 76,
+              "parentDisplayPath": "geoshape/13/1955-12-31.parents.geojson",
+              "path": "geoshape/13/1955-12-31.geojson"
+            },
+            "1956-12-31": {
+              "featureCount": 74,
+              "parentDisplayFeatureCount": 74,
+              "parentDisplayPath": "geoshape/13/1956-12-31.parents.geojson",
+              "path": "geoshape/13/1956-12-31.geojson"
+            },
+            "1957-12-31": {
+              "featureCount": 74,
+              "parentDisplayFeatureCount": 74,
+              "parentDisplayPath": "geoshape/13/1957-12-31.parents.geojson",
+              "path": "geoshape/13/1957-12-31.geojson"
+            },
+            "1958-12-31": {
+              "featureCount": 70,
+              "parentDisplayFeatureCount": 70,
+              "parentDisplayPath": "geoshape/13/1958-12-31.parents.geojson",
+              "path": "geoshape/13/1958-12-31.geojson"
+            },
+            "1959-12-31": {
+              "featureCount": 69,
+              "parentDisplayFeatureCount": 69,
+              "parentDisplayPath": "geoshape/13/1959-12-31.parents.geojson",
+              "path": "geoshape/13/1959-12-31.geojson"
+            },
+            "1960-12-31": {
+              "featureCount": 69,
+              "parentDisplayFeatureCount": 69,
+              "parentDisplayPath": "geoshape/13/1960-12-31.parents.geojson",
+              "path": "geoshape/13/1960-12-31.geojson"
+            },
+            "1961-12-31": {
+              "featureCount": 69,
+              "parentDisplayFeatureCount": 69,
+              "parentDisplayPath": "geoshape/13/1961-12-31.parents.geojson",
+              "path": "geoshape/13/1961-12-31.geojson"
+            },
+            "1962-12-31": {
+              "featureCount": 69,
+              "parentDisplayFeatureCount": 69,
+              "parentDisplayPath": "geoshape/13/1962-12-31.parents.geojson",
+              "path": "geoshape/13/1962-12-31.geojson"
+            },
+            "1963-12-31": {
+              "featureCount": 68,
+              "parentDisplayFeatureCount": 68,
+              "parentDisplayPath": "geoshape/13/1963-12-31.parents.geojson",
+              "path": "geoshape/13/1963-12-31.geojson"
+            },
+            "1964-12-31": {
+              "featureCount": 67,
+              "parentDisplayFeatureCount": 67,
+              "parentDisplayPath": "geoshape/13/1964-12-31.parents.geojson",
+              "path": "geoshape/13/1964-12-31.geojson"
+            },
+            "1965-12-31": {
+              "featureCount": 67,
+              "parentDisplayFeatureCount": 67,
+              "parentDisplayPath": "geoshape/13/1965-12-31.parents.geojson",
+              "path": "geoshape/13/1965-12-31.geojson"
+            },
+            "1966-12-31": {
+              "featureCount": 67,
+              "parentDisplayFeatureCount": 67,
+              "parentDisplayPath": "geoshape/13/1966-12-31.parents.geojson",
+              "path": "geoshape/13/1966-12-31.geojson"
+            },
+            "1967-12-31": {
+              "featureCount": 67,
+              "parentDisplayFeatureCount": 67,
+              "parentDisplayPath": "geoshape/13/1967-12-31.parents.geojson",
+              "path": "geoshape/13/1967-12-31.geojson"
+            },
+            "1968-12-31": {
+              "featureCount": 66,
+              "parentDisplayFeatureCount": 66,
+              "parentDisplayPath": "geoshape/13/1968-12-31.parents.geojson",
+              "path": "geoshape/13/1968-12-31.geojson"
+            },
+            "1970-10-01": {
+              "featureCount": 64,
+              "parentDisplayFeatureCount": 64,
+              "parentDisplayPath": "geoshape/13/1970-10-01.parents.geojson",
+              "path": "geoshape/13/1970-10-01.geojson"
+            },
+            "1975-10-01": {
+              "featureCount": 64,
+              "parentDisplayFeatureCount": 64,
+              "parentDisplayPath": "geoshape/13/1975-10-01.parents.geojson",
+              "path": "geoshape/13/1975-10-01.geojson"
+            },
+            "1980-10-01": {
+              "featureCount": 64,
+              "parentDisplayFeatureCount": 64,
+              "parentDisplayPath": "geoshape/13/1980-10-01.parents.geojson",
+              "path": "geoshape/13/1980-10-01.geojson"
+            },
+            "1985-10-01": {
+              "featureCount": 64,
+              "parentDisplayFeatureCount": 64,
+              "parentDisplayPath": "geoshape/13/1985-10-01.parents.geojson",
+              "path": "geoshape/13/1985-10-01.geojson"
+            },
+            "1995-10-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/1995-10-01.parents.geojson",
+              "path": "geoshape/13/1995-10-01.geojson"
+            },
+            "2000-10-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2000-10-01.parents.geojson",
+              "path": "geoshape/13/2000-10-01.geojson"
+            },
+            "2005-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2005-01-01.parents.geojson",
+              "path": "geoshape/13/2005-01-01.geojson"
+            },
+            "2006-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2006-01-01.parents.geojson",
+              "path": "geoshape/13/2006-01-01.geojson"
+            },
+            "2007-10-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2007-10-01.parents.geojson",
+              "path": "geoshape/13/2007-10-01.geojson"
+            },
+            "2009-03-20": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2009-03-20.parents.geojson",
+              "path": "geoshape/13/2009-03-20.geojson"
+            },
+            "2010-10-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2010-10-01.parents.geojson",
+              "path": "geoshape/13/2010-10-01.geojson"
+            },
+            "2011-03-31": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2011-03-31.parents.geojson",
+              "path": "geoshape/13/2011-03-31.geojson"
+            },
+            "2012-04-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2012-04-01.parents.geojson",
+              "path": "geoshape/13/2012-04-01.geojson"
+            },
+            "2013-04-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2013-04-01.parents.geojson",
+              "path": "geoshape/13/2013-04-01.geojson"
+            },
+            "2014-04-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2014-04-01.parents.geojson",
+              "path": "geoshape/13/2014-04-01.geojson"
+            },
+            "2015-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2015-01-01.parents.geojson",
+              "path": "geoshape/13/2015-01-01.geojson"
+            },
+            "2016-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2016-01-01.parents.geojson",
+              "path": "geoshape/13/2016-01-01.geojson"
+            },
+            "2017-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2017-01-01.parents.geojson",
+              "path": "geoshape/13/2017-01-01.geojson"
+            },
+            "2018-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2018-01-01.parents.geojson",
+              "path": "geoshape/13/2018-01-01.geojson"
+            },
+            "2019-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2019-01-01.parents.geojson",
+              "path": "geoshape/13/2019-01-01.geojson"
+            },
+            "2020-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2020-01-01.parents.geojson",
+              "path": "geoshape/13/2020-01-01.geojson"
+            },
+            "2021-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2021-01-01.parents.geojson",
+              "path": "geoshape/13/2021-01-01.geojson"
+            },
+            "2022-01-01": {
+              "featureCount": 63,
+              "parentDisplayFeatureCount": 63,
+              "parentDisplayPath": "geoshape/13/2022-01-01.parents.geojson",
+              "path": "geoshape/13/2022-01-01.geojson"
+            },
+            "2023-01-01": {
+              "featureCount": 66,
+              "parentDisplayFeatureCount": 66,
+              "parentDisplayPath": "geoshape/13/2023-01-01.parents.geojson",
+              "path": "geoshape/13/2023-01-01.geojson"
+            }
+          }
         }
       },
       "sourceUrl": "https://geoshape.ex.nii.ac.jp/city/"

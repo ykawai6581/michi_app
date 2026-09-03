@@ -4,34 +4,6 @@
   },
   "roads": [
     {
-      "id": "jp-national-20",
-      "displayName": "国道20号",
-      "roadClass": "national",
-      "routeNumber": "20",
-      "jurisdiction": "JP",
-      "aliases": [
-        "国道20",
-        "20号"
-      ],
-      "n13": {
-        "classifications": [
-          "1"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "entityType": "statutory-road",
-      "reference": {
-        "type": "osm-ref",
-        "ref": "20",
-        "network": "JP:national"
-      }
-    },
-    {
       "id": "jp-national-246",
       "displayName": "国道246号",
       "roadClass": "national",
@@ -58,37 +30,6 @@
         "type": "osm-ref",
         "ref": "246",
         "network": "JP:national"
-      }
-    },
-    {
-      "id": "tokyo-prefectural-318",
-      "displayName": "東京都道318号環状七号線",
-      "roadClass": "prefectural",
-      "routeNumber": "318",
-      "jurisdiction": "Tokyo",
-      "aliases": [
-        "都道318号",
-        "東京都道318号",
-        "環状七号線",
-        "環七通り",
-        "環七",
-        "環7"
-      ],
-      "n13": {
-        "classifications": [
-          "2"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "entityType": "statutory-road",
-      "reference": {
-        "type": "osm-ref",
-        "ref": "318"
       }
     },
     {
@@ -186,7 +127,32 @@
         "maximumMedianResidualMeters": 20,
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
-      }
+      },
+      "manualSelection": {
+        "include": [
+          "n13-c7695490e33ebe0bb10189ff:0",
+          "n13-7b3940c4a1175e1682af09d0:0",
+          "n13-a6f2f6e23cf9acce7465c030:0",
+          "n13-30d9a9e3088cf35a7d482cec:0",
+          "n13-ec597cf4556295e7e8ee63db:0",
+          "n13-40579a0091bf47798ef0e71e:0",
+          "n13-e1adbb688fccadf29ab44b49:0",
+          "n13-b0981715fa5724e9cb2bb92d:0",
+          "n13-fb469fb8c7f1598cc26d9c5b:0",
+          "n13-40c572b77cb8552c42436c2e:0",
+          "n13-3bfa09f0f0aa02ee43aef5b1:0",
+          "n13-b395629341261770c8e81e41:0",
+          "n13-f8c23870c2a4e2084068fe1a:0",
+          "n13-1cf7ae597d72089d27c9785b:0",
+          "n13-ade4b4d5052d4287ae494fd3:0",
+          "n13-b415a7852bd962bc3c2c2b4e:0",
+          "n13-2a4a4ba043e46913d31f9a24:0",
+          "n13-9ed91a40ae8dd07688124faa:0",
+          "n13-ffc233cd66ef47bba69d45af:0"
+        ],
+        "exclude": []
+      },
+      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
     },
     {
       "id": "tokyo-prefectural-317",
@@ -442,6 +408,249 @@
           "1",
           "2",
           "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "jp-national-20",
+      "displayName": "甲州街道",
+      "entityType": "statutory-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-ref",
+        "ref": "20",
+        "network": "JP:national",
+        "excludeNames": [
+          "八王子南バイパス"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "roadClass": "national"
+    },
+    {
+      "id": "tokyo-named-gaien-higashi-dori",
+      "displayName": "外苑東通り",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "外苑東通り"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "jp-prefectural-1",
+      "displayName": "東海道",
+      "entityType": "statutory-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-ref",
+        "ref": "1",
+        "network": "JP:national",
+        "excludeNames": []
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "roadClass": "national"
+    },
+    {
+      "id": "tokyo-named-ome-kaido",
+      "displayName": "青梅街道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "青梅街道"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      }
+    },
+    {
+      "id": "tokyo-named-aratama-suido-doro",
+      "displayName": "荒玉水道道路",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "荒玉水道道路"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "roadClass": "prefectural"
+    },
+    {
+      "id": "tokyo-named-ome-do",
+      "displayName": "青梅道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "新宿通り"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "5",
+          "4"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "manualSelection": {
+        "include": [
+          "n13-588682d26b2d05887474eff1:0",
+          "n13-f6d267d7f34e46762fafe10f:0",
+          "n13-bf09a0470e862c76d23c89c5:0",
+          "n13-5f4ba5a24b4061bb210713c7:0"
+        ],
+        "exclude": [
+          "n13-857b8be6b3dd0fc6b7e87f3b:0",
+          "n13-45d89a72c22ec83fb25e9206:0",
+          "n13-cc6e5bef88811b30e7eb81c0:0",
+          "n13-d0a40cd4baef0387f67cbed7:0",
+          "n13-3931b4e5dcaeeb50a33e323e:0",
+          "n13-0b3000a090bd07ce4ae90deb:0",
+          "n13-13c07916216f8cf6549f6911:0",
+          "n13-015d1ba83e2382160387d2e7:0",
+          "n13-55b0913bd82792d429fb40f9:0",
+          "n13-79c40bc6bf2f945a989b5c6a:0",
+          "n13-c157a2e533212314c367fab7:0",
+          "n13-d285c70a54f05f7d47c413a5:0"
+        ]
+      },
+      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
+    },
+    {
+      "id": "tokyo-named-kannana-dori",
+      "displayName": "環七通り",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "環七通り"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "4",
           "5"
         ]
       },

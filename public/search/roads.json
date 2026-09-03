@@ -1,19 +1,5 @@
 [
   {
-    "id": "jp-national-20",
-    "name": "国道20号",
-    "aliases": [
-      "国道20",
-      "20号"
-    ],
-    "type": "road",
-    "entityType": "statutory-road",
-    "sources": {
-      "n13": "data/roads/jp-national-20-n13.geojson",
-      "osm": "data/roads/jp-national-20-osm.geojson"
-    }
-  },
-  {
     "id": "jp-national-246",
     "name": "国道246号",
     "aliases": [
@@ -26,24 +12,6 @@
     "sources": {
       "n13": "data/roads/jp-national-246-n13.geojson",
       "osm": "data/roads/jp-national-246-osm.geojson"
-    }
-  },
-  {
-    "id": "tokyo-prefectural-318",
-    "name": "東京都道318号環状七号線",
-    "aliases": [
-      "都道318号",
-      "東京都道318号",
-      "環状七号線",
-      "環七通り",
-      "環七",
-      "環7"
-    ],
-    "type": "road",
-    "entityType": "statutory-road",
-    "sources": {
-      "n13": "data/roads/tokyo-prefectural-318-n13.geojson",
-      "osm": "data/roads/tokyo-prefectural-318-osm.geojson"
     }
   },
   {
@@ -62,6 +30,20 @@
     "sources": {
       "n13": "data/roads/tokyo-prefectural-311-n13.geojson",
       "osm": "data/roads/tokyo-prefectural-311-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-inokashira-dori",
+    "name": "井の頭通り",
+    "aliases": [
+      "井ノ頭通り",
+      "井の頭通り"
+    ],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-inokashira-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-inokashira-dori-osm.geojson"
     }
   },
   {
@@ -157,6 +139,83 @@
     "sources": {
       "n13": "data/roads/tokyo-named-hitomi-kaido-n13.geojson",
       "osm": "data/roads/tokyo-named-hitomi-kaido-osm.geojson"
+    }
+  },
+  {
+    "id": "jp-national-20",
+    "name": "甲州街道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "statutory-road",
+    "sources": {
+      "n13": "data/roads/jp-national-20-n13.geojson",
+      "osm": "data/roads/jp-national-20-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-kannnana-dori",
+    "name": "環七通り",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-kannnana-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-kannnana-dori-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-gaien-higashi-dori",
+    "name": "外苑東通り",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-gaien-higashi-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-gaien-higashi-dori-osm.geojson"
+    }
+  },
+  {
+    "id": "jp-prefectural-1",
+    "name": "東海道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "statutory-road",
+    "sources": {
+      "n13": "data/roads/jp-prefectural-1-n13.geojson",
+      "osm": "data/roads/jp-prefectural-1-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-ome-kaido",
+    "name": "青梅街道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-ome-kaido-n13.geojson",
+      "osm": "data/roads/tokyo-named-ome-kaido-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-aratama-suido-doro",
+    "name": "荒玉水道道路",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-aratama-suido-doro-n13.geojson",
+      "osm": "data/roads/tokyo-named-aratama-suido-doro-osm.geojson"
+    }
+  },
+  {
+    "id": "tokyo-named-ome-do",
+    "name": "青梅道",
+    "aliases": [],
+    "type": "road",
+    "entityType": "named-road",
+    "sources": {
+      "n13": "data/roads/tokyo-named-ome-do-n13.geojson",
+      "osm": "data/roads/tokyo-named-ome-do-osm.geojson"
     }
   }
 ]
