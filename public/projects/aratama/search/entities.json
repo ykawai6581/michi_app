@@ -1,0 +1,35 @@
+[
+  {
+    "id": "tokyo-named-kannana-dori",
+    "entityType": "modern-road",
+    "displayName": "環七通り",
+    "aliases": [],
+    "searchTerms": [
+      "環七通り"
+    ],
+    "source": "canonical-road",
+    "geometryHint": "MultiLineString"
+  },
+  {
+    "id": "tokyo-named-aratama-suido-doro",
+    "entityType": "modern-road",
+    "displayName": "荒玉水道道路",
+    "aliases": [],
+    "searchTerms": [
+      "荒玉水道道路"
+    ],
+    "source": "canonical-road",
+    "geometryHint": "MultiLineString"
+  },
+  {
+    "id": "jp-national-20",
+    "entityType": "modern-road",
+    "displayName": "甲州街道",
+    "aliases": [],
+    "searchTerms": [
+      "甲州街道"
+    ],
+    "source": "canonical-road",
+    "geometryHint": "MultiLineString"
+  }
+]

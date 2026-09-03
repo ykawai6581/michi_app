@@ -1,0 +1,18 @@
+{
+  "id": "aratama",
+  "displayName": "荒玉水道道路",
+  "bounds": {
+    "mode": "auto",
+    "from": "modernRoads",
+    "paddingKm": 3
+  },
+  "layers": {
+    "modernRoads": [
+      "tokyo-named-kannana-dori",
+      "tokyo-named-aratama-suido-doro",
+      "jp-national-20"
+    ],
+    "historicalRoads": [],
+    "historicalPosts": []
+  }
+}

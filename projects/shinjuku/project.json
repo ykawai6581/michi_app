@@ -8,7 +8,8 @@
   },
   "layers": {
     "modernRoads": [
-      "tokyo-named-ome-do"
+      "tokyo-named-ome-do",
+      "jp-national-20"
     ],
     "historicalRoads": [],
     "historicalPosts": []

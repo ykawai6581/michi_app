@@ -1,0 +1,47 @@
+{
+  "projectId": "aratama",
+  "builtAt": "2026-09-03T13:25:02.440582+00:00",
+  "bounds": [
+    138.9629140721503,
+    35.540580877981824,
+    139.9176707857457,
+    35.80718054314829
+  ],
+  "boundsSource": {
+    "mode": "auto",
+    "from": "modernRoads",
+    "paddingKm": 3,
+    "roadIds": [
+      "tokyo-named-kannana-dori",
+      "tokyo-named-aratama-suido-doro",
+      "jp-national-20"
+    ]
+  },
+  "railwaySelection": null,
+  "sourceLayerFamilies": [
+    "modernRoads",
+    "historicalRoads",
+    "historicalPosts"
+  ],
+  "featureCounts": {
+    "modernRoads": 3,
+    "railwayTracks": 0,
+    "railwayRoutes": 0,
+    "stations": 0,
+    "historicalRoadFeatures": 0,
+    "historicalPosts": 0
+  },
+  "inputs": {
+    "historicalRoads": "data/cache/codh/edo-roads/roads.parquet",
+    "historicalPosts": "data/cache/codh/edo-posts/posts.parquet"
+  },
+  "outputs": {
+    "modernRoads": "data/modern-roads.geojson",
+    "railways": "data/railways.geojson",
+    "railwayRoutes": "data/railway-routes.geojson",
+    "stations": "data/stations.geojson",
+    "historicalRoads": "data/historical-roads.geojson",
+    "historicalPosts": "data/historical-posts.geojson",
+    "search": "search/entities.json"
+  }
+}
