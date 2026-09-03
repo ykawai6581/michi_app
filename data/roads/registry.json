@@ -573,62 +573,6 @@
       "roadClass": "prefectural"
     },
     {
-      "id": "tokyo-named-ome-do",
-      "displayName": "青梅道",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "新宿通り"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3",
-          "5",
-          "4"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "manualSelection": {
-        "include": [
-          "n13-588682d26b2d05887474eff1:0",
-          "n13-f6d267d7f34e46762fafe10f:0",
-          "n13-bf09a0470e862c76d23c89c5:0",
-          "n13-5f4ba5a24b4061bb210713c7:0"
-        ],
-        "exclude": [
-          "n13-857b8be6b3dd0fc6b7e87f3b:0",
-          "n13-45d89a72c22ec83fb25e9206:0",
-          "n13-cc6e5bef88811b30e7eb81c0:0",
-          "n13-d0a40cd4baef0387f67cbed7:0",
-          "n13-3931b4e5dcaeeb50a33e323e:0",
-          "n13-0b3000a090bd07ce4ae90deb:0",
-          "n13-13c07916216f8cf6549f6911:0",
-          "n13-015d1ba83e2382160387d2e7:0",
-          "n13-55b0913bd82792d429fb40f9:0",
-          "n13-79c40bc6bf2f945a989b5c6a:0",
-          "n13-c157a2e533212314c367fab7:0",
-          "n13-d285c70a54f05f7d47c413a5:0"
-        ]
-      },
-      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
-    },
-    {
       "id": "tokyo-named-kannana-dori",
       "displayName": "環七通り",
       "entityType": "named-road",

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { EntityFeature, MapEntityType } from '../types/geo'
+import { DEFAULT_HIGHLIGHT_STYLE } from '../map/highlightDefaults'
 import { ActiveFeatureOverlay } from './ActiveFeatureOverlay'
 import { formatEntityTypeLabel } from './entityTypeLabel'
 
@@ -10,13 +11,19 @@ const feature = (type: MapEntityType, name = '対象'): EntityFeature => ({
 })
 
 describe('ActiveFeatureOverlay', () => {
-  it('renders nothing without an active feature', () => {
-    expect(renderToStaticMarkup(<ActiveFeatureOverlay feature={null} />)).toBe('')
+  it('renders the road caption with the shared road label color and halo', () => {
+    const markup = renderToStaticMarkup(<ActiveFeatureOverlay feature={feature('road', '青梅道')} highlightStyle={DEFAULT_HIGHLIGHT_STYLE} />)
+    expect(markup).toContain('青梅道')
+    expect(markup).toContain('（現代道路）')
+    expect(markup).toContain('--feature-label-color:#FF7B00')
+    expect(markup).toContain('--road-label-halo-color:#FFFFFF')
+    expect(markup).toContain('--road-label-halo-width:3px')
   })
-  it('renders the feature name and Japanese type in parentheses', () => {
-    const markup = renderToStaticMarkup(<ActiveFeatureOverlay feature={feature('historical-place', '新中野')} />)
-    expect(markup).toContain('新中野')
-    expect(markup).toContain('（宿場）')
+  it.each(['jurisdiction', 'place', 'historical-place', 'station', 'railway'] as const)('does not render a large caption for %s', (type) => {
+    expect(renderToStaticMarkup(<ActiveFeatureOverlay feature={feature(type)} highlightStyle={DEFAULT_HIGHLIGHT_STYLE} />)).toBe('')
+  })
+  it('renders a historical road caption', () => {
+    expect(renderToStaticMarkup(<ActiveFeatureOverlay feature={feature('historical-road')} highlightStyle={DEFAULT_HIGHLIGHT_STYLE} />)).toContain('（江戸街道）')
   })
   it.each([
     ['road', '現代道路'], ['historical-road', '江戸街道'], ['railway', '鉄道'],
