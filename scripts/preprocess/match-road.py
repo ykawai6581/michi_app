@@ -59,6 +59,7 @@ DEFAULT_NETWORK_SELECTION = {
     # threshold.  It is considered only when it directly joins two established
     # runs on this same OSM part and independently passes the OSM checks below.
     "shortStraightThroughMaximumGapSamples": 2,
+    "shortStraightThroughTwoAtomMaximumGapSamples": 4,
     # Separate OSM parts may be the two sides of a divided road.  A sustained
     # cross-class match across nearby, parallel parts is competition for the
     # same route interval, not evidence for another carriageway.
@@ -1019,14 +1020,16 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
     # candidate's monotonic, locally aligned projection onto this OSM interval.
     rescued = []
     rescued_edges = set()
+    rescued_two_atom_chains = 0
     excluded_atom_ids = set(map(str, settings.get("excludedAtomIds", [])))
     maximum_rescue_gap = int(settings["shortStraightThroughMaximumGapSamples"])
+    maximum_two_atom_gap = int(settings["shortStraightThroughTwoAtomMaximumGapSamples"])
     for part_index, (offsets, samples) in enumerate(samples_by_part):
         runs = _ownership_runs(owners[part_index])
         part = parts[part_index]
         for left, right in zip(runs, runs[1:]):
             gap_samples = right["start"] - left["end"]
-            if gap_samples < 0 or gap_samples > maximum_rescue_gap:
+            if gap_samples < 0 or gap_samples > maximum_two_atom_gap:
                 continue
             left_edge, right_edge = left["edge"], right["edge"]
             if left_edge == right_edge or edge_classes[left_edge] != edge_classes[right_edge]:
@@ -1034,46 +1037,85 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
             interval_start = float(offsets[left["end"] - 1])
             interval_end = float(offsets[right["start"]])
             reference_interval = substring(part, interval_start, interval_end)
+            eligible = [edge for edge in range(len(geometries))
+                        if edge not in rescued_edges and edge not in (left_edge, right_edge)
+                        and edge_classes[edge] == edge_classes[left_edge]
+                        and str(source_atom_ids[edge]) not in excluded_atom_ids]
+
+            def endpoint_orientations(edge, neighbor_edge, at_start):
+                line = geometries[edge]
+                coordinates = list(line.coords)
+                options = []
+                if Point(coordinates[0]).distance(geometries[neighbor_edge]) <= tolerance:
+                    options.append(coordinates if at_start else list(reversed(coordinates)))
+                if Point(coordinates[-1]).distance(geometries[neighbor_edge]) <= tolerance:
+                    options.append(list(reversed(coordinates)) if at_start else coordinates)
+                return options
+
+            def follows_reference(coordinates, length):
+                if len(coordinates) < 2:
+                    return False
+                entry, exit_ = Point(coordinates[0]), Point(coordinates[-1])
+                projections = [float(part.project(Point(coordinate))) for coordinate in coordinates]
+                progress = projections[-1] - projections[0]
+                monotonic_steps = sum(second + 1e-9 >= first
+                                      for first, second in zip(projections, projections[1:]))
+                monotonicity = monotonic_steps / max(1, len(projections) - 1)
+                candidate_vector = np.asarray(exit_.coords[0]) - np.asarray(entry.coords[0])
+                reference_vector = (np.asarray(part.interpolate(interval_end).coords[0])
+                                    - np.asarray(part.interpolate(interval_start).coords[0]))
+                maximum_vertex_distance = max(
+                    Point(coordinate).distance(reference_interval) for coordinate in coordinates)
+                gap_length = max(interval, interval_end - interval_start)
+                return (progress > 0
+                        and projections[0] >= interval_start - interval
+                        and projections[-1] <= interval_end + interval
+                        and monotonicity >= float(settings["minimumChainageMonotonicity"])
+                        and _angle_difference(candidate_vector, reference_vector) <= maximum_angle
+                        and maximum_vertex_distance <= maximum_distance
+                        and length <= gap_length + 2 * interval)
+
             passing = []
-            for edge, line in enumerate(geometries):
-                if (edge in rescued_edges or edge in (left_edge, right_edge)
-                        or edge_classes[edge] != edge_classes[left_edge]
-                        or str(source_atom_ids[edge]) in excluded_atom_ids):
-                    continue
-                endpoints = [Point(line.coords[0]), Point(line.coords[-1])]
-                orientations = []
-                if endpoints[0].distance(geometries[left_edge]) <= tolerance and endpoints[1].distance(geometries[right_edge]) <= tolerance:
-                    orientations.append((endpoints[0], endpoints[1], list(line.coords)))
-                if endpoints[1].distance(geometries[left_edge]) <= tolerance and endpoints[0].distance(geometries[right_edge]) <= tolerance:
-                    orientations.append((endpoints[1], endpoints[0], list(reversed(line.coords))))
-                if not orientations:
-                    continue
-                for entry, exit_, coordinates in orientations:
-                    projections = [float(part.project(Point(coordinate))) for coordinate in coordinates]
-                    progress = projections[-1] - projections[0]
-                    monotonic_steps = sum(second + 1e-9 >= first for first, second in zip(projections, projections[1:]))
-                    monotonicity = monotonic_steps / max(1, len(projections) - 1)
-                    candidate_vector = np.asarray(exit_.coords[0]) - np.asarray(entry.coords[0])
-                    reference_vector = np.asarray(part.interpolate(interval_end).coords[0]) - np.asarray(part.interpolate(interval_start).coords[0])
-                    maximum_vertex_distance = max(Point(coordinate).distance(reference_interval) for coordinate in coordinates)
-                    gap_length = max(interval, interval_end - interval_start)
-                    if (progress <= 0
-                            or projections[0] < interval_start - interval
-                            or projections[-1] > interval_end + interval
-                            or monotonicity < float(settings["minimumChainageMonotonicity"])
-                            or _angle_difference(candidate_vector, reference_vector) > maximum_angle
-                            or maximum_vertex_distance > maximum_distance
-                            or line.length > gap_length + 2 * interval):
-                        continue
-                    passing.append(edge)
-                    break
+            if gap_samples <= maximum_rescue_gap:
+                for edge in eligible:
+                    left_options = endpoint_orientations(edge, left_edge, True)
+                    right_options = endpoint_orientations(edge, right_edge, False)
+                    orientations = [coordinates for coordinates in left_options
+                                    if any(coordinates == right for right in right_options)]
+                    if any(follows_reference(coordinates, geometries[edge].length)
+                           for coordinates in orientations):
+                        passing.append((edge,))
             passing = sorted(set(passing))
+            # Preserve the single-atom rule and try it first.  A pair is only
+            # considered when no unique single atom establishes the identity.
+            if len(passing) == 1:
+                chosen = passing[0]
+            else:
+                pair_candidates = []
+                if not passing:
+                    for first in eligible:
+                        for first_coordinates in endpoint_orientations(first, left_edge, True):
+                            first_exit = Point(first_coordinates[-1])
+                            for second in eligible:
+                                if second == first:
+                                    continue
+                                for second_coordinates in endpoint_orientations(second, right_edge, False):
+                                    if first_exit.distance(Point(second_coordinates[0])) > tolerance:
+                                        continue
+                                    combined = [*first_coordinates, *second_coordinates[1:]]
+                                    combined_length = geometries[first].length + geometries[second].length
+                                    if follows_reference(combined, combined_length):
+                                        pair_candidates.append((first, second))
+                pair_candidates = list(dict.fromkeys(pair_candidates))
+                chosen = pair_candidates[0] if len(pair_candidates) == 1 else None
+                if chosen:
+                    rescued_two_atom_chains += 1
             # Ambiguity is deliberately left unresolved; topology path length
             # is not an OSM identity discriminator.
-            if len(passing) == 1:
-                edge = passing[0]
-                rescued_edges.add(edge)
-                rescued.append((part_index, left, right, edge, interval_start, interval_end))
+            if chosen:
+                for edge in chosen:
+                    rescued_edges.add(edge)
+                    rescued.append((part_index, left, right, edge, interval_start, interval_end))
 
     if progress_callback:
         progress_callback(progress=88, phase="Connecting selected N13 segments")
@@ -1211,6 +1253,7 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "junctionExtensionsApplied": extensions, "backboneSelectedCount": len(accepted),
               "crossClassParallelRejectedSampleCount": cross_class_parallel_rejections,
               "shortStraightThroughRescueCount": len(rescued_edges),
+              "shortStraightThroughTwoAtomRescueCount": rescued_two_atom_chains,
               "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
               "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,

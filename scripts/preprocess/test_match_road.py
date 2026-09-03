@@ -227,6 +227,63 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertNotIn(1, set(accepted.sourceFeatureIndex))
         self.assertEqual(report["shortStraightThroughRescueCount"], 0)
 
+    def test_unique_two_atom_bridge_is_rescued_but_junction_stem_is_not(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+                 LineString([(48, 0), (56, 0)]), LineString([(56, 0), (100, 0)]),
+                 LineString([(48, 0), (48, 15)])]
+        accepted, diagnostics, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2, 3})
+        self.assertEqual(report["shortStraightThroughRescueCount"], 2)
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 1)
+        self.assertEqual(set(diagnostics.iloc[[1, 2]].ownershipRescue), {"short-straight-through"})
+        self.assertEqual(diagnostics.iloc[4].selectionStatus, "rejected-no-owned-run")
+
+    def test_two_atom_bridge_wins_over_two_junction_stems(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+                 LineString([(48, 0), (56, 0)]), LineString([(56, 0), (100, 0)]),
+                 LineString([(48, 0), (43, 12)]), LineString([(48, 0), (53, -12)])]
+        accepted, _, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2, 3})
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 1)
+
+    def test_two_atom_chain_that_bends_away_from_osm_is_rejected(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+             LineString([(48, 0), (52, 40), (56, 0)]), LineString([(56, 0), (100, 0)])],
+            LineString([(0, 0), (100, 0)]), ["1"] * 4, classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=20)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 0)
+
+    def test_ambiguous_two_atom_chains_remain_unresolved(self):
+        lines = [LineString([(0, 0), (40, 0)]),
+                 LineString([(40, 0), (48, 0)]), LineString([(48, 0), (56, 0)]),
+                 LineString([(40, 0), (48, 0)]), LineString([(48, 0), (56, 0)]),
+                 LineString([(56, 0), (100, 0)])]
+        accepted, _, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 5})
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 0)
+
+    def test_exclusion_of_either_atom_blocks_two_atom_rescue(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+                 LineString([(48, 0), (56, 0)]), LineString([(56, 0), (100, 0)])]
+        _, diagnostics, _ = select(lines, LineString([(0, 0), (100, 0)]), ["1"] * 4,
+                                    classPriority=["1"], minimumOwnedReferenceSamples=3)
+        accepted, _, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * 4, classPriority=["1"],
+            minimumOwnedReferenceSamples=3, excludedAtomIds=[diagnostics.iloc[1].n13AtomId])
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 0)
+
     def test_intermediate_connector_keeps_both_curated_endpoints_unchanged(self):
         lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
                  LineString([(55, 0), (100, 0)])]
