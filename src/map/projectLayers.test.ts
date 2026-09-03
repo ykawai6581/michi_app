@@ -3,6 +3,7 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 import { addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
 import { REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
+import { lineColorExpression } from './highlight'
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
@@ -16,7 +17,7 @@ describe('project map layer contract', () => {
     for(const polygonLayer of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine])expect(layers.indexOf(polygonLayer)).toBeLessThan(layers.indexOf(LAYER_IDS.historicalRoads))
     for(const roadLayer of [LAYER_IDS.historicalRoads,LAYER_IDS.modernRoads,LAYER_IDS.highlightLineGlow,LAYER_IDS.highlightLine,LAYER_IDS.highlightOsmLine])expect(layers.indexOf(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(layers.indexOf(roadLayer))
   })
-  it('uses region defaults for jurisdiction emphasis and filters road glow to the active road',()=>{
+  it('uses region defaults for jurisdiction emphasis and filters line glow to the active road or railway',()=>{
     const layers:Record<string,unknown>[]=[]
     const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
     const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
@@ -24,8 +25,10 @@ describe('project map layer contract', () => {
     for(const id of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine]){
       expect((layers.find(layer=>layer.id===id)?.paint as Record<string,unknown>)[id===LAYER_IDS.jurisdictionHighlightFill?'fill-color':'line-color']).toBe(REGION_HIGHLIGHT_COLOR)
     }
-    expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLineGlow)?.filter).toEqual(['any',['==',['geometry-type'],'Polygon'],['all',['==',['geometry-type'],'LineString'],['==',['get','activeRoadGlow'],true]]])
+    expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLineGlow)?.filter).toEqual(['any',['==',['geometry-type'],'Polygon'],['all',['==',['geometry-type'],'LineString'],['==',['get','activeLineGlow'],true]]])
     expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLine)?.filter).toEqual(['in',['geometry-type'],['literal',['LineString','Polygon']]])
+    expect((layers.find(layer=>layer.id===LAYER_IDS.highlightLine)?.paint as Record<string,unknown>)['line-color']).toEqual(['case',['==',['geometry-type'],'LineString'],lineColorExpression('#FF7B00'),'#C84646'])
+    expect((layers.find(layer=>layer.id===LAYER_IDS.highlightLineLabels)?.paint as Record<string,unknown>)['text-color']).toEqual(lineColorExpression('#FF7B00'))
   })
   it('defines independently toggleable rendering layers', () => {
     expect([LAYER_IDS.modernRoads,LAYER_IDS.railways,LAYER_IDS.stations,LAYER_IDS.historicalRoads,LAYER_IDS.historicalPosts]).toEqual(['modern-roads','railway-tracks','railway-stations','historical-roads','historical-posts'])

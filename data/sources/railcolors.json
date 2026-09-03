@@ -1,0 +1,15 @@
+{
+  "fallbackColor": "#6F7B80",
+  "matchPriority": ["railDisplayName", "name:ja", "name", "name:en", "ref"],
+  "railways": [
+    {"id":"jr-chuo-rapid","color":"#FF4500","aliases":["JR 中央線快速","JR中央線快速","中央線快速"]},
+    {"id":"jr-chuo-sobu-local","color":"#FFD700","aliases":["JR 中央・総武緩行線","JR中央・総武緩行線","中央・総武緩行線"]},
+    {"id":"jr-yamanote","color":"#9ACD32","aliases":["JR 山手線","JR山手線","山手線"]},
+    {"id":"keio-keio","color":"#E3379F","aliases":["京王 京王線","京王線"]},
+    {"id":"keio-inokashira","color":"#1A407B","aliases":["京王 井の頭線","京王井の頭線","井の頭線"]},
+    {"id":"odakyu-odawara","color":"#2683CE","aliases":["小田急 小田原線","小田急小田原線","小田原線"]},
+    {"id":"seibu-shinjuku","color":"#00A6BF","aliases":["西武 新宿線","西武新宿線","新宿線"]},
+    {"id":"toei-shinjuku","color":"#6CBB5A","aliases":["都営 新宿線","都営新宿線","都営地下鉄新宿線","新宿線"]},
+    {"id":"tokyu-toyoko","color":"#DA0042","aliases":["東急 東横線","東急東横線","東横線"]}
+  ]
+}
