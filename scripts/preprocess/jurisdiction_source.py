@@ -236,7 +236,10 @@ def normalize_features(
     *,
     prefecture: str,
     snapshot_date: str,
+    resolution: str = "low",
 ) -> dict[str, Any]:
+    if resolution not in {"low", "high"}:
+        raise ValueError(f"unsupported jurisdiction resolution: {resolution!r}")
     if (
         document.get("type") != "FeatureCollection"
         or not isinstance(document.get("features"), list)
@@ -286,6 +289,7 @@ def normalize_features(
                 "snapshotDate": snapshot_date,
                 "sourceProvider": "Geoshape",
                 "sourceDataset": DATASET,
+                "sourceResolution": resolution,
             }
         )
         properties["jurisdictionId"] = _identity(
@@ -414,6 +418,7 @@ def parent_city_display(
             "sourceResourceIds": source_ids,
             "sourceProvider": "Geoshape",
             "sourceDataset": DATASET,
+            "sourceResolution": members[0]["properties"]["sourceResolution"],
             "derived": True,
             "derivation": "dissolved-from-source-jurisdictions",
         }
@@ -439,6 +444,7 @@ def write_snapshot(
     prefecture: str,
     prefecture_name: str,
     snapshot_date: str,
+    resolution: str = "low",
     topology_object: str | None = None,
 ) -> dict[str, Any]:
     document = json.loads(source.read_text(encoding="utf-8"))
@@ -452,6 +458,7 @@ def write_snapshot(
         document,
         prefecture=prefecture,
         snapshot_date=snapshot_date,
+        resolution=resolution,
     )
     parent_collection = parent_city_display(
         collection,
@@ -459,10 +466,11 @@ def write_snapshot(
         snapshot_date=snapshot_date,
     )
 
-    relative = Path(PROVIDER) / prefecture / f"{snapshot_date}.geojson"
+    relative = Path(PROVIDER) / prefecture / resolution / f"{snapshot_date}.geojson"
     parent_relative = (
         Path(PROVIDER)
         / prefecture
+        / resolution
         / f"{snapshot_date}.parents.geojson"
     )
 
@@ -495,7 +503,7 @@ def write_snapshot(
         json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest_path.exists()
         else {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "providers": {
                 PROVIDER: {
                     "displayName": "Geoshape",
@@ -512,24 +520,39 @@ def write_snapshot(
         }
     )
 
+    manifest["schemaVersion"] = 2
     prefectures = manifest["providers"][PROVIDER]["prefectures"]
     entry = prefectures.setdefault(
         prefecture,
         {
             "displayName": prefecture_name,
-            "availableDates": [],
-            "snapshots": {},
+            "resolutions": {},
         },
     )
     entry["displayName"] = prefecture_name
-    entry["snapshots"][snapshot_date] = {
+    # Schema v1 entries are low-resolution metadata. Migrate them in place
+    # without rewriting their paths, so checked-in assets remain usable until
+    # each low snapshot is regenerated.
+    if "availableDates" in entry or "snapshots" in entry:
+        entry.setdefault("resolutions", {})["low"] = {
+            "displayName": "Low",
+            "availableDates": entry.pop("availableDates", []),
+            "snapshots": entry.pop("snapshots", {}),
+        }
+    resolution_entry = entry.setdefault("resolutions", {}).setdefault(
+        resolution,
+        {"displayName": resolution.title(), "availableDates": [], "snapshots": {}},
+    )
+    resolution_entry["displayName"] = resolution.title()
+    resolution_entry["snapshots"][snapshot_date] = {
         "path": str(relative).replace("\\", "/"),
         "featureCount": len(collection["features"]),
         "parentDisplayPath": str(parent_relative).replace("\\", "/"),
         "parentDisplayFeatureCount": len(parent_collection["features"]),
     }
-    entry["snapshots"] = dict(sorted(entry["snapshots"].items()))
-    entry["availableDates"] = list(entry["snapshots"])
+    resolution_entry["snapshots"] = dict(sorted(resolution_entry["snapshots"].items()))
+    resolution_entry["availableDates"] = list(resolution_entry["snapshots"])
+    entry["resolutions"] = dict(sorted(entry["resolutions"].items()))
 
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(
