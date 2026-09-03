@@ -3,6 +3,7 @@
 import importlib.util
 import io
 import json
+import math
 import tempfile
 import unittest
 import warnings
@@ -10,7 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
-from shapely.geometry import LineString, MultiLineString
+from shapely.geometry import LineString, MultiLineString, Point
 
 
 SPEC = importlib.util.spec_from_file_location("match_road", Path(__file__).with_name("match-road.py"))
@@ -34,6 +35,429 @@ def select(lines, reference, classes=None, **settings):
         "geometry": lines,
     }, crs=MATCH_ROAD.METRIC_CRS)
     return MATCH_ROAD.select_reference_network(frame, reference, settings, progress_callback)
+
+
+def ownership_fixture_diagnostics(lines, reference, classes, **settings):
+    """Describe raw sample ownership and source geometry for synthetic fixtures."""
+    accepted, source, report = select(lines, reference, classes, **settings)
+    ownership = source.attrs["ownershipSamples"]
+    parts = MATCH_ROAD._ordered_reference_parts(reference)
+    part_diagnostics = []
+    for part_index, part in enumerate(parts):
+        samples = ownership[ownership.referencePart == part_index].sort_values("referenceSample")
+        sample_rows = [{"sample": int(row.referenceSample),
+                        "offset": float(row.referenceDistanceMeters),
+                        "edge": None if row.sourceFeatureIndex != row.sourceFeatureIndex
+                        else int(row.sourceFeatureIndex)}
+                       for _, row in samples.iterrows()]
+        runs = []
+        for sample in sample_rows:
+            if not runs or runs[-1]["edge"] != sample["edge"]:
+                runs.append({"edge": sample["edge"], "start": sample["sample"],
+                             "end": sample["sample"] + 1,
+                             "startOffset": sample["offset"], "endOffset": sample["offset"],
+                             "class": None if sample["edge"] is None else str(classes[sample["edge"]])})
+            else:
+                runs[-1]["end"] = sample["sample"] + 1
+                runs[-1]["endOffset"] = sample["offset"]
+        part_diagnostics.append({"part": part_index, "coordinates": list(part.coords),
+                                 "endpoints": [part.coords[0], part.coords[-1]],
+                                 "sampleOffsets": [sample["offset"] for sample in sample_rows],
+                                 "samples": sample_rows, "runs": runs})
+    atoms = []
+    for edge, (line, road_class) in enumerate(zip(lines, classes)):
+        atoms.append({"edge": edge, "class": str(road_class), "coordinates": list(line.coords),
+                      "projections": [{"part": part_index,
+                          "start": float(part.project(Point(line.coords[0]))),
+                          "end": float(part.project(Point(line.coords[-1])))}
+                          for part_index, part in enumerate(parts)],
+                      "endpointDistances": {other: [
+                          [float(Point(endpoint).distance(Point(other_endpoint)))
+                           for other_endpoint in (lines[other].coords[0], lines[other].coords[-1])]
+                          for endpoint in (line.coords[0], line.coords[-1])]
+                          for other in range(len(lines)) if other != edge}})
+    return {"accepted": accepted, "source": source, "report": report,
+            "parts": part_diagnostics, "atoms": atoms}
+
+
+def reference_endpoint_roles(part, junction):
+    """Return junction/interior endpoints without assigning travel direction."""
+    endpoints = [Point(part.coords[0]), Point(part.coords[-1])]
+    junction_index = min(range(2), key=lambda index: endpoints[index].distance(junction))
+    return {"junction": endpoints[junction_index].coords[0],
+            "interior": endpoints[1 - junction_index].coords[0]}
+
+
+def transition_angle(first_roles, second_roles):
+    """Turn angle for first interior -> junction -> second interior."""
+    junction = first_roles["junction"]
+    incoming = (junction[0] - first_roles["interior"][0],
+                junction[1] - first_roles["interior"][1])
+    outgoing = (second_roles["interior"][0] - junction[0],
+                second_roles["interior"][1] - junction[1])
+    cosine = sum(a * b for a, b in zip(incoming, outgoing)) / (
+        math.hypot(*incoming) * math.hypot(*outgoing))
+    return math.degrees(math.acos(max(-1, min(1, cosine))))
+
+
+class OwnershipFixtureDiagnosticsTests(unittest.TestCase):
+    def same_source_fixture(self, detour=False):
+        source = (LineString([(0, 3), (40, 3), (47.5, 25), (55, 3), (100, 3)])
+                  if detour else LineString([(0, 3), (100, 3)]))
+        # The short, closer competitor wins four proposals, but its run is below
+        # the fixture's five-sample seed threshold and therefore remains a gap.
+        return ownership_fixture_diagnostics(
+            [LineString([(40, 0), (55, 0)]), source], LineString([(0, 0), (100, 0)]),
+            ["1", "1"], classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=5, maximumSampleDistanceMeters=4)
+
+    def assert_same_source_hole(self, diagnostic):
+        self.assertEqual(len(diagnostic["parts"]), 1)
+        self.assertEqual(diagnostic["parts"][0]["runs"], [
+            {"edge": 1, "start": 0, "end": 8, "startOffset": 0.,
+             "endOffset": 35., "class": "1"},
+            {"edge": None, "start": 8, "end": 12, "startOffset": 40.,
+             "endOffset": 55., "class": None},
+            {"edge": 1, "start": 12, "end": 21, "startOffset": 60.,
+             "endOffset": 100., "class": "1"},
+        ])
+
+    def test_fixture_same_source_hole_has_expected_ownership_runs(self):
+        diagnostic = self.same_source_fixture()
+        self.assert_same_source_hole(diagnostic)
+        self.assertEqual(diagnostic["atoms"][1]["projections"],
+                         [{"part": 0, "start": 0., "end": 100.}])
+
+    def test_fixture_same_source_detour_has_same_anchor_structure(self):
+        diagnostic = self.same_source_fixture(detour=True)
+        self.assert_same_source_hole(diagnostic)
+        accepted = diagnostic["accepted"]
+        self.assertTrue("ownershipRescue" not in accepted.columns
+                        or not (accepted.ownershipRescue == "same-source-hole").any())
+
+    def test_fixture_class_transition_has_expected_ownership_runs(self):
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(0, 0), (40, 0)]),
+             LineString([(40, 0), (50, 10), (55, 0), (100, 0)]),
+             LineString([(40, 0), (55, 0)])], LineString([(0, 0), (100, 0)]),
+            ["1", "2", "3"], classPriority=["1", "2", "3"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=5, maximumSampleDistanceMeters=4)
+        self.assertEqual(diagnostic["parts"][0]["runs"], [
+            {"edge": 0, "start": 0, "end": 9, "startOffset": 0.,
+             "endOffset": 40., "class": "1"},
+            {"edge": None, "start": 9, "end": 11, "startOffset": 45.,
+             "endOffset": 50., "class": None},
+            {"edge": 1, "start": 11, "end": 21, "startOffset": 55.,
+             "endOffset": 100., "class": "2"},
+        ])
+
+    @staticmethod
+    def fork_parts(reversed_parts=frozenset()):
+        coordinates = {"A": [(-60, 0), (0, 0)],
+                       "B": [(0, 0), (60, 20)],
+                       "C": [(0, 0), (60, -20)]}
+        return {name: LineString(list(reversed(value)) if name in reversed_parts else value)
+                for name, value in coordinates.items()}
+
+    def test_reference_split_endpoint_roles_are_orientation_invariant(self):
+        expected = {"A": {"junction": (0., 0.), "interior": (-60., 0.)},
+                    "B": {"junction": (0., 0.), "interior": (60., 20.)},
+                    "C": {"junction": (0., 0.), "interior": (60., -20.)}}
+        for reversed_parts in (frozenset(), {"A"}, {"B"}, {"C"}, {"A", "B", "C"}):
+            parts = self.fork_parts(reversed_parts)
+            roles = {name: reference_endpoint_roles(part, Point(0, 0))
+                     for name, part in parts.items()}
+            self.assertEqual(roles, expected)
+
+    def test_ordered_reference_parts_retains_geometric_fork_members(self):
+        parts = self.fork_parts()
+        ordered = MATCH_ROAD._ordered_reference_parts(
+            MultiLineString([parts["A"], parts["B"], parts["C"]]))
+        self.assertEqual([list(part.coords) for part in ordered], [
+            [(-60., 0.), (0., 0.)], [(0., 0.), (60., 20.)], [(0., 0.), (60., -20.)]])
+
+    def test_reference_split_transition_angles_identify_forward_branches(self):
+        roles = {name: reference_endpoint_roles(part, Point(0, 0))
+                 for name, part in self.fork_parts().items()}
+        angles = {pair: transition_angle(roles[pair[0]], roles[pair[1]])
+                  for pair in (("A", "B"), ("A", "C"), ("B", "C"), ("C", "B"))}
+        self.assertAlmostEqual(angles[("A", "B")], 18.434949, places=5)
+        self.assertAlmostEqual(angles[("A", "C")], 18.434949, places=5)
+        self.assertAlmostEqual(angles[("B", "C")], 143.130102, places=5)
+        self.assertAlmostEqual(angles[("C", "B")], 143.130102, places=5)
+
+    def test_reference_split_has_expected_pre_rescue_ownership_anchors(self):
+        parts = self.fork_parts()
+        reference = MultiLineString([parts["A"], parts["B"], parts["C"]])
+        lines = [LineString([(-60, 0), (-8, 0)]),
+                 LineString([(-8, 0), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(-8, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, reference, ["1"] * len(lines), classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        junction = Point(0, 0)
+        anchors = []
+        for part in diagnostic["parts"]:
+            geometry = LineString(part["coordinates"])
+            roles = reference_endpoint_roles(geometry, junction)
+            junction_sample = 0 if Point(part["endpoints"][0]).equals(junction) else len(part["samples"]) - 1
+            owned = [sample for sample in part["samples"] if sample["edge"] is not None]
+            nearest = min(owned, key=lambda sample: abs(sample["sample"] - junction_sample))
+            anchors.append({"junction": roles["junction"], "interior": roles["interior"],
+                            "edge": nearest["edge"],
+                            "unownedToJunction": abs(nearest["sample"] - junction_sample) - 1})
+        self.assertEqual(anchors, [
+            {"junction": (0., 0.), "interior": (-60., 0.), "edge": 0, "unownedToJunction": 0},
+            {"junction": (0., 0.), "interior": (60., 20.), "edge": 2, "unownedToJunction": 1},
+            {"junction": (0., 0.), "interior": (60., -20.), "edge": 4, "unownedToJunction": 1},
+        ])
+
+
+class SameSourceHoleRescueTests(unittest.TestCase):
+    def test_straight_hole_appends_exact_source_substring(self):
+        diagnostic = OwnershipFixtureDiagnosticsTests().same_source_fixture()
+        selected = diagnostic["accepted"]
+        rescued = selected[selected.ownershipRescue == "same-source-hole"]
+        self.assertEqual(len(rescued), 1)
+        expected = MATCH_ROAD.substring(LineString([(0, 3), (100, 3)]), 37.5, 57.5)
+        self.assertEqual(rescued.iloc[0].geometry.wkb, expected.wkb)
+        self.assertEqual(rescued.iloc[0].sourceStartDistanceMeters, 37.5)
+        self.assertEqual(rescued.iloc[0].sourceEndDistanceMeters, 57.5)
+        parent = diagnostic["source"].iloc[1]
+        for column in ("n13AtomId", "n13FeatureId", "sourceFeatureIndex", "sourceAtomIndex"):
+            self.assertEqual(rescued.iloc[0][column], parent[column])
+        same_atom = selected[selected.n13AtomId == parent.n13AtomId]
+        self.assertTrue(same_atom.geometry.union_all().equals(LineString([(0, 3), (100, 3)])))
+        self.assertEqual(diagnostic["report"]["sameSourceHoleRescueCount"], 1)
+
+    def test_detouring_hole_is_not_rescued(self):
+        diagnostic = OwnershipFixtureDiagnosticsTests().same_source_fixture(detour=True)
+        selected = diagnostic["accepted"]
+        self.assertTrue("ownershipRescue" not in selected.columns
+                        or not (selected.ownershipRescue == "same-source-hole").any())
+        self.assertGreater(Point(47.5, 25).distance(selected.geometry.union_all()), 1)
+        self.assertEqual(diagnostic["report"]["sameSourceHoleRescueCount"], 0)
+        self.assertEqual(diagnostic["source"].iloc[1].sameSourceHoleRejection,
+                         "same-source-hole-alignment-failed")
+
+    def test_reversed_source_rescues_same_physical_substring(self):
+        source = LineString([(100, 3), (0, 3)])
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(40, 0), (55, 0)]), source], LineString([(0, 0), (100, 0)]),
+            ["1", "1"], classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=5, maximumSampleDistanceMeters=4)
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "same-source-hole"].iloc[0]
+        self.assertTrue(rescued.geometry.equals(LineString([(57.5, 3), (37.5, 3)])))
+        self.assertEqual((rescued.sourceStartDistanceMeters, rescued.sourceEndDistanceMeters),
+                         (42.5, 62.5))
+
+    def test_gap_over_local_limit_remains_unresolved(self):
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(40, 0), (60, 0)]), LineString([(0, 3), (100, 3)])],
+            LineString([(0, 0), (100, 0)]), ["1", "1"], classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=6,
+            maximumSampleDistanceMeters=4, sameSourceHoleMaximumGapSamples=4)
+        selected = diagnostic["accepted"]
+        self.assertTrue("ownershipRescue" not in selected.columns
+                        or not (selected.ownershipRescue == "same-source-hole").any())
+        self.assertEqual(diagnostic["source"].iloc[1].sameSourceHoleRejection,
+                         "same-source-hole-gap-too-large")
+
+    def test_manual_exclude_removes_all_same_atom_rows_including_rescue(self):
+        diagnostic = OwnershipFixtureDiagnosticsTests().same_source_fixture()
+        atom_id = diagnostic["source"].iloc[1].n13AtomId
+        curated = MATCH_ROAD.curate_selection(
+            {"selected": diagnostic["accepted"], "selectionDiagnostics": diagnostic["source"],
+             "sourceAtoms": diagnostic["source"]},
+            {"include": [], "exclude": [atom_id]})
+        self.assertNotIn(atom_id, set(curated.n13AtomId))
+
+
+class ClassTransitionRescueTests(unittest.TestCase):
+    reference = LineString([(0, 0), (100, 0)])
+    left = LineString([(0, 0), (40, 0)])
+    right = LineString([(40, 0), (50, 10), (55, 0), (100, 0)])
+
+    def fixture(self, candidates, candidate_classes=None, **settings):
+        lines = [self.left, self.right, *candidates]
+        classes = ["1", "2", *(candidate_classes or ["3"] * len(candidates))]
+        return ownership_fixture_diagnostics(
+            lines, self.reference, classes, classPriority=["1", "2", "3"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=5,
+            maximumSampleDistanceMeters=4, **settings)
+
+    def test_diagnostic_fixture_rescues_exact_class_three_bridge(self):
+        candidate = LineString([(40, 0), (55, 0)])
+        diagnostic = self.fixture([candidate])
+        rescued = diagnostic["accepted"][diagnostic["accepted"].sourceFeatureIndex == 2]
+        self.assertEqual(set(diagnostic["accepted"].sourceFeatureIndex), {0, 1, 2})
+        self.assertEqual(rescued.iloc[0].geometry.wkb, candidate.wkb)
+        self.assertEqual(rescued.iloc[0].ownershipRescue, "short-straight-through")
+        self.assertTrue(rescued.iloc[0].ownershipClassTransition)
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 1)
+
+    def test_detouring_class_transition_candidate_is_not_rescued(self):
+        candidate = LineString([(40, 0), (47.5, 20), (55, 0)])
+        diagnostic = self.fixture([candidate])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertGreater(Point(47.5, 20).distance(diagnostic["accepted"].geometry.union_all()), 1)
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 0)
+
+    def test_excluded_class_transition_candidate_is_not_rescued(self):
+        baseline = self.fixture([LineString([(40, 0), (55, 0)])])
+        atom_id = baseline["source"].iloc[2].n13AtomId
+        diagnostic = self.fixture([LineString([(40, 0), (55, 0)])],
+                                  excludedAtomIds=[atom_id])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_different_class_stem_touching_only_left_is_not_rescued(self):
+        diagnostic = self.fixture([LineString([(40, 0), (40, 15)])])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_different_class_stem_touching_only_right_is_not_rescued(self):
+        diagnostic = self.fixture([LineString([(55, 0), (55, -15)])])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_two_equally_aligned_class_transition_bridges_are_ambiguous(self):
+        candidate = LineString([(40, 0), (55, 0)])
+        diagnostic = self.fixture([candidate, candidate], ["3", "1"])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertNotIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 0)
+
+    def test_unique_two_atom_class_transition_chain_is_rescued(self):
+        candidates = [LineString([(40, 0), (47.5, 0)]),
+                      LineString([(47.5, 0), (55, 0)])]
+        diagnostic = self.fixture(candidates, ["3", "1"])
+        self.assertTrue({2, 3}.issubset(set(diagnostic["accepted"].sourceFeatureIndex)))
+        self.assertEqual(diagnostic["report"][
+            "shortStraightThroughClassTransitionRescueCount"], 1)
+
+    def test_excluding_one_atom_blocks_two_atom_class_transition_chain(self):
+        candidates = [LineString([(40, 0), (47.5, 0)]),
+                      LineString([(47.5, 0), (55, 0)])]
+        baseline = self.fixture(candidates, ["3", "1"])
+        atom_id = baseline["source"].iloc[2].n13AtomId
+        diagnostic = self.fixture(candidates, ["3", "1"], excludedAtomIds=[atom_id])
+        self.assertNotIn(2, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertNotIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
+
+
+class ReferencePartTransitionRescueTests(unittest.TestCase):
+    def fixture(self, reversed_parts=frozenset(), transition_lines=None, extra_lines=(), **settings):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts(reversed_parts)
+        reference = MultiLineString([parts["A"], parts["B"], parts["C"]])
+        transitions = transition_lines or [LineString([(-8, 0), (6, 2)]),
+                                           LineString([(-8, 0), (6, -2)])]
+        lines = [LineString([(-60, 0), (-8, 0)]), transitions[0],
+                 LineString([(6, 2), (60, 20)]), transitions[1],
+                 LineString([(6, -2), (60, -20)]), *extra_lines]
+        return ownership_fixture_diagnostics(
+            lines, reference, ["1"] * len(lines), classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4, **settings)
+
+    def test_canonical_fork_rescues_both_osm_supported_transitions_only(self):
+        diagnostic = self.fixture()
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+        self.assertEqual(set(rescued.sourceFeatureIndex), {1, 3})
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 2)
+        self.assertEqual(diagnostic["report"]["referencePartTransitionCandidatePairCount"], 2)
+        self.assertEqual(set(rescued.referenceTransitionPartPairs), {"[[0, 1]]", "[[0, 2]]"})
+
+    def test_production_rescue_is_reference_coordinate_direction_invariant(self):
+        for reversed_parts in (frozenset(), {"A"}, {"B"}, {"C"}, {"A", "B", "C"}):
+            diagnostic = self.fixture(reversed_parts)
+            rescued = diagnostic["accepted"][
+                diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+            self.assertEqual(set(rescued.sourceFeatureIndex), {1, 3})
+
+    def test_unrelated_n13_stem_has_no_osm_supported_transition(self):
+        stem = LineString([(-8, 0), (-8, 20)])
+        diagnostic = self.fixture(extra_lines=[stem])
+        self.assertNotIn(5, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 2)
+
+    def test_nearby_but_endpoint_unconnected_parts_are_not_rescued(self):
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(0, 0), (32, 0)]), LineString([(32, 0), (49, 0)]),
+             LineString([(49, 0), (100, 0)])],
+            MultiLineString([[(0, 0), (40, 0)], [(43, 0), (100, 0)]]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4, endpointSnapMeters=2)
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 0)
+
+    def test_topological_transition_detour_is_not_osm_identity(self):
+        diagnostic = self.fixture(transition_lines=[
+            LineString([(-8, 0), (0, 20), (6, 2)]), LineString([(-8, 0), (6, -2)])])
+        self.assertNotIn(1, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_unique_two_atom_transition_is_rescued(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        lines = [LineString([(-60, 0), (-8, 0)]), LineString([(-8, 0), (-1, 1)]),
+                 LineString([(-1, 1), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(-8, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, MultiLineString([parts["A"], parts["B"], parts["C"]]), ["1"] * 6,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+        ab_rescued = rescued[rescued.referenceTransitionPartPairs == "[[0, 1]]"]
+        self.assertEqual(set(ab_rescued.sourceFeatureIndex), {1, 2})
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 2)
+
+    def test_exclusion_blocks_two_atom_transition_chain(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        lines = [LineString([(-60, 0), (-8, 0)]), LineString([(-8, 0), (-1, 1)]),
+                 LineString([(-1, 1), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(-8, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        reference = MultiLineString([parts["A"], parts["B"], parts["C"]])
+        baseline = ownership_fixture_diagnostics(
+            lines, reference, ["1"] * 6, classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=3, maximumSampleDistanceMeters=4)
+        excluded = baseline["source"].iloc[1].n13AtomId
+        diagnostic = ownership_fixture_diagnostics(
+            lines, reference, ["1"] * 6, classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=3, maximumSampleDistanceMeters=4,
+            excludedAtomIds=[excluded])
+        self.assertFalse({1, 2}.intersection(set(diagnostic["accepted"].sourceFeatureIndex)))
+
+    def test_two_valid_chains_for_one_arm_pair_remain_ambiguous(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        bridge = LineString([(-8, 0), (6, 2)])
+        lines = [LineString([(-60, 0), (-8, 0)]), bridge, bridge,
+                 LineString([(6, 2), (60, 20)]), LineString([(-8, 0), (6, -2)]),
+                 LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, MultiLineString([parts["A"], parts["B"], parts["C"]]), ["1"] * 6,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        self.assertFalse({1, 2}.intersection(set(diagnostic["accepted"].sourceFeatureIndex)))
+        self.assertEqual(diagnostic["report"]["referencePartTransitionAmbiguousCount"], 1)
+
+    def test_shared_common_transition_atom_is_appended_once(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        lines = [LineString([(-60, 0), (-8, 0)]), LineString([(-8, 0), (0, 0)]),
+                 LineString([(0, 0), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(0, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, MultiLineString([parts["A"], parts["B"], parts["C"]]), ["1"] * 6,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+        self.assertEqual(set(rescued.sourceFeatureIndex), {1, 2, 4})
+        self.assertEqual(sum(rescued.sourceFeatureIndex == 1), 1)
+        common = rescued[rescued.sourceFeatureIndex == 1].iloc[0]
+        self.assertEqual(common.referenceTransitionPartPairs, "[[0, 1], [0, 2]]")
 
 
 class ReferenceOwnershipTests(unittest.TestCase):
@@ -62,6 +486,7 @@ class ReferenceOwnershipTests(unittest.TestCase):
         accepted, _, _ = select(lines, reference, classes, **settings)
         stage1 = gpd.GeoDataFrame({"N13_003": classes, "sourceFeatureIndex": range(len(lines)),
                                    "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
+        stage1 = MATCH_ROAD.source_atoms(stage1)
         return MATCH_ROAD.connect_adjacent_selected_runs(accepted, stage1, reference, settings)
 
     def test_straight_road_rejects_t_stem(self):
@@ -147,19 +572,141 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertLessEqual(report["crossClassParallelCandidatePairs"],
                              report["crossClassParallelSampleComparisons"])
 
-    def test_short_unowned_source_feature_is_recovered_as_connector(self):
+    def test_short_unowned_source_feature_is_rescued_during_ownership(self):
         lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
                  LineString([(55, 0), (100, 0)])]
         connected, report = self.connect(
             lines, LineString([(0, 0), (100, 0)]), ["1", "1", "1"],
             classPriority=["1"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
-        connectors = connected[connected.selectionStatus == "accepted-continuity-connector"]
-        self.assertEqual(set(connectors.sourceFeatureIndex), {1})
-        self.assertEqual(report["continuityConnectorCount"], 1)
-        self.assertEqual(report["ownershipGapCount"], 1)
-        self.assertEqual(report["connectorGraphSearchCount"], 1)
-        self.assertEqual(report["connectorCandidateEdgeCount"], 1)
+        rescued = connected[connected.selectionStatus == "accepted-short-straight-through"]
+        self.assertEqual(set(rescued.sourceFeatureIndex), {1})
+        self.assertEqual(report["continuityConnectorCount"], 0)
         self.assertAlmostEqual(connected.geometry.union_all().length, 100)
+
+    def test_short_bridge_with_opposite_side_stems_is_the_only_rescue(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (50, 0)]),
+                 LineString([(50, 0), (100, 0)]), LineString([(40, 0), (40, 15)]),
+                 LineString([(50, 0), (50, -15)])]
+        accepted, diagnostics, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2})
+        self.assertEqual(report["shortStraightThroughRescueCount"], 1)
+        self.assertEqual(diagnostics.iloc[1].ownershipRescue, "short-straight-through")
+        self.assertTrue(all(diagnostics.iloc[index].selectionStatus == "rejected-no-owned-run"
+                            for index in (3, 4)))
+
+    def test_one_sample_short_bridge_is_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (46, 0)]),
+             LineString([(46, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 1)
+
+    def test_two_sample_short_bridge_is_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (51, 0)]),
+             LineString([(51, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 1)
+
+    def test_ambiguous_direct_bridges_remain_unresolved(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (50, 0)]),
+             LineString([(40, 0), (50, 0)]), LineString([(50, 0), (100, 0)])],
+            LineString([(0, 0), (100, 0)]), ["1"] * 4,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_branch_touching_only_one_neighbor_is_not_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (40, 10)]),
+             LineString([(50, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_excluded_direct_bridge_is_never_rescued(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (50, 0)]),
+                 LineString([(50, 0), (100, 0)])]
+        baseline, diagnostics, _ = select(lines, LineString([(0, 0), (100, 0)]), ["1"] * 3,
+                                           classPriority=["1"])
+        atom_id = diagnostics.iloc[1].n13AtomId
+        accepted, _, report = select(lines, LineString([(0, 0), (100, 0)]), ["1"] * 3,
+                                     classPriority=["1"], excludedAtomIds=[atom_id])
+        self.assertIn(1, set(baseline.sourceFeatureIndex))
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_direct_topology_with_far_bend_is_not_rescued(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (45, 50), (50, 0)]),
+             LineString([(50, 0), (100, 0)])], LineString([(0, 0), (100, 0)]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=20)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughRescueCount"], 0)
+
+    def test_unique_two_atom_bridge_is_rescued_but_junction_stem_is_not(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+                 LineString([(48, 0), (56, 0)]), LineString([(56, 0), (100, 0)]),
+                 LineString([(48, 0), (48, 15)])]
+        accepted, diagnostics, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2, 3})
+        self.assertEqual(report["shortStraightThroughRescueCount"], 2)
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 1)
+        self.assertEqual(set(diagnostics.iloc[[1, 2]].ownershipRescue), {"short-straight-through"})
+        self.assertEqual(diagnostics.iloc[4].selectionStatus, "rejected-no-owned-run")
+
+    def test_two_atom_bridge_wins_over_two_junction_stems(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+                 LineString([(48, 0), (56, 0)]), LineString([(56, 0), (100, 0)]),
+                 LineString([(48, 0), (43, 12)]), LineString([(48, 0), (53, -12)])]
+        accepted, _, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 1, 2, 3})
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 1)
+
+    def test_two_atom_chain_that_bends_away_from_osm_is_rejected(self):
+        accepted, _, report = select(
+            [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+             LineString([(48, 0), (52, 40), (56, 0)]), LineString([(56, 0), (100, 0)])],
+            LineString([(0, 0), (100, 0)]), ["1"] * 4, classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=20)
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 0)
+
+    def test_ambiguous_two_atom_chains_remain_unresolved(self):
+        lines = [LineString([(0, 0), (40, 0)]),
+                 LineString([(40, 0), (48, 0)]), LineString([(48, 0), (56, 0)]),
+                 LineString([(40, 0), (48, 0)]), LineString([(48, 0), (56, 0)]),
+                 LineString([(56, 0), (100, 0)])]
+        accepted, _, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * len(lines),
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3)
+        self.assertEqual(set(accepted.sourceFeatureIndex), {0, 5})
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 0)
+
+    def test_exclusion_of_either_atom_blocks_two_atom_rescue(self):
+        lines = [LineString([(0, 0), (40, 0)]), LineString([(40, 0), (48, 0)]),
+                 LineString([(48, 0), (56, 0)]), LineString([(56, 0), (100, 0)])]
+        _, diagnostics, _ = select(lines, LineString([(0, 0), (100, 0)]), ["1"] * 4,
+                                    classPriority=["1"], minimumOwnedReferenceSamples=3)
+        accepted, _, report = select(
+            lines, LineString([(0, 0), (100, 0)]), ["1"] * 4, classPriority=["1"],
+            minimumOwnedReferenceSamples=3, excludedAtomIds=[diagnostics.iloc[1].n13AtomId])
+        self.assertNotIn(1, set(accepted.sourceFeatureIndex))
+        self.assertNotIn(2, set(accepted.sourceFeatureIndex))
+        self.assertEqual(report["shortStraightThroughTwoAtomRescueCount"], 0)
 
     def test_intermediate_connector_keeps_both_curated_endpoints_unchanged(self):
         lines = [LineString([(0, 0), (45, 0)]), LineString([(45, 0), (55, 0)]),
@@ -855,7 +1402,7 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         result = self.match_result(["a:0"])
         with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
                           side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
-            with self.assertRaisesRegex(RuntimeError, "discarded curated N13 atoms: b:0"):
+            with self.assertRaisesRegex(RuntimeError, "removed or changed curated N13 runs: b:0"):
                 MATCH_ROAD.connect_match_preview(result, {"include":["b:0"],"exclude":[]})
 
     def test_same_atom_multiple_substrings_are_geometrically_preserved_or_merged(self):
@@ -863,14 +1410,42 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         curated_union = connected["curatedSelected"].geometry.union_all()
         final_union = connected["selected"].geometry.union_all()
         self.assertLessEqual(curated_union.difference(final_union).length, 1e-6)
-        self.assertEqual(connected["connectDiagnostics"]["lostCuratedGeometryLengthMeters"], 0)
+        self.assertEqual(connected["connectDiagnostics"]["unionNumericalResidualLengthMeters"], 0)
 
     def test_geometry_invariant_detects_lost_same_atom_substring(self):
         result = self.same_atom_substring_result()
         with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs",
                           side_effect=lambda curated, *_args, **_kwargs: (curated.iloc[[0]].copy(), {})):
-            with self.assertRaisesRegex(RuntimeError, "removed 10.000000 m.*atoms: a:0"):
+            with self.assertRaisesRegex(RuntimeError, "removed or changed curated N13 runs: a:0"):
                 MATCH_ROAD.connect_match_preview(result)
+
+    def test_exact_row_invariant_detects_changed_substring_with_same_atom_id(self):
+        result = self.same_atom_substring_result()
+        def changed(curated, *_args, **_kwargs):
+            output = curated.copy()
+            output.at[output.index[1], "geometry"] = LineString([(20, 0), (29.999, 0)])
+            return output, {}
+        with patch.object(MATCH_ROAD, "connect_adjacent_selected_runs", side_effect=changed):
+            with self.assertRaisesRegex(RuntimeError, "removed or changed curated N13 runs: a:0"):
+                MATCH_ROAD.connect_match_preview(result)
+
+    def test_exact_rows_survive_nonzero_union_overlay_diagnostic(self):
+        result = self.same_atom_substring_result()
+        parent = LineString([(0, 0), (60, 0)])
+        rows = []
+        for index in range(40):
+            start = index * 1.25
+            row = result["selected"].iloc[0].copy()
+            row["geometry"] = MATCH_ROAD.substring(parent, start, start + 1)
+            row["sourceStartDistanceMeters"] = start
+            row["sourceEndDistanceMeters"] = start + 1
+            rows.append(row)
+        result["selected"] = gpd.GeoDataFrame(rows, crs=MATCH_ROAD.METRIC_CRS)
+        with patch.object(MATCH_ROAD, "_union_numerical_residual_length", return_value=.001):
+            connected = MATCH_ROAD.connect_match_preview(result)
+        self.assertEqual(len(connected["curatedSelected"]), 40)
+        self.assertEqual(len(connected["selected"]), 40)
+        self.assertEqual(connected["connectDiagnostics"]["unionNumericalResidualLengthMeters"], .001)
 
     def test_final_geometry_contains_auto_substrings_and_manual_full_atom(self):
         connected = MATCH_ROAD.connect_match_preview(
