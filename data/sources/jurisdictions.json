@@ -1,0 +1,15 @@
+{
+  "providers": {
+    "geoshape": {
+      "displayName": "Geoshape",
+      "dataset": "historical-administrative-areas-beta",
+      "datasetName": "Geoshape 歴史的行政区域データセットβ版",
+      "landingPage": "https://geoshape.ex.nii.ac.jp/city/",
+      "vectorPage": "https://geoshape.ex.nii.ac.jp/city/vector/",
+      "normalizedCrs": "EPSG:4326",
+      "prefectures": {
+        "13": { "displayName": "Tokyo", "historicalName": "東京府" }
+      }
+    }
+  }
+}

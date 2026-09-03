@@ -3,7 +3,7 @@ import { searchEntities } from '../search/search'
 import type { EntityFeature, MapEntityType, SceneItem } from '../types/geo'
 
 const typeNames: Record<string, string> = { road: '現代道路', 'historical-road': '歴史街道', place: '現代地名', 'historical-place': '宿場', station: '駅', chome: '町丁目' }
-const depth: Record<MapEntityType, number> = { chome: 0, water: 0, 'terrain-feature': 0, road: 1, 'historical-road': 1, railway: 1, river: 1, place: 2, 'historical-place': 2, station: 2, custom: 2 }
+const depth: Record<MapEntityType, number> = { chome: 0, water: 0, 'terrain-feature': 0, jurisdiction:0, road: 1, 'historical-road': 1, railway: 1, river: 1, place: 2, 'historical-place': 2, station: 2, custom: 2 }
 
 interface Props { entities: EntityFeature[]; loading: boolean; loadError: boolean; items: SceneItem[]; onToggle: (feature: EntityFeature) => void; onDelete: (id: string) => void; onClear: () => void }
 

@@ -1,0 +1,19 @@
+{
+  "providers": {
+    "geoshape": {
+      "caution": "Historical boundaries are beta source-derived reconstructions; historical sources may disagree.",
+      "dataset": "historical-administrative-areas-beta",
+      "datasetName": "Geoshape 歴史的行政区域データセットβ版",
+      "displayName": "Geoshape",
+      "prefectures": {
+        "13": {
+          "availableDates": [],
+          "displayName": "Tokyo",
+          "snapshots": {}
+        }
+      },
+      "sourceUrl": "https://geoshape.ex.nii.ac.jp/city/"
+    }
+  },
+  "schemaVersion": 1
+}

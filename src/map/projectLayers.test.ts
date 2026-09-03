@@ -12,13 +12,14 @@ describe('project map layer contract', () => {
   })
   it('updates visibility on layers that are already added', () => {
     const calls: unknown[][] = []; const map = { setLayoutProperty: (...args: unknown[]) => calls.push(args) }
-    setProjectLayerVisibility(map as never, { basemap:'presentation', darkBasemap:false, modernRoads:true, railways:false, stations:true, historicalRoads:false, historicalPosts:true })
+    setProjectLayerVisibility(map as never, { basemap:'presentation', darkBasemap:false, modernRoads:true, railways:false, stations:true, historicalRoads:false, historicalPosts:true, jurisdictions:false })
     expect(calls).toContainEqual(['railway-tracks','visibility','none'])
     expect(calls).toContainEqual(['railway-stations','visibility','visible'])
-    expect(calls).toHaveLength(5)
+    expect(calls).toContainEqual(['jurisdiction-fill','visibility','none'])
+    expect(calls).toHaveLength(8)
   })
   it('starts railways and stations hidden while historical posts remain visible',()=>{
-    expect(initialLayerVisibility()).toMatchObject({basemap:'presentation',darkBasemap:false,railways:false,stations:false,historicalPosts:true})
+    expect(initialLayerVisibility()).toMatchObject({basemap:'presentation',darkBasemap:false,railways:false,stations:false,historicalPosts:true,jurisdictions:false})
   })
   it('switches only namespaced basemap layers without replacing the map style',()=>{
     const calls:unknown[][]=[];const map={setLayoutProperty:(...args:unknown[])=>calls.push(args),setPaintProperty:(...args:unknown[])=>calls.push(args)}

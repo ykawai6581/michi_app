@@ -22,6 +22,10 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>',
   })
   map.addLayer({ id: LAYER_IDS.gsiBase, type: 'raster', source: SOURCE_IDS.gsiBase, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.72, 'raster-saturation': -0.75, 'raster-contrast': -0.12, 'raster-brightness-max': 0.96 } })
+  map.addSource(SOURCE_IDS.jurisdictions,{type:'geojson',data:empty})
+  map.addSource(SOURCE_IDS.jurisdictionHighlight,{type:'geojson',data:empty})
+  map.addLayer({id:LAYER_IDS.jurisdictionFill,type:'fill',source:SOURCE_IDS.jurisdictions,layout:{visibility:'none'},paint:{'fill-color':'#5d8d83','fill-opacity':0.2}})
+  map.addLayer({id:LAYER_IDS.jurisdictionOutline,type:'line',source:SOURCE_IDS.jurisdictions,layout:{visibility:'none'},paint:{'line-color':'#35675e','line-width':1.25,'line-opacity':0.85}})
   map.addSource(SOURCE_IDS.historicalRoads, { type: 'geojson', data: project.collections['historical-roads'] })
   map.addSource(SOURCE_IDS.railways, { type: 'geojson', data: project.collections.railways })
   map.addSource(SOURCE_IDS.modernRoads, { type: 'geojson', data: project.collections['modern-roads'] })
@@ -34,6 +38,7 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.modernRoads, type: 'line', source: SOURCE_IDS.modernRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#8b9498','line-width':5,'line-opacity':0.8 } })
   map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'circle', source: SOURCE_IDS.historicalPosts, paint: { 'circle-color':'#b06e3b','circle-radius':2.5,'circle-stroke-color':'#fff','circle-stroke-width':0.5 } })
   map.addLayer({ id: LAYER_IDS.stations, type: 'circle', source: SOURCE_IDS.stations, paint: { 'circle-color':'#42697b','circle-radius':2,'circle-stroke-color':'#fff','circle-stroke-width':0.5 } })
+  map.addLayer({id:LAYER_IDS.jurisdictionHighlight,type:'line',source:SOURCE_IDS.jurisdictionHighlight,paint:{'line-color':'#e96d32','line-width':5,'line-opacity':0.95}})
   map.addLayer({ id: LAYER_IDS.highlightFill, type: 'fill', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Polygon'], paint: { 'fill-color':'#3264aa','fill-opacity':0.35 } })
   map.addLayer({ id: LAYER_IDS.highlightLineGlow, type: 'line', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['LineString','Polygon']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#fff','line-width':['+', ['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]], 7],'line-opacity':0.65,'line-blur':4 } })
   map.addLayer({ id: LAYER_IDS.highlightLine, type: 'line', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['LineString','Polygon']]], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':['match',['geometry-type'],'LineString','#ef6262','#3264aa'],'line-width':['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]],'line-opacity':1 } })
@@ -54,7 +59,7 @@ export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentat
 }
 
 export function setProjectLayerVisibility(map: maplibregl.Map, visibility: LayerVisibility): void {
-  const groups: [string, boolean][] = [[LAYER_IDS.modernRoads,visibility.modernRoads],[LAYER_IDS.railways,visibility.railways],[LAYER_IDS.stations,visibility.stations],[LAYER_IDS.historicalRoads,visibility.historicalRoads],[LAYER_IDS.historicalPosts,visibility.historicalPosts]]
+  const groups: [string, boolean][] = [[LAYER_IDS.modernRoads,visibility.modernRoads],[LAYER_IDS.railways,visibility.railways],[LAYER_IDS.stations,visibility.stations],[LAYER_IDS.historicalRoads,visibility.historicalRoads],[LAYER_IDS.historicalPosts,visibility.historicalPosts],[LAYER_IDS.jurisdictionFill,visibility.jurisdictions],[LAYER_IDS.jurisdictionOutline,visibility.jurisdictions],[LAYER_IDS.jurisdictionHighlight,visibility.jurisdictions]]
   groups.forEach(([id, enabled]) => map.setLayoutProperty(id, 'visibility', enabled ? 'visible' : 'none'))
 }
 
