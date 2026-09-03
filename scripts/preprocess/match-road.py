@@ -10,7 +10,7 @@ import os
 import tempfile
 import time
 import warnings
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -61,6 +61,8 @@ DEFAULT_NETWORK_SELECTION = {
     "shortStraightThroughMaximumGapSamples": 2,
     "shortStraightThroughTwoAtomMaximumGapSamples": 4,
     "sameSourceHoleMaximumGapSamples": 4,
+    "maximumReferencePartTransitionDegrees": 60.0,
+    "referencePartTransitionTangentMeters": 25.0,
     # Separate OSM parts may be the two sides of a divided road.  A sustained
     # cross-class match across nearby, parallel parts is competition for the
     # same route interval, not evidence for another carriageway.
@@ -700,6 +702,23 @@ def _candidate_follows_reference(coordinates, length: float, part: LineString,
             and length <= gap_length + 2 * interval)
 
 
+def _directed_turn_angle(incoming: np.ndarray, outgoing: np.ndarray) -> float:
+    denominator = np.linalg.norm(incoming) * np.linalg.norm(outgoing)
+    if denominator <= 1e-9:
+        return 180.0
+    return math.degrees(math.acos(float(np.clip(np.dot(incoming, outgoing) / denominator, -1, 1))))
+
+
+def _local_reference_arm(part: LineString, junction_at_start: bool,
+                         length: float, toward_junction: bool) -> list[tuple]:
+    """Return a local reference slice in the requested geometric direction."""
+    piece = (substring(part, 0, min(length, part.length)) if junction_at_start
+             else substring(part, max(0, part.length - length), part.length))
+    coordinates = list(piece.coords)
+    current_toward = not junction_at_start
+    return coordinates if current_toward == toward_junction else list(reversed(coordinates))
+
+
 def _ownership_runs(owners: list[int | None]) -> list[dict]:
     """Group an ownership sequence; unmatched samples remain explicit gaps."""
     runs = []
@@ -1171,6 +1190,104 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
                     rescued_edges.add(edge)
                     rescued.append((part_index, left, right, edge, interval_start, interval_end))
 
+    # Independently evaluate endpoint-connected OSM arm pairs.  Stored
+    # LineString direction is irrelevant: each local corridor is oriented
+    # geometrically from one arm interior, through the junction, to the other.
+    transition_rescued_edges = set()
+    transition_pairs_by_edge = defaultdict(set)
+    transition_rescue_count = transition_ambiguous_count = 0
+    transition_candidate_pair_count = 0
+    owned_edges = {run["edge"] for part_owners in owners for run in _ownership_runs(part_owners)}
+    local_length = float(settings["referencePartTransitionTangentMeters"])
+    maximum_turn = float(settings["maximumReferencePartTransitionDegrees"])
+
+    def transition_source_orientations(edge, anchor_edge, at_start):
+        coordinates = list(geometries[edge].coords)
+        options = []
+        if Point(coordinates[0]).distance(geometries[anchor_edge]) <= tolerance:
+            options.append(coordinates if at_start else list(reversed(coordinates)))
+        if Point(coordinates[-1]).distance(geometries[anchor_edge]) <= tolerance:
+            options.append(list(reversed(coordinates)) if at_start else coordinates)
+        return options
+
+    for first_part_index, first_part in enumerate(parts):
+        first_runs = _ownership_runs(owners[first_part_index])
+        if not first_runs:
+            continue
+        for second_part_index in range(first_part_index + 1, len(parts)):
+            second_part = parts[second_part_index]
+            second_runs = _ownership_runs(owners[second_part_index])
+            if not second_runs:
+                continue
+            for first_at_start, first_endpoint in enumerate(
+                    (Point(first_part.coords[-1]), Point(first_part.coords[0]))):
+                # enumerate value is deliberately the junction-at-start flag.
+                for second_at_start, second_endpoint in enumerate(
+                        (Point(second_part.coords[-1]), Point(second_part.coords[0]))):
+                    if first_endpoint.distance(second_endpoint) > tolerance:
+                        continue
+                    first_anchor = first_runs[0] if first_at_start else first_runs[-1]
+                    second_anchor = second_runs[0] if second_at_start else second_runs[-1]
+                    first_gap = (first_anchor["start"] if first_at_start
+                                 else len(owners[first_part_index]) - first_anchor["end"])
+                    second_gap = (second_anchor["start"] if second_at_start
+                                  else len(owners[second_part_index]) - second_anchor["end"])
+                    if max(first_gap, second_gap) > maximum_rescue_gap:
+                        continue
+                    first_arm = _local_reference_arm(
+                        first_part, bool(first_at_start), local_length, True)
+                    second_arm = _local_reference_arm(
+                        second_part, bool(second_at_start), local_length, False)
+                    incoming = np.asarray(first_arm[-1]) - np.asarray(first_arm[-2])
+                    outgoing = np.asarray(second_arm[1]) - np.asarray(second_arm[0])
+                    if _directed_turn_angle(incoming, outgoing) > maximum_turn:
+                        continue
+                    corridor_coordinates = [*first_arm]
+                    if corridor_coordinates[-1] != second_arm[0]:
+                        corridor_coordinates.append(second_arm[0])
+                    corridor_coordinates.extend(second_arm[1:])
+                    corridor = LineString(corridor_coordinates)
+                    first_edge, second_edge = first_anchor["edge"], second_anchor["edge"]
+                    unavailable = owned_edges | (rescued_edges - transition_rescued_edges)
+                    eligible = [edge for edge in range(len(geometries))
+                                if edge not in unavailable and edge not in (first_edge, second_edge)
+                                and edge_classes[edge] in classes
+                                and str(source_atom_ids[edge]) not in excluded_atom_ids]
+                    candidates = []
+                    for edge in eligible:
+                        starts = transition_source_orientations(edge, first_edge, True)
+                        finishes = transition_source_orientations(edge, second_edge, False)
+                        if any(_candidate_follows_reference(coords, geometries[edge].length,
+                                                           corridor, 0., corridor.length, settings)
+                               for coords in starts if any(coords == finish for finish in finishes)):
+                            candidates.append((edge,))
+                    if not candidates:
+                        for first in eligible:
+                            for first_coordinates in transition_source_orientations(first, first_edge, True):
+                                for second in eligible:
+                                    if first == second:
+                                        continue
+                                    for second_coordinates in transition_source_orientations(
+                                            second, second_edge, False):
+                                        if Point(first_coordinates[-1]).distance(
+                                                Point(second_coordinates[0])) > tolerance:
+                                            continue
+                                        combined = [*first_coordinates, *second_coordinates[1:]]
+                                        if _candidate_follows_reference(
+                                                combined, geometries[first].length + geometries[second].length,
+                                                corridor, 0., corridor.length, settings):
+                                            candidates.append((first, second))
+                    candidates = list(dict.fromkeys(candidates))
+                    transition_candidate_pair_count += len(candidates)
+                    if len(candidates) != 1:
+                        transition_ambiguous_count += int(len(candidates) > 1)
+                        continue
+                    transition_rescue_count += 1
+                    part_pair = (first_part_index, second_part_index)
+                    for edge in candidates[0]:
+                        transition_pairs_by_edge[edge].add(part_pair)
+                        transition_rescued_edges.add(edge)
+
     if progress_callback:
         progress_callback(progress=88, phase="Connecting selected N13 segments")
     run_rows = []
@@ -1296,13 +1413,42 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
         row["selectionStatus"] = row["selectionReason"] = "accepted-same-source-hole"
         run_rows.append(row)
 
+    for edge, part_pairs in sorted(transition_pairs_by_edge.items()):
+        first_part, second_part = min(part_pairs)
+        row = frame.loc[edge].copy()
+        row["geometry"] = geometries[edge]
+        row["referencePart"] = first_part
+        row["firstOwnedReferenceSample"] = None
+        row["lastOwnedReferenceSample"] = None
+        row["ownedReferenceSampleCount"] = 0
+        row["ownedReferenceStartMeters"] = None
+        row["ownedReferenceEndMeters"] = None
+        row["sourceStartDistanceMeters"] = 0.0
+        row["sourceEndDistanceMeters"] = float(geometries[edge].length)
+        row["runPosition"] = "reference-part-transition"
+        row["upstreamSourceConnected"] = True
+        row["downstreamSourceConnected"] = True
+        row["continuityValid"] = True
+        source_range = json.dumps([0.0, round(float(geometries[edge].length), 3)])
+        row["sourceRangeBeforeExtension"] = row["sourceRangeAfterExtension"] = source_range
+        row["junctionExtensionMeters"] = 0.0
+        row["reassignedFromSourceFeatureIndex"] = None
+        row["ownershipRescue"] = "reference-part-transition"
+        row["referenceTransitionFromPart"] = first_part
+        row["referenceTransitionToPart"] = second_part
+        row["referenceTransitionPartPairs"] = json.dumps(sorted(part_pairs))
+        row["selectionStatus"] = row["selectionReason"] = "accepted-reference-part-transition"
+        run_rows.append(row)
+
     accepted = gpd.GeoDataFrame(run_rows, crs=METRIC_CRS) if run_rows else frame.iloc[0:0].copy()
-    owned_edges = {run["edge"] for part in owners for run in _ownership_runs(part)} | rescued_edges
-    frame["selectionStatus"] = ["accepted-short-straight-through" if edge in rescued_edges
+    owned_edges |= rescued_edges | transition_rescued_edges
+    frame["selectionStatus"] = ["accepted-reference-part-transition" if edge in transition_rescued_edges
+                                else "accepted-short-straight-through" if edge in rescued_edges
                                 else "accepted-owned-samples" if edge in owned_edges
                                 else "rejected-no-owned-run" for edge in frame.index]
     frame["selectionReason"] = frame["selectionStatus"]
-    frame["ownershipRescue"] = ["short-straight-through" if edge in rescued_edges else None
+    frame["ownershipRescue"] = ["reference-part-transition" if edge in transition_rescued_edges
+                                else "short-straight-through" if edge in rescued_edges else None
                                 for edge in frame.index]
     frame["ownershipClassTransition"] = [edge in rescued_class_transition_edges
                                          for edge in frame.index]
@@ -1339,6 +1485,10 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
               "shortStraightThroughTwoAtomRescueCount": rescued_two_atom_chains,
               "shortStraightThroughClassTransitionRescueCount": rescued_class_transition_chains,
               "sameSourceHoleRescueCount": len(rescued_same_source_holes),
+              "referencePartTransitionRescueCount": transition_rescue_count,
+              "referencePartTransitionRescuedAtomCount": len(transition_rescued_edges),
+              "referencePartTransitionCandidatePairCount": transition_candidate_pair_count,
+              "referencePartTransitionAmbiguousCount": transition_ambiguous_count,
               "crossClassParallelSampleComparisons": cross_class_parallel_sample_comparisons,
               "crossClassParallelCandidatePairs": cross_class_parallel_candidate_pairs,
               "parallelSelectedCount": int(sum(accepted.referencePart > 0)) if not accepted.empty else 0,

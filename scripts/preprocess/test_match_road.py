@@ -348,6 +348,118 @@ class ClassTransitionRescueTests(unittest.TestCase):
         self.assertNotIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
 
 
+class ReferencePartTransitionRescueTests(unittest.TestCase):
+    def fixture(self, reversed_parts=frozenset(), transition_lines=None, extra_lines=(), **settings):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts(reversed_parts)
+        reference = MultiLineString([parts["A"], parts["B"], parts["C"]])
+        transitions = transition_lines or [LineString([(-8, 0), (6, 2)]),
+                                           LineString([(-8, 0), (6, -2)])]
+        lines = [LineString([(-60, 0), (-8, 0)]), transitions[0],
+                 LineString([(6, 2), (60, 20)]), transitions[1],
+                 LineString([(6, -2), (60, -20)]), *extra_lines]
+        return ownership_fixture_diagnostics(
+            lines, reference, ["1"] * len(lines), classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4, **settings)
+
+    def test_canonical_fork_rescues_both_osm_supported_transitions_only(self):
+        diagnostic = self.fixture()
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+        self.assertEqual(set(rescued.sourceFeatureIndex), {1, 3})
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 2)
+        self.assertEqual(diagnostic["report"]["referencePartTransitionCandidatePairCount"], 2)
+        self.assertEqual(set(rescued.referenceTransitionPartPairs), {"[[0, 1]]", "[[0, 2]]"})
+
+    def test_production_rescue_is_reference_coordinate_direction_invariant(self):
+        for reversed_parts in (frozenset(), {"A"}, {"B"}, {"C"}, {"A", "B", "C"}):
+            diagnostic = self.fixture(reversed_parts)
+            rescued = diagnostic["accepted"][
+                diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+            self.assertEqual(set(rescued.sourceFeatureIndex), {1, 3})
+
+    def test_unrelated_n13_stem_has_no_osm_supported_transition(self):
+        stem = LineString([(-8, 0), (-8, 20)])
+        diagnostic = self.fixture(extra_lines=[stem])
+        self.assertNotIn(5, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 2)
+
+    def test_nearby_but_endpoint_unconnected_parts_are_not_rescued(self):
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(0, 0), (32, 0)]), LineString([(32, 0), (49, 0)]),
+             LineString([(49, 0), (100, 0)])],
+            MultiLineString([[(0, 0), (40, 0)], [(43, 0), (100, 0)]]), ["1"] * 3,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4, endpointSnapMeters=2)
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 0)
+
+    def test_topological_transition_detour_is_not_osm_identity(self):
+        diagnostic = self.fixture(transition_lines=[
+            LineString([(-8, 0), (0, 20), (6, 2)]), LineString([(-8, 0), (6, -2)])])
+        self.assertNotIn(1, set(diagnostic["accepted"].sourceFeatureIndex))
+        self.assertIn(3, set(diagnostic["accepted"].sourceFeatureIndex))
+
+    def test_unique_two_atom_transition_is_rescued(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        lines = [LineString([(-60, 0), (-8, 0)]), LineString([(-8, 0), (-1, 1)]),
+                 LineString([(-1, 1), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(-8, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, MultiLineString([parts["A"], parts["B"], parts["C"]]), ["1"] * 6,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+        ab_rescued = rescued[rescued.referenceTransitionPartPairs == "[[0, 1]]"]
+        self.assertEqual(set(ab_rescued.sourceFeatureIndex), {1, 2})
+        self.assertEqual(diagnostic["report"]["referencePartTransitionRescueCount"], 2)
+
+    def test_exclusion_blocks_two_atom_transition_chain(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        lines = [LineString([(-60, 0), (-8, 0)]), LineString([(-8, 0), (-1, 1)]),
+                 LineString([(-1, 1), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(-8, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        reference = MultiLineString([parts["A"], parts["B"], parts["C"]])
+        baseline = ownership_fixture_diagnostics(
+            lines, reference, ["1"] * 6, classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=3, maximumSampleDistanceMeters=4)
+        excluded = baseline["source"].iloc[1].n13AtomId
+        diagnostic = ownership_fixture_diagnostics(
+            lines, reference, ["1"] * 6, classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=3, maximumSampleDistanceMeters=4,
+            excludedAtomIds=[excluded])
+        self.assertFalse({1, 2}.intersection(set(diagnostic["accepted"].sourceFeatureIndex)))
+
+    def test_two_valid_chains_for_one_arm_pair_remain_ambiguous(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        bridge = LineString([(-8, 0), (6, 2)])
+        lines = [LineString([(-60, 0), (-8, 0)]), bridge, bridge,
+                 LineString([(6, 2), (60, 20)]), LineString([(-8, 0), (6, -2)]),
+                 LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, MultiLineString([parts["A"], parts["B"], parts["C"]]), ["1"] * 6,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        self.assertFalse({1, 2}.intersection(set(diagnostic["accepted"].sourceFeatureIndex)))
+        self.assertEqual(diagnostic["report"]["referencePartTransitionAmbiguousCount"], 1)
+
+    def test_shared_common_transition_atom_is_appended_once(self):
+        parts = OwnershipFixtureDiagnosticsTests.fork_parts()
+        lines = [LineString([(-60, 0), (-8, 0)]), LineString([(-8, 0), (0, 0)]),
+                 LineString([(0, 0), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(0, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, MultiLineString([parts["A"], parts["B"], parts["C"]]), ["1"] * 6,
+            classPriority=["1"], progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        rescued = diagnostic["accepted"][
+            diagnostic["accepted"].ownershipRescue == "reference-part-transition"]
+        self.assertEqual(set(rescued.sourceFeatureIndex), {1, 2, 4})
+        self.assertEqual(sum(rescued.sourceFeatureIndex == 1), 1)
+        common = rescued[rescued.sourceFeatureIndex == 1].iloc[0]
+        self.assertEqual(common.referenceTransitionPartPairs, "[[0, 1], [0, 2]]")
+
+
 class ReferenceOwnershipTests(unittest.TestCase):
     def assert_curated_rows_unchanged(self, curated, connected):
         for _, row in curated.iterrows():
