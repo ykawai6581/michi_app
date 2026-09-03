@@ -3,6 +3,7 @@
 import importlib.util
 import io
 import json
+import math
 import tempfile
 import unittest
 import warnings
@@ -10,7 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
-from shapely.geometry import LineString, MultiLineString
+from shapely.geometry import LineString, MultiLineString, Point
 
 
 SPEC = importlib.util.spec_from_file_location("match_road", Path(__file__).with_name("match-road.py"))
@@ -34,6 +35,183 @@ def select(lines, reference, classes=None, **settings):
         "geometry": lines,
     }, crs=MATCH_ROAD.METRIC_CRS)
     return MATCH_ROAD.select_reference_network(frame, reference, settings, progress_callback)
+
+
+def ownership_fixture_diagnostics(lines, reference, classes, **settings):
+    """Describe raw sample ownership and source geometry for synthetic fixtures."""
+    accepted, source, report = select(lines, reference, classes, **settings)
+    ownership = source.attrs["ownershipSamples"]
+    parts = MATCH_ROAD._ordered_reference_parts(reference)
+    part_diagnostics = []
+    for part_index, part in enumerate(parts):
+        samples = ownership[ownership.referencePart == part_index].sort_values("referenceSample")
+        sample_rows = [{"sample": int(row.referenceSample),
+                        "offset": float(row.referenceDistanceMeters),
+                        "edge": None if row.sourceFeatureIndex != row.sourceFeatureIndex
+                        else int(row.sourceFeatureIndex)}
+                       for _, row in samples.iterrows()]
+        runs = []
+        for sample in sample_rows:
+            if not runs or runs[-1]["edge"] != sample["edge"]:
+                runs.append({"edge": sample["edge"], "start": sample["sample"],
+                             "end": sample["sample"] + 1,
+                             "startOffset": sample["offset"], "endOffset": sample["offset"],
+                             "class": None if sample["edge"] is None else str(classes[sample["edge"]])})
+            else:
+                runs[-1]["end"] = sample["sample"] + 1
+                runs[-1]["endOffset"] = sample["offset"]
+        part_diagnostics.append({"part": part_index, "coordinates": list(part.coords),
+                                 "endpoints": [part.coords[0], part.coords[-1]],
+                                 "sampleOffsets": [sample["offset"] for sample in sample_rows],
+                                 "samples": sample_rows, "runs": runs})
+    atoms = []
+    for edge, (line, road_class) in enumerate(zip(lines, classes)):
+        atoms.append({"edge": edge, "class": str(road_class), "coordinates": list(line.coords),
+                      "projections": [{"part": part_index,
+                          "start": float(part.project(Point(line.coords[0]))),
+                          "end": float(part.project(Point(line.coords[-1])))}
+                          for part_index, part in enumerate(parts)],
+                      "endpointDistances": {other: [
+                          [float(Point(endpoint).distance(Point(other_endpoint)))
+                           for other_endpoint in (lines[other].coords[0], lines[other].coords[-1])]
+                          for endpoint in (line.coords[0], line.coords[-1])]
+                          for other in range(len(lines)) if other != edge}})
+    return {"accepted": accepted, "source": source, "report": report,
+            "parts": part_diagnostics, "atoms": atoms}
+
+
+def reference_endpoint_roles(part, junction):
+    """Return junction/interior endpoints without assigning travel direction."""
+    endpoints = [Point(part.coords[0]), Point(part.coords[-1])]
+    junction_index = min(range(2), key=lambda index: endpoints[index].distance(junction))
+    return {"junction": endpoints[junction_index].coords[0],
+            "interior": endpoints[1 - junction_index].coords[0]}
+
+
+def transition_angle(first_roles, second_roles):
+    """Turn angle for first interior -> junction -> second interior."""
+    junction = first_roles["junction"]
+    incoming = (junction[0] - first_roles["interior"][0],
+                junction[1] - first_roles["interior"][1])
+    outgoing = (second_roles["interior"][0] - junction[0],
+                second_roles["interior"][1] - junction[1])
+    cosine = sum(a * b for a, b in zip(incoming, outgoing)) / (
+        math.hypot(*incoming) * math.hypot(*outgoing))
+    return math.degrees(math.acos(max(-1, min(1, cosine))))
+
+
+class OwnershipFixtureDiagnosticsTests(unittest.TestCase):
+    def same_source_fixture(self, detour=False):
+        source = (LineString([(0, 3), (40, 3), (47.5, 25), (55, 3), (100, 3)])
+                  if detour else LineString([(0, 3), (100, 3)]))
+        # The short, closer competitor wins four proposals, but its run is below
+        # the fixture's five-sample seed threshold and therefore remains a gap.
+        return ownership_fixture_diagnostics(
+            [LineString([(40, 0), (55, 0)]), source], LineString([(0, 0), (100, 0)]),
+            ["1", "1"], classPriority=["1"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=5, maximumSampleDistanceMeters=4)
+
+    def assert_same_source_hole(self, diagnostic):
+        self.assertEqual(len(diagnostic["parts"]), 1)
+        self.assertEqual(diagnostic["parts"][0]["runs"], [
+            {"edge": 1, "start": 0, "end": 8, "startOffset": 0.,
+             "endOffset": 35., "class": "1"},
+            {"edge": None, "start": 8, "end": 12, "startOffset": 40.,
+             "endOffset": 55., "class": None},
+            {"edge": 1, "start": 12, "end": 21, "startOffset": 60.,
+             "endOffset": 100., "class": "1"},
+        ])
+
+    def test_fixture_same_source_hole_has_expected_ownership_runs(self):
+        diagnostic = self.same_source_fixture()
+        self.assert_same_source_hole(diagnostic)
+        self.assertEqual(diagnostic["atoms"][1]["projections"],
+                         [{"part": 0, "start": 0., "end": 100.}])
+
+    def test_fixture_same_source_detour_has_same_anchor_structure(self):
+        diagnostic = self.same_source_fixture(detour=True)
+        self.assert_same_source_hole(diagnostic)
+        accepted = diagnostic["accepted"]
+        self.assertTrue("ownershipRescue" not in accepted.columns
+                        or not (accepted.ownershipRescue == "same-source-hole").any())
+
+    def test_fixture_class_transition_has_expected_ownership_runs(self):
+        diagnostic = ownership_fixture_diagnostics(
+            [LineString([(0, 0), (40, 0)]),
+             LineString([(40, 0), (50, 10), (55, 0), (100, 0)]),
+             LineString([(40, 0), (55, 0)])], LineString([(0, 0), (100, 0)]),
+            ["1", "2", "3"], classPriority=["1", "2", "3"], progressSampleMeters=5,
+            minimumOwnedReferenceSamples=5, maximumSampleDistanceMeters=4)
+        self.assertEqual(diagnostic["parts"][0]["runs"], [
+            {"edge": 0, "start": 0, "end": 9, "startOffset": 0.,
+             "endOffset": 40., "class": "1"},
+            {"edge": None, "start": 9, "end": 11, "startOffset": 45.,
+             "endOffset": 50., "class": None},
+            {"edge": 1, "start": 11, "end": 21, "startOffset": 55.,
+             "endOffset": 100., "class": "2"},
+        ])
+
+    @staticmethod
+    def fork_parts(reversed_parts=frozenset()):
+        coordinates = {"A": [(-60, 0), (0, 0)],
+                       "B": [(0, 0), (60, 20)],
+                       "C": [(0, 0), (60, -20)]}
+        return {name: LineString(list(reversed(value)) if name in reversed_parts else value)
+                for name, value in coordinates.items()}
+
+    def test_reference_split_endpoint_roles_are_orientation_invariant(self):
+        expected = {"A": {"junction": (0., 0.), "interior": (-60., 0.)},
+                    "B": {"junction": (0., 0.), "interior": (60., 20.)},
+                    "C": {"junction": (0., 0.), "interior": (60., -20.)}}
+        for reversed_parts in (frozenset(), {"A"}, {"B"}, {"C"}, {"A", "B", "C"}):
+            parts = self.fork_parts(reversed_parts)
+            roles = {name: reference_endpoint_roles(part, Point(0, 0))
+                     for name, part in parts.items()}
+            self.assertEqual(roles, expected)
+
+    def test_ordered_reference_parts_retains_geometric_fork_members(self):
+        parts = self.fork_parts()
+        ordered = MATCH_ROAD._ordered_reference_parts(
+            MultiLineString([parts["A"], parts["B"], parts["C"]]))
+        self.assertEqual([list(part.coords) for part in ordered], [
+            [(-60., 0.), (0., 0.)], [(0., 0.), (60., 20.)], [(0., 0.), (60., -20.)]])
+
+    def test_reference_split_transition_angles_identify_forward_branches(self):
+        roles = {name: reference_endpoint_roles(part, Point(0, 0))
+                 for name, part in self.fork_parts().items()}
+        angles = {pair: transition_angle(roles[pair[0]], roles[pair[1]])
+                  for pair in (("A", "B"), ("A", "C"), ("B", "C"), ("C", "B"))}
+        self.assertAlmostEqual(angles[("A", "B")], 18.434949, places=5)
+        self.assertAlmostEqual(angles[("A", "C")], 18.434949, places=5)
+        self.assertAlmostEqual(angles[("B", "C")], 143.130102, places=5)
+        self.assertAlmostEqual(angles[("C", "B")], 143.130102, places=5)
+
+    def test_reference_split_has_expected_pre_rescue_ownership_anchors(self):
+        parts = self.fork_parts()
+        reference = MultiLineString([parts["A"], parts["B"], parts["C"]])
+        lines = [LineString([(-60, 0), (-8, 0)]),
+                 LineString([(-8, 0), (6, 2)]), LineString([(6, 2), (60, 20)]),
+                 LineString([(-8, 0), (6, -2)]), LineString([(6, -2), (60, -20)])]
+        diagnostic = ownership_fixture_diagnostics(
+            lines, reference, ["1"] * len(lines), classPriority=["1"],
+            progressSampleMeters=5, minimumOwnedReferenceSamples=3,
+            maximumSampleDistanceMeters=4)
+        junction = Point(0, 0)
+        anchors = []
+        for part in diagnostic["parts"]:
+            geometry = LineString(part["coordinates"])
+            roles = reference_endpoint_roles(geometry, junction)
+            junction_sample = 0 if Point(part["endpoints"][0]).equals(junction) else len(part["samples"]) - 1
+            owned = [sample for sample in part["samples"] if sample["edge"] is not None]
+            nearest = min(owned, key=lambda sample: abs(sample["sample"] - junction_sample))
+            anchors.append({"junction": roles["junction"], "interior": roles["interior"],
+                            "edge": nearest["edge"],
+                            "unownedToJunction": abs(nearest["sample"] - junction_sample) - 1})
+        self.assertEqual(anchors, [
+            {"junction": (0., 0.), "interior": (-60., 0.), "edge": 0, "unownedToJunction": 0},
+            {"junction": (0., 0.), "interior": (60., 20.), "edge": 2, "unownedToJunction": 1},
+            {"junction": (0., 0.), "interior": (60., -20.), "edge": 4, "unownedToJunction": 1},
+        ])
 
 
 class ReferenceOwnershipTests(unittest.TestCase):
