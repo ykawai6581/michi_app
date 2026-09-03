@@ -148,6 +148,14 @@ The downloader uses an identified HTTP GET request and tries three public Overpa
 
 ## Project materialization
 
+### Historical jurisdiction overlays
+
+Projects can independently display date-specific historical jurisdiction polygons normalized from Geoshape's
+**歴史的行政区域データセットβ版**. The initial source registry and UI support Tokyo only. See
+[`docs/historical-jurisdictions.md`](docs/historical-jurisdictions.md) for the local-input preprocessing command,
+normalized schema, generated manifest layout, and beta-data caution. This layer never participates in road matching,
+manual N13 review, connectivity, or road builds.
+
 Reusable caches are large, build-time inputs and never browser assets. A project config selects a small subset and
 `build-project.py` writes the complete static bundle consumed by React/MapLibre. Bounds can be an explicit WGS84
 `[minLon, minLat, maxLon, maxLat]` bbox, or can be derived from the full built N13 geometry of the project's selected

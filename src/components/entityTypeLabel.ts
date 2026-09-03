@@ -11,6 +11,7 @@ const entityTypeLabels: Record<MapEntityType, string> = {
   river: '河川',
   water: '水域',
   'terrain-feature': '地形',
+  jurisdiction: '歴史的行政区域',
   custom: '地物',
 }
 

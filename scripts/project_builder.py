@@ -41,6 +41,16 @@ def load_project_config(root: Path, project_id: str) -> dict[str, Any]:
     if not isinstance(layers, dict): raise ProjectBuildError("Project layers must be an object")
     unsupported = sorted(set(layers) - SUPPORTED_LAYERS)
     if unsupported: raise ProjectBuildError(f"Unsupported layer family: {', '.join(unsupported)}")
+    jurisdiction = config.get("jurisdictionLayer")
+    if jurisdiction is not None:
+        if not isinstance(jurisdiction, dict): raise ProjectBuildError("jurisdictionLayer must be an object")
+        if jurisdiction.get("provider", "geoshape") != "geoshape" or jurisdiction.get("prefecture", "13") != "13":
+            raise ProjectBuildError("jurisdictionLayer currently supports only geoshape prefecture 13")
+        date = jurisdiction.get("snapshotDate")
+        if date is not None and (not isinstance(date, str) or len(date) != 10): raise ProjectBuildError("jurisdictionLayer snapshotDate must be YYYY-MM-DD")
+        selection = jurisdiction.get("selection")
+        if selection is not None and (not isinstance(selection, dict) or selection.get("level") not in {"municipality", "parent"} or not isinstance(selection.get("value"), str)):
+            raise ProjectBuildError("jurisdictionLayer selection must identify a municipality or parent")
     if "stations" in layers and layers["stations"] != {"mode": "bbox"}: raise ProjectBuildError("stations currently supports only mode=bbox")
     if "railways" in layers:
         rail = layers["railways"]

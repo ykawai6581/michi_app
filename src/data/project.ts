@@ -1,11 +1,12 @@
 import type { FeatureCollection } from 'geojson'
 import type { EntityFeature } from '../types/geo'
+import type { JurisdictionLayerConfig } from './jurisdictions'
 
 export const DEFAULT_PROJECT_ID = 'shinjuku'
 export const PROJECT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 export const PROJECT_FILES = ['modern-roads', 'railways', 'railway-routes', 'stations', 'historical-roads', 'historical-posts'] as const
 export type ProjectFile = typeof PROJECT_FILES[number]
-export interface ProjectConfigMetadata { id: string; displayName: string }
+export interface ProjectConfigMetadata { id: string; displayName: string; jurisdictionLayer?: Partial<JurisdictionLayerConfig> }
 export interface ProjectManifest { projectId: string; bounds: [number, number, number, number]; featureCounts: Record<string, number> }
 export interface ProjectData { config: ProjectConfigMetadata; manifest: ProjectManifest; collections: Record<ProjectFile, FeatureCollection>; searchable: EntityFeature[] }
 

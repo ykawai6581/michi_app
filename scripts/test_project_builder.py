@@ -30,6 +30,11 @@ class ProjectBuilderTest(unittest.TestCase):
     def write_parquet(self, relative, properties, geometry):
         path=self.root/relative; path.parent.mkdir(parents=True,exist_ok=True); gpd.GeoDataFrame(properties,geometry=geometry,crs="EPSG:4326").to_parquet(path)
     def test_load_valid_project_config(self): self.assertEqual(load_project_config(self.root,"demo")["id"],"demo")
+    def test_old_config_defaults_without_jurisdiction_and_new_state_is_preserved(self):
+        self.assertNotIn("jurisdictionLayer",load_project_config(self.root,"demo"))
+        configured={**self.config,"jurisdictionLayer":{"enabled":True,"provider":"geoshape","prefecture":"13","snapshotDate":"1932-12-31","selection":{"level":"parent","value":"東京市"}}}
+        self.write_config(configured)
+        self.assertEqual(load_project_config(self.root,"demo")["jurisdictionLayer"],configured["jurisdictionLayer"])
     def test_reject_malformed_bounds(self):
         bad={**self.config,"bounds":[140,35,139,36]}; self.write_config(bad)
         with self.assertRaisesRegex(ProjectBuildError,"Malformed bounds"): load_project_config(self.root,"demo")
