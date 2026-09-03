@@ -1,0 +1,17 @@
+import type { HighlightStyle } from '../types/geo'
+
+export const ROAD_LABEL_COLOR = '#FF7B00'
+export const REGION_HIGHLIGHT_COLOR = '#C84646'
+export const ROAD_LABEL_HALO_COLOR = '#FFFFFF'
+export const ROAD_LABEL_HALO_WIDTH = 3
+
+export const DEFAULT_HIGHLIGHT_STYLE: HighlightStyle = {
+  roadColor: ROAD_LABEL_COLOR,
+  locationColor: '#64c2f2',
+  regionColor: REGION_HIGHLIGHT_COLOR,
+  width: 7,
+  opacity: 1,
+  glow: true,
+  animate: true,
+  annotationSize: 'large',
+}
