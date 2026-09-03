@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { lineColorExpression, lineGlowFeatures, splitRoadSourceFeatures, updateHighlightStyle } from './highlight'
+import { FALLBACK_RAIL_COLOR, lineColorExpression, lineGlowFeatures, splitRoadSourceFeatures, updateHighlightStyle } from './highlight'
 import { LAYER_IDS } from './config'
 
 const road = { type: 'Feature', properties: { id: 'road', name: 'Road', type: 'road', roadSourceGeometries: { n13: { type: 'LineString', coordinates: [[0, 0], [1, 0]] }, osm: { type: 'LineString', coordinates: [[0, 1], [1, 1]] } } }, geometry: { type: 'LineString', coordinates: [[0, 0], [1, 0]] } } as EntityFeature
@@ -35,7 +35,7 @@ describe('active road and railway glow', () => {
 
   it('transfers the glow from a road to a railway',()=>{const rails=roads.map(feature=>({...feature,properties:{...feature.properties,type:'railway' as const,railColor:'#123456'}}));expect(lineGlowFeatures(rails,rails[1]).map(feature=>feature.properties.activeLineGlow)).toEqual([false,true,false]);expect(lineGlowFeatures([...roads,...rails],rails[2]).filter(feature=>feature.properties.type==='road').every(feature=>!feature.properties.activeLineGlow)).toBe(true)})
 
-  it('uses feature type and railColor in the shared line expression',()=>expect(lineColorExpression('#FF7B00')).toEqual(['case',['==',['get','type'],'railway'],['coalesce',['get','railColor'],'#6F7B80'],'#FF7B00']))
+  it('uses feature type and the catalog fallback in the shared line expression',()=>expect(lineColorExpression('#FF7B00')).toEqual(['case',['==',['get','type'],'railway'],['coalesce',['get','railColor'],FALLBACK_RAIL_COLOR],'#FF7B00']))
 })
 
 describe('generic region highlight styling', () => {

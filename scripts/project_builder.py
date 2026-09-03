@@ -25,7 +25,6 @@ CACHES = {
 RAIL_ROUTES_CACHE = Path("data/cache/osm/rail/routes.parquet")
 RAIL_MEMBERS_CACHE = Path("data/cache/osm/rail/route-members.parquet")
 RAIL_COLOR_SOURCE = Path("data/sources/railcolors.json")
-RAIL_COLOR_FIELDS = ("railDisplayName", "name:ja", "name", "name:en", "ref")
 PREPROCESS = {
     "railways": "python scripts/preprocess/preprocess-rail.py",
     "stations": "python scripts/preprocess/preprocess-rail.py",
@@ -44,18 +43,30 @@ def load_rail_colors(root: Path) -> dict[str, Any]:
     path = root / RAIL_COLOR_SOURCE
     if not path.exists(): raise ProjectBuildError(f"Railway color source missing: {path}")
     document = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(document.get("fallbackColor"), str) or not isinstance(document.get("railways"), list):
+    matching = document.get("matching")
+    fields = matching.get("fieldsInPriorityOrder") if isinstance(matching, dict) else None
+    lines = document.get("lines")
+    if (
+        not isinstance(document.get("fallbackColor"), str)
+        or not isinstance(lines, list)
+        or not isinstance(fields, list)
+        or not fields
+        or not all(isinstance(field, str) for field in fields)
+        or any(not isinstance(entry, dict) for entry in lines)
+    ):
         raise ProjectBuildError(f"Malformed railway color source: {path}")
     return document
 
 def resolve_rail_color(properties: dict, colors: dict[str, Any]) -> tuple[str, str | None]:
     alias_index: dict[str, list[dict]] = {}
-    for entry in colors["railways"]:
+    for entry in colors["lines"]:
         for alias in entry.get("aliases", []):
             normalized = normalize_rail_alias(alias)
             if normalized: alias_index.setdefault(normalized, []).append(entry)
-    fields = tuple(field for field in colors.get("matchPriority", RAIL_COLOR_FIELDS) if field in RAIL_COLOR_FIELDS)
-    for field in fields:
+    for field in colors["matching"]["fieldsInPriorityOrder"]:
+        # Operator and network are useful display metadata, never line identities.
+        if field in {"operator", "network"}:
+            continue
         value = normalize_rail_alias(properties.get(field))
         matches = {entry["id"]: entry for entry in alias_index.get(value, [])} if value else {}
         if len(matches) == 1:
@@ -68,7 +79,10 @@ def resolve_rail_color(properties: dict, colors: dict[str, Any]) -> tuple[str, s
 def stamp_rail_color(properties: dict, colors: dict[str, Any]) -> None:
     color, color_id = resolve_rail_color(properties, colors)
     properties["railColor"] = color
-    if color_id: properties["railColorId"] = color_id
+    if color_id:
+        properties["railColorId"] = color_id
+    else:
+        properties.pop("railColorId", None)
 
 def load_project_config(root: Path, project_id: str) -> dict[str, Any]:
     path = root / "projects" / project_id / "project.json"
