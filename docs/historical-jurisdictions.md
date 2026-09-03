@@ -53,19 +53,36 @@ remain supported. Normalized properties include `jurisdictionId`, `snapshotDate`
 `parentJurisdictionName`, `municipalityName`, `administrativeCode`, `sourceResourceId`, `sourceProvider`, and
 `sourceDataset`.
 
-Output is deterministic and unsimplified:
+Each command writes two deterministic, unsimplified display assets:
 
 ```text
 public/data/jurisdictions/manifest.json
 public/data/jurisdictions/geoshape/13/1931-12-31.geojson
+public/data/jurisdictions/geoshape/13/1931-12-31.parents.geojson
 public/data/jurisdictions/geoshape/13/1932-12-31.geojson
+public/data/jurisdictions/geoshape/13/1932-12-31.parents.geojson
 ```
 
+The ordinary `.geojson` snapshot remains the canonical, unchanged municipality/ward representation. The derived
+`.parents.geojson` display remains geographically complete, but replaces each eligible ward group with a real Shapely
+polygon union. This is analogous in spirit to visually integrating ward polygons into their parent municipality; it
+does not claim exact implementation equivalence with Geoshape's website. Eligibility requires a non-empty
+`parentJurisdictionName` and a group composed entirely of `区` children. Consequently, city wards such as those of
+`東京市` are dissolved, while administrative `郡` containing towns or villages are retained as their original
+municipality features.
+
+A derived parent polygon is not presented as an original polygon supplied by Geoshape. It is marked `derived`, records
+its dissolve derivation, and retains `memberCount`, sorted `memberJurisdictionIds`, and sorted `sourceResourceIds`.
+The manifest snapshot entry supplies both `path` and `parentDisplayPath` (plus their feature counts); the frontend does
+not guess filenames. The compact **表示単位** control switches between canonical `市区町村` and `親自治体で統合（区のみ）`,
+and old project configurations default to the canonical municipality display.
+
 The manifest is the only date/file registry used by the UI. The browser has no Geoshape network dependency. Running
-the command for another actual date updates the manifest; there is no date interpolation. Parent membership remains
-source-derived from `parentJurisdictionName` rather than a hard-coded ward list. As a local source-data sanity check,
-the inspected 1931 snapshot had 15 features with parent `東京市`, and the inspected 1932 snapshot had 33. Those counts
-are observations, not validation rules or production logic. To add another prefecture later, add it to
+the command for another actual date updates both asset entries; there is no date interpolation. Parent membership
+remains source-derived from `parentJurisdictionName` rather than a hard-coded ward list. As a local source-data sanity
+check, the inspected 1931 snapshot had 15 features with parent `東京市`, and the inspected 1932 snapshot had 33. After
+regeneration, those inputs should yield one derived `東京市` feature with `memberCount` 15 and 33 respectively. Those
+counts are observations, not validation rules or production logic. To add another prefecture later, add it to
 `data/sources/jurisdictions.json`, then extend the initial Tokyo-only CLI guard and run the same process with that
 prefecture code.
 

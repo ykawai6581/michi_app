@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from shapely import union_all
+from shapely.geometry import mapping, shape
+
 PROVIDER = "geoshape"
 DATASET = "historical-administrative-areas-beta"
 DATASET_NAME = "Geoshape 歴史的行政区域データセットβ版"
@@ -149,15 +152,85 @@ def normalize_features(document: dict[str, Any], *, prefecture: str, snapshot_da
     return {"type": "FeatureCollection", "features": normalized}
 
 
+def is_parent_city_merge_eligible(features: list[dict[str, Any]]) -> bool:
+    """Return whether a parent group consists entirely of ward-level (区) children.
+
+    A non-empty source parent is necessary but not sufficient: requiring every
+    municipality name in the group to end in 区 prevents administrative 郡 groups
+    containing villages and towns from being dissolved as parent municipalities.
+    """
+    return bool(features) and all(
+        feature.get("properties", {}).get("parentJurisdictionName")
+        and feature.get("properties", {}).get("municipalityName", "").endswith("区")
+        for feature in features
+    )
+
+
+def parent_city_display(collection: dict[str, Any], *, prefecture: str, snapshot_date: str) -> dict[str, Any]:
+    """Build a complete display collection with eligible ward groups dissolved."""
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for feature in collection["features"]:
+        parent = feature["properties"].get("parentJurisdictionName")
+        if parent:
+            groups.setdefault(parent, []).append(feature)
+    eligible = {parent: members for parent, members in groups.items() if is_parent_city_merge_eligible(members)}
+    features = [
+        feature for feature in collection["features"]
+        if feature["properties"].get("parentJurisdictionName") not in eligible
+    ]
+    for parent, unsorted_members in eligible.items():
+        members = sorted(unsorted_members, key=lambda feature: feature["properties"]["jurisdictionId"])
+        member_ids = [feature["properties"]["jurisdictionId"] for feature in members]
+        source_ids = sorted(
+            feature["properties"]["sourceResourceId"]
+            for feature in members if feature["properties"].get("sourceResourceId")
+        )
+        identity = {
+            "provider": PROVIDER, "prefecture": prefecture, "snapshotDate": snapshot_date,
+            "parentJurisdictionName": parent, "memberJurisdictionIds": member_ids,
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()[:20]
+        jurisdiction_id = f"{PROVIDER}:{prefecture}:{snapshot_date}:parent-city:{digest}"
+        dissolved = mapping(union_all([shape(feature["geometry"]) for feature in members]))
+        if dissolved["type"] not in {"Polygon", "MultiPolygon"}:
+            raise ValueError(f"parent-city dissolve for {parent!r} did not produce polygon geometry")
+        properties = {
+            "jurisdictionId": jurisdiction_id,
+            "snapshotDate": snapshot_date,
+            "prefectureName": members[0]["properties"]["prefectureName"],
+            "jurisdictionLevel": "parent",
+            "jurisdictionName": parent,
+            "municipalityName": parent,
+            "memberCount": len(members),
+            "memberJurisdictionIds": member_ids,
+            "sourceResourceIds": source_ids,
+            "sourceProvider": "Geoshape",
+            "sourceDataset": DATASET,
+            "derived": True,
+            "derivation": "dissolved-from-source-jurisdictions",
+        }
+        features.append({"type": "Feature", "id": jurisdiction_id, "properties": properties, "geometry": dissolved})
+    features.sort(key=lambda feature: feature["properties"]["jurisdictionId"])
+    return {"type": "FeatureCollection", "features": features}
+
+
 def write_snapshot(source: Path, output_root: Path, *, prefecture: str, prefecture_name: str, snapshot_date: str,
                    topology_object: str | None = None) -> dict[str, Any]:
     document = json.loads(source.read_text(encoding="utf-8"))
     if document.get("type") == "Topology":
         document = topology_to_feature_collection(document, topology_object)
     collection = normalize_features(document, prefecture=prefecture, snapshot_date=snapshot_date)
+    parent_collection = parent_city_display(collection, prefecture=prefecture, snapshot_date=snapshot_date)
     relative = Path(PROVIDER) / prefecture / f"{snapshot_date}.geojson"
+    parent_relative = Path(PROVIDER) / prefecture / f"{snapshot_date}.parents.geojson"
     target = output_root / relative; target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(collection, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    (output_root / parent_relative).write_text(
+        json.dumps(parent_collection, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
     manifest_path = output_root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {
         "schemaVersion": 1,
@@ -166,7 +239,12 @@ def write_snapshot(source: Path, output_root: Path, *, prefecture: str, prefectu
     prefectures = manifest["providers"][PROVIDER]["prefectures"]
     entry = prefectures.setdefault(prefecture, {"displayName": prefecture_name, "availableDates": [], "snapshots": {}})
     entry["displayName"] = prefecture_name
-    entry["snapshots"][snapshot_date] = {"path": str(relative).replace("\\", "/"), "featureCount": len(collection["features"])}
+    entry["snapshots"][snapshot_date] = {
+        "path": str(relative).replace("\\", "/"),
+        "featureCount": len(collection["features"]),
+        "parentDisplayPath": str(parent_relative).replace("\\", "/"),
+        "parentDisplayFeatureCount": len(parent_collection["features"]),
+    }
     entry["snapshots"] = dict(sorted(entry["snapshots"].items()))
     entry["availableDates"] = list(entry["snapshots"])
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

@@ -3,8 +3,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from shapely.geometry import shape
+
 from scripts.preprocess.jurisdiction_source import (
-    normalize_features, topology_to_feature_collection, write_snapshot,
+    is_parent_city_merge_eligible, normalize_features, parent_city_display,
+    topology_to_feature_collection, write_snapshot,
 )
 
 
@@ -104,6 +107,73 @@ class TopoJsonTests(unittest.TestCase):
         unsupported["objects"]["city"]["geometries"][0]["type"] = "LineString"
         with self.assertRaisesRegex(ValueError, "unsupported Topology geometry type"):
             topology_to_feature_collection(unsupported)
+
+
+class ParentCityDisplayTests(unittest.TestCase):
+    @staticmethod
+    def _square(x, y=0):
+        return {"type": "Polygon", "coordinates": [[[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1], [x, y]]]}
+
+    def setUp(self):
+        raw = {"type": "FeatureCollection", "features": [
+            feature("A区", self._square(0), parent_name="東京市", resource_id="ward-a", pref_name="東京府"),
+            feature("B区", self._square(1), parent_name="東京市", resource_id="ward-b", pref_name="東京府"),
+            feature("C区", self._square(4), parent_name="東京市", resource_id="ward-c", pref_name="東京府"),
+            feature("D村", self._square(10), parent_name="西多摩郡", resource_id="village-d", pref_name="東京府"),
+            feature("E村", self._square(11), parent_name="西多摩郡", resource_id="village-e", pref_name="東京府"),
+            feature("八王子市", self._square(20), resource_id="city-h", pref_name="東京府"),
+        ]}
+        self.canonical = normalize_features(raw, prefecture="13", snapshot_date="1932-12-31")
+
+    def test_only_ward_parent_groups_are_eligible(self):
+        groups = {}
+        for item in self.canonical["features"]:
+            parent = item["properties"].get("parentJurisdictionName")
+            if parent:
+                groups.setdefault(parent, []).append(item)
+        self.assertTrue(is_parent_city_merge_eligible(groups["東京市"]))
+        self.assertFalse(is_parent_city_merge_eligible(groups["西多摩郡"]))
+
+    def test_dissolve_is_complete_preserves_sources_and_removes_internal_boundary(self):
+        original = json.loads(json.dumps(self.canonical))
+        display = parent_city_display(self.canonical, prefecture="13", snapshot_date="1932-12-31")
+        self.assertEqual(self.canonical, original)
+        self.assertEqual(len(display["features"]), 4)
+        names = {item["properties"]["municipalityName"] for item in display["features"]}
+        self.assertEqual(names, {"東京市", "D村", "E村", "八王子市"})
+        self.assertNotIn("西多摩郡", names)
+        parent = next(item for item in display["features"] if item["properties"].get("derived") is True)
+        self.assertEqual(parent["geometry"]["type"], "MultiPolygon")
+        self.assertEqual(parent["properties"]["memberCount"], 3)
+        self.assertEqual(parent["properties"]["sourceResourceIds"], ["ward-a", "ward-b", "ward-c"])
+        self.assertEqual(shape(parent["geometry"]).area, 3.0)
+        self.assertEqual(len(shape(parent["geometry"]).geoms), 2)
+        self.assertEqual(shape(parent["geometry"]).boundary.length, 10.0)
+
+    def test_derived_identity_and_output_are_deterministic(self):
+        reversed_collection = {**self.canonical, "features": list(reversed(self.canonical["features"]))}
+        first = parent_city_display(self.canonical, prefecture="13", snapshot_date="1932-12-31")
+        second = parent_city_display(reversed_collection, prefecture="13", snapshot_date="1932-12-31")
+        self.assertEqual(first, second)
+        parent = next(item for item in first["features"] if item["properties"].get("derived"))
+        self.assertEqual(parent["properties"]["memberJurisdictionIds"], sorted(parent["properties"]["memberJurisdictionIds"]))
+
+    def test_one_command_writes_canonical_parent_display_and_manifest_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.geojson"
+            source.write_text(json.dumps({"type": "FeatureCollection", "features": [
+                feature("A区", self._square(0), parent_name="東京市", resource_id="a", pref_name="東京府"),
+                feature("B区", self._square(1), parent_name="東京市", resource_id="b", pref_name="東京府"),
+            ]}), encoding="utf-8")
+            first = write_snapshot(source, root / "out", prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31")
+            first_parent = (root / "out/geoshape/13/1932-12-31.parents.geojson").read_text()
+            second = write_snapshot(source, root / "out", prefecture="13", prefecture_name="Tokyo", snapshot_date="1932-12-31")
+            self.assertEqual(first, second)
+            self.assertEqual(first_parent, (root / "out/geoshape/13/1932-12-31.parents.geojson").read_text())
+            snapshot = first["providers"]["geoshape"]["prefectures"]["13"]["snapshots"]["1932-12-31"]
+            self.assertEqual(snapshot["parentDisplayPath"], "geoshape/13/1932-12-31.parents.geojson")
+            self.assertEqual(snapshot["parentDisplayFeatureCount"], 1)
 
 
 if __name__ == "__main__": unittest.main()
