@@ -3,17 +3,15 @@ import { effectiveDarkBasemap } from './darkBasemap'
 
 describe('effective dark basemap', () => {
   it.each([
-    [false, false, false],
-    [false, true, true],
-    [true, false, true],
-    [true, true, true],
-  ])('combines manual=%s and active=%s as %s', (manual, active, expected) => {
-    expect(effectiveDarkBasemap(manual, active)).toBe(expected)
-  })
-
-  it('returns to the manual preference when selection is cleared', () => {
-    expect(effectiveDarkBasemap(false, true)).toBe(true)
-    expect(effectiveDarkBasemap(false, false)).toBe(false)
-    expect(effectiveDarkBasemap(true, false)).toBe(true)
+    ['auto', false, false, false],
+    ['auto', false, true, true],
+    ['auto', true, false, false],
+    ['auto', true, true, true],
+    ['manual', false, false, false],
+    ['manual', false, true, false],
+    ['manual', true, false, true],
+    ['manual', true, true, true],
+  ] as const)('%s mode with manual=%s and active=%s returns %s', (behavior, manual, active, expected) => {
+    expect(effectiveDarkBasemap(behavior, manual, active)).toBe(expected)
   })
 })
