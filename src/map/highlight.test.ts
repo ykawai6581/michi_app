@@ -60,4 +60,18 @@ describe('highlight styling updates', () => {
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightRegionGlow, 'line-opacity', 0.65)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightPointGlow, 'circle-opacity', 0.24)
   })
+
+  it.each([
+    ['large', 1, 28, 3],
+    ['large', 1.5, 42, 4.5],
+    ['normal', 1, 14, 3],
+    ['normal', 1.5, 21, 4.5],
+  ] as const)('scales %s annotation text and halos at scale %s', (annotationSize, scale, textSize, haloWidth) => {
+    const map = mapMock()
+    updateHighlightStyle(map as never, { ...style('#C84646', true), annotationSize }, scale)
+    expect(map.setLayoutProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-size', textSize)
+    expect(map.setLayoutProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLabels, 'text-size', textSize)
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-halo-width', haloWidth)
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLabels, 'text-halo-width', haloWidth)
+  })
 })
