@@ -4,6 +4,8 @@ export const ROAD_LABEL_COLOR = '#FF7B00'
 export const REGION_HIGHLIGHT_COLOR = '#C84646'
 export const ROAD_LABEL_HALO_COLOR = '#FFFFFF'
 export const ROAD_LABEL_HALO_WIDTH = 3
+export const ACTIVE_LINE_CASING_EXTRA_WIDTH = 6
+export const ACTIVE_LINE_SHADOW_EXTRA_WIDTH = 14
 
 export const DEFAULT_HIGHLIGHT_STYLE: HighlightStyle = {
   roadColor: ROAD_LABEL_COLOR,

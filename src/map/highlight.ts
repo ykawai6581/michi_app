@@ -5,6 +5,7 @@ import type { GeoJSONSource } from 'maplibre-gl'
 import type { EntityFeature, EntityProperties, HighlightStyle, RoadSourceVisibility } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 import railColors from '../../data/sources/railcolors.json'
+import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH } from './highlightDefaults'
 
 export const FALLBACK_RAIL_COLOR = railColors.fallbackColor
 export const lineColorExpression = (roadColor: string): maplibregl.ExpressionSpecification => ['case', ['==', ['get', 'type'], 'railway'], ['coalesce', ['get', 'railColor'], FALLBACK_RAIL_COLOR], roadColor]
@@ -112,18 +113,18 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
   activeAnimations.set(map, requestAnimationFrame(frame))
 }
 
-export function lineGlowFeatures(features: EntityFeature[], activeFeature: EntityFeature | null): EntityFeature[] {
+export function markActiveLine(features: EntityFeature[], activeFeature: EntityFeature | null): EntityFeature[] {
   const activeType = activeFeature && (activeFeature.properties.type === 'road' || activeFeature.properties.type === 'railway') ? activeFeature.properties.type : null
   const activeId = activeType ? activeFeature?.properties.id : null
   return features.map((feature) => ({ ...feature, properties: { ...feature.properties,
-    activeLineGlow: feature.properties.type === activeType && feature.properties.id === activeId,
+    activeLine: feature.properties.type === activeType && feature.properties.id === activeId,
   } }))
 }
 
 export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  const { primary, osm } = splitRoadSourceFeatures(lineGlowFeatures(features, activeFeature), roadSources)
+  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature), roadSources)
   const revealFocus = focusFeature && primary.find((feature) => feature.properties.id === focusFeature.properties.id)
   if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
@@ -140,9 +141,15 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-color', style.locationColor)
   map.setPaintProperty(LAYER_IDS.highlightLine, 'line-width', ['*', style.width, ['coalesce', ['get', 'illustrationWidthScale'], 1]])
   map.setPaintProperty(LAYER_IDS.highlightLine, 'line-opacity', style.opacity)
-  map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-width', ['+', ['*', style.width, ['coalesce', ['get', 'illustrationWidthScale'], 1]], 7])
-  map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-color', ['case', ['==', ['geometry-type'], 'LineString'], lineColorExpression(style.roadColor), style.regionColor])
-  map.setPaintProperty(LAYER_IDS.highlightLineGlow, 'line-opacity', style.glow ? style.opacity * 0.65 : 0)
+  const coreWidth = ['*', style.width, ['coalesce', ['get', 'illustrationWidthScale'], 1]]
+  map.setPaintProperty(LAYER_IDS.highlightLineShadow, 'line-width', ['+', coreWidth, ACTIVE_LINE_SHADOW_EXTRA_WIDTH])
+  map.setPaintProperty(LAYER_IDS.highlightLineOutline, 'line-width', ['+', coreWidth, ACTIVE_LINE_CASING_EXTRA_WIDTH])
+  map.setPaintProperty(LAYER_IDS.highlightLineActive, 'line-width', coreWidth)
+  map.setPaintProperty(LAYER_IDS.highlightLineActive, 'line-color', lineColorExpression(style.roadColor))
+  map.setPaintProperty(LAYER_IDS.highlightLineActive, 'line-opacity', style.opacity)
+  map.setPaintProperty(LAYER_IDS.highlightRegionGlow, 'line-width', ['+', coreWidth, 7])
+  map.setPaintProperty(LAYER_IDS.highlightRegionGlow, 'line-color', style.regionColor)
+  map.setPaintProperty(LAYER_IDS.highlightRegionGlow, 'line-opacity', style.glow ? style.opacity * 0.65 : 0)
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-opacity', style.opacity * 0.38)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-opacity', style.opacity)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-opacity', style.glow ? style.opacity * 0.24 : 0)

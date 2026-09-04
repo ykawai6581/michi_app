@@ -9,8 +9,8 @@
   "layers": {
     "modernRoads": [
       "tokyo-named-kannana-dori",
-      "tokyo-named-aratama-suido-doro",
-      "jp-national-20"
+      "jp-national-20",
+      "tokyo-named-aratama-suido-doro"
     ],
     "historicalRoads": [],
     "historicalPosts": [],

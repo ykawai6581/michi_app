@@ -570,7 +570,41 @@
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
       },
-      "roadClass": "prefectural"
+      "roadClass": "prefectural",
+      "manualSelection": {
+        "include": [
+          "n13-985834dc0ec4c6de863b4c94:0",
+          "n13-b3d67dec20a506197d2a5510:0",
+          "n13-afe65b8ce078dea9d8c178c0:0",
+          "n13-cafd2722fce412a912c24d73:0",
+          "n13-45e7d9107328b4bdb6cc3259:0",
+          "n13-77884d773923bc12263e76cc:0",
+          "n13-2ef2110110dc1157aa87b106:0",
+          "n13-91105d96fe2e49957fd8cfa4:0",
+          "n13-a89794c476ebeb214bc3f579:0",
+          "n13-56a1b3c7c505186ae302ef1a:0",
+          "n13-1ccd0a0d68df56cb8871960a:0",
+          "n13-9671a17b7d4ab921a1475168:0",
+          "n13-0243a24a66882c0bd13708bf:0",
+          "n13-f5c9911582169c0c08e79a6e:0",
+          "n13-5b70e8362afde053f0b280d5:0",
+          "n13-baaca3d5739c59aaa8d3ff6d:0",
+          "n13-e334344579d10b3ba9a756e0:0",
+          "n13-5bac3777094d8dc64aec6d53:0",
+          "n13-417ed66a8a68f6ae0a3017d4:0",
+          "n13-84e0151203ae1ed61fea32a5:0",
+          "n13-95b3ac629f0794cc777b059c:0",
+          "n13-89de65fbfe80b3ef09db6a71:0",
+          "n13-d8a3804b87f671f5ba3d3d37:0",
+          "n13-1b24e30a780395f74619562d:0",
+          "n13-412857aba0c0c489e9570e21:0",
+          "n13-6aeba6351f5ccba73b718bda:0",
+          "n13-c0b4883c9df9f45a4cee05fa:0",
+          "n13-0e640bab887959800194f2d6:0"
+        ],
+        "exclude": []
+      },
+      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
     },
     {
       "id": "tokyo-named-kannana-dori",

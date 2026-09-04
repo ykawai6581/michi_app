@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { LAYER_IDS, SOURCE_IDS } from './config'
-import { addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
+import { ACTIVE_LINE_SHADOW_BLUR, ACTIVE_LINE_SHADOW_COLOR, ACTIVE_LINE_SHADOW_OPACITY, addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
-import { REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
 import { lineColorExpression } from './highlight'
+import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH } from './highlightDefaults'
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
@@ -15,20 +15,29 @@ describe('project map layer contract', () => {
     const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
     addDataLayers(map as never,{collections} as never)
     for(const polygonLayer of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine])expect(layers.indexOf(polygonLayer)).toBeLessThan(layers.indexOf(LAYER_IDS.historicalRoads))
-    for(const roadLayer of [LAYER_IDS.historicalRoads,LAYER_IDS.modernRoads,LAYER_IDS.highlightLineGlow,LAYER_IDS.highlightLine,LAYER_IDS.highlightOsmLine])expect(layers.indexOf(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(layers.indexOf(roadLayer))
+    for(const roadLayer of [LAYER_IDS.historicalRoads,LAYER_IDS.modernRoads,LAYER_IDS.highlightLine,LAYER_IDS.highlightLineShadow,LAYER_IDS.highlightLineOutline,LAYER_IDS.highlightLineActive,LAYER_IDS.highlightOsmLine])expect(layers.indexOf(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(layers.indexOf(roadLayer))
   })
-  it('uses region defaults for jurisdiction emphasis and filters line glow to the active road or railway',()=>{
+  it('stacks retained lines, active shadow, white casing, active core, and labels',()=>{
     const layers:Record<string,unknown>[]=[]
     const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
     const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
     addDataLayers(map as never,{collections} as never)
-    for(const id of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine]){
-      expect((layers.find(layer=>layer.id===id)?.paint as Record<string,unknown>)[id===LAYER_IDS.jurisdictionHighlightFill?'fill-color':'line-color']).toBe(REGION_HIGHLIGHT_COLOR)
-    }
-    expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLineGlow)?.filter).toEqual(['any',['==',['geometry-type'],'Polygon'],['all',['==',['geometry-type'],'LineString'],['==',['get','activeLineGlow'],true]]])
-    expect(layers.find(layer=>layer.id===LAYER_IDS.highlightLine)?.filter).toEqual(['in',['geometry-type'],['literal',['LineString','Polygon']]])
-    expect((layers.find(layer=>layer.id===LAYER_IDS.highlightLine)?.paint as Record<string,unknown>)['line-color']).toEqual(['case',['==',['geometry-type'],'LineString'],lineColorExpression('#FF7B00'),'#C84646'])
-    expect((layers.find(layer=>layer.id===LAYER_IDS.highlightLineLabels)?.paint as Record<string,unknown>)['text-color']).toEqual(lineColorExpression('#FF7B00'))
+    const byId=(id:string)=>layers.find(layer=>layer.id===id) as Record<string,unknown>
+    const index=(id:string)=>layers.findIndex(layer=>layer.id===id)
+    const activeFilter=['all',['==',['geometry-type'],'LineString'],['==',['get','activeLine'],true]]
+    const coreWidth=['*',7,['coalesce',['get','illustrationWidthScale'],1]]
+    expect(byId(LAYER_IDS.highlightLineShadow).filter).toEqual(activeFilter)
+    expect(byId(LAYER_IDS.highlightLineOutline).filter).toEqual(activeFilter)
+    expect(byId(LAYER_IDS.highlightLineActive).filter).toEqual(activeFilter)
+    expect(byId(LAYER_IDS.highlightLine).filter).toEqual(['any',['==',['geometry-type'],'Polygon'],['all',['==',['geometry-type'],'LineString'],['!=',['get','activeLine'],true]]])
+    expect(byId(LAYER_IDS.highlightLineShadow).paint).toMatchObject({'line-color':ACTIVE_LINE_SHADOW_COLOR,'line-width':['+',coreWidth,ACTIVE_LINE_SHADOW_EXTRA_WIDTH],'line-blur':ACTIVE_LINE_SHADOW_BLUR,'line-opacity':ACTIVE_LINE_SHADOW_OPACITY})
+    expect(byId(LAYER_IDS.highlightLineOutline).paint).toMatchObject({'line-color':'#FFFFFF','line-width':['+',coreWidth,ACTIVE_LINE_CASING_EXTRA_WIDTH]})
+    expect(byId(LAYER_IDS.highlightLineActive).paint).toMatchObject({'line-color':lineColorExpression('#FF7B00'),'line-width':coreWidth})
+    expect(index(LAYER_IDS.highlightLine)).toBeLessThan(index(LAYER_IDS.highlightLineShadow))
+    expect(index(LAYER_IDS.highlightLineShadow)).toBeLessThan(index(LAYER_IDS.highlightLineOutline))
+    expect(index(LAYER_IDS.highlightLineOutline)).toBeLessThan(index(LAYER_IDS.highlightLineActive))
+    expect(index(LAYER_IDS.highlightLineActive)).toBeLessThan(index(LAYER_IDS.highlightLineLabels))
+    expect(index(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(index(LAYER_IDS.highlightLineActive))
   })
   it('defines independently toggleable rendering layers', () => {
     expect([LAYER_IDS.modernRoads,LAYER_IDS.railways,LAYER_IDS.stations,LAYER_IDS.historicalRoads,LAYER_IDS.historicalPosts]).toEqual(['modern-roads','railway-tracks','railway-stations','historical-roads','historical-posts'])

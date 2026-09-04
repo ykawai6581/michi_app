@@ -3,6 +3,7 @@ import type { Feature, Geometry } from 'geojson'
 export type MapEntityType = 'road' | 'historical-road' | 'place' | 'historical-place' | 'chome' | 'station' | 'railway' | 'jurisdiction' | 'river' | 'water' | 'terrain-feature' | 'custom'
 export type Confidence = 'high' | 'medium' | 'low' | 'unknown'
 export type BasemapMode = 'presentation' | 'rekichizu' | 'gsi' | 'white' | 'transparent'
+export type DarkModeBehavior = 'auto' | 'manual'
 export interface RoadSourceGeometries { n13: Geometry; osm: Geometry }
 
 export interface EntityProperties {
@@ -19,7 +20,7 @@ export interface EntityProperties {
   note?: string
   relatedEntities?: string[]
   illustrationWidthScale?: number
-  activeLineGlow?: boolean
+  activeLine?: boolean
   roadSourceGeometries?: RoadSourceGeometries
   osm_id?: number
   ref?: string
