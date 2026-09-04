@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { buildLineLabelAnchors, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
+import { buildLineLabelAnchors, followRoadPositionAtFraction, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
 
 const map = {
   getCanvas: () => ({ width: 500, height: 300, clientWidth: 500, clientHeight: 300 }),
@@ -114,6 +114,32 @@ describe('zoom-dependent label fit with visual continuity', () => {
     ]
     const result = buildLineLabelAnchors(map as never, pieces, presentation)
     expect(result.features.map((feature) => feature.properties.id)).toEqual(['aratama'])
+  })
+})
+
+describe('average-direction label orientation', () => {
+  it('keeps a steep straight road aligned instead of rejecting angles above 40 degrees', () => {
+    const chain = [[{ x: 100, y: 180 }, { x: 180, y: 20 }]]
+    const position = followRoadPositionAtFraction(chain, 0.5, 80)
+    expect(position).not.toBeNull()
+    expect(Math.abs(position!.bearing)).toBeGreaterThan(40)
+    expect(position!.straightness).toBeGreaterThan(0.99)
+  })
+
+  it('uses the broad direction of a curved label-sized window instead of one local segment', () => {
+    const chain = [[{ x: 40, y: 100 }, { x: 100, y: 60 }, { x: 160, y: 100 }]]
+    const position = followRoadPositionAtFraction(chain, 0.5, 120)
+    expect(position).not.toBeNull()
+    expect(Math.abs(position!.bearing)).toBeLessThan(15)
+    expect(position!.straightness).toBeLessThan(1)
+  })
+
+  it('keeps an eligible steep road label in the built anchor set', () => {
+    const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 60 }
+    const result = buildLineLabelAnchors(map as never, [line('steep', [[120, 180], [220, 20]], '急な街道')], presentation)
+    expect(result.features.map((feature) => feature.properties.id)).toEqual(['steep'])
+    expect(Math.abs(result.features[0].properties.bearing)).toBeGreaterThan(40)
+    expect(result.features[0].properties.labelMode).toBe('follow-road')
   })
 })
 
