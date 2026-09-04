@@ -5,6 +5,7 @@ import{diagnosticLayerIds,DiagnosticLayerId,LayerVisibility,mapLayerVisibility}f
 type FC=GeoJSON.FeatureCollection
 export type DiagnosticLayers=Partial<Record<DiagnosticLayerId,FC>>
 const editable=new Set<DiagnosticLayerId>(['autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded'])
+const continuityPoints=new Set<DiagnosticLayerId>(['continuityGaps','continuityChecks'])
 export const legacyRoadBuilderLayerIds=['selected-hit','candidates-hit','selected','candidates','rejected'] as const
 
 export function removeLegacyRoadBuilderLayers(map:MlMap){
@@ -20,12 +21,12 @@ export function synchronizeRoadMapData(map:MlMap,layers:DiagnosticLayers,visibil
     const source=map.getSource(id)as GeoJSONSource|undefined
     if(source){source.setData(data);return}
     map.addSource(id,{type:'geojson',data})
-    map.addLayer({id,type:id==='ownership'||id==='continuityGaps'?'circle':'line',source:id,
+    map.addLayer({id,type:id==='ownership'||continuityPoints.has(id)?'circle':'line',source:id,
       layout:{visibility:mapLayerVisibility(visibility,id)},paint:paint[id]} as maplibregl.LayerSpecification)
-    if(editable.has(id)){
+    if(editable.has(id)||continuityPoints.has(id)){
       const hit=`${id}-hit`
-      map.addLayer({id:hit,type:'line',source:id,layout:{visibility:mapLayerVisibility(visibility,id)},
-        paint:{'line-color':'#000','line-width':14,'line-opacity':0}} as maplibregl.LayerSpecification)
+      map.addLayer({id:hit,type:continuityPoints.has(id)?'circle':'line',source:id,layout:{visibility:mapLayerVisibility(visibility,id)},
+        paint:continuityPoints.has(id)?{'circle-radius':16,'circle-opacity':0}:{'line-color':'#000','line-width':14,'line-opacity':0}} as maplibregl.LayerSpecification)
       map.on('click',hit,event=>{if(event.features?.[0])onFeature(event.features[0].properties||{},id)})
     }else map.on('click',id,event=>{if(event.features?.[0])onFeature(event.features[0].properties||{},id)})
   })

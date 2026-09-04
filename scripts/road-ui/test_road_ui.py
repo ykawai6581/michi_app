@@ -135,6 +135,23 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertEqual(properties["candidatePaths"][0]["atomIds"], ["candidate:0"])
         self.assertEqual(properties["geometryGapMeters"], 6.4)
 
+    def test_connected_preview_separates_checks_gaps_and_explicit_summary(self):
+        checks = gpd.GeoDataFrame({
+            "gapId": ["resolved", "unresolved"],
+            "decision": ["accepted-auto-connector", "unresolved-no-path"],
+            "geometry": [Point(0, 0), Point(1, 0)]}, crs=road_ui.MATCHER.METRIC_CRS)
+        gaps = checks[checks.decision.str.startswith("unresolved-")].copy()
+        payload = road_ui._continuity_preview_payload({
+            "continuityChecks": checks, "continuityGaps": gaps,
+            "continuitySummary": {"checkedCount": 2, "autoResolvedCount": 1,
+                "unresolvedCount": 1, "topologyCheckedCount": 2,
+                "referenceCheckedCount": 0, "autoResolvedTopologyCount": 1}})
+        self.assertEqual(len(payload["continuityChecks"]["features"]), 2)
+        self.assertEqual([feature["properties"]["gapId"]
+                          for feature in payload["continuityGaps"]["features"]], ["unresolved"])
+        self.assertEqual(payload["continuitySummary"]["unresolvedCount"],
+                         len(payload["continuityGaps"]["features"]))
+
     def test_match_preview_layers_are_atom_disjoint_and_rejected_is_filtered(self):
         diagnostics = gpd.GeoDataFrame({
             "n13FeatureId": ["feature-a", "feature-b"], "n13AtomId": ["a:0", "b:0"],

@@ -418,6 +418,17 @@ def manual_selection_hash(value: dict | None) -> str:
     return hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _continuity_preview_payload(final: dict) -> dict:
+    """Serialize the explicit continuity contract for a connected preview."""
+    checks = _geojson(final["continuityChecks"])
+    gaps = _geojson(final["continuityGaps"])
+    summary = dict(final["continuitySummary"])
+    if summary["unresolvedCount"] != len(gaps["features"]):
+        raise RuntimeError("Continuity summary does not match unresolved gap diagnostics")
+    return {"continuityChecks": checks, "continuityGaps": gaps,
+            "continuitySummary": summary}
+
+
 def connect_preview(match_preview_id: str, manual_selection: dict, draft: dict,
                     sources: Path = SOURCES, cache: Path = PREVIEW_CACHE,
                     progress_callback=None, final_preview_id: str | None = None) -> dict:
@@ -446,7 +457,7 @@ def connect_preview(match_preview_id: str, manual_selection: dict, draft: dict,
     response = {"finalPreviewId": final_preview_id, "matchPreviewId": match_preview_id,
                 "manualSelectionHash": selection_hash, "selected": _geojson(final["selected"]),
                 "curated": _geojson(final["curatedSelected"]), "report": json.loads(artifacts["report"]),
-                "continuityGaps": _geojson(final["continuityGaps"]),
+                **_continuity_preview_payload(final),
                 "connectDiagnostics": final["connectDiagnostics"],
                 "n13SourceFingerprint": metadata_payload["sourceFingerprint"].get("n13Manifest")}
     (directory / "preview.json").write_text(json.dumps(response, ensure_ascii=False, default=str))

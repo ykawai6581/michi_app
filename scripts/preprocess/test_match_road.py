@@ -512,6 +512,51 @@ class ReferenceOwnershipTests(unittest.TestCase):
         return MATCH_ROAD.connect_adjacent_selected_runs(
             curated, stage1, reference, {"classPriority": ["1"], "endpointSnapMeters": 2}, excluded)
 
+    def transition_fixture(self, upstream, downstream, owned_end=50., owned_start=50.):
+        reference = LineString([(0, 0), (100, 0)])
+        curated = gpd.GeoDataFrame({
+            "N13_003": ["1", "1"], "sourceFeatureIndex": [0, 1],
+            "sourceAtomIndex": [0, 0], "n13FeatureId": ["up", "down"],
+            "n13AtomId": ["up:0", "down:0"], "referencePart": [0, 0],
+            "ownedReferenceStartMeters": [0., owned_start],
+            "ownedReferenceEndMeters": [owned_end, 100.],
+            "sourceStartDistanceMeters": [0., 0.],
+            "sourceEndDistanceMeters": [upstream.length, downstream.length],
+            "selectionStatus": ["accepted", "accepted"], "geometry": [upstream, downstream]},
+            crs=MATCH_ROAD.METRIC_CRS)
+        stage1 = MATCH_ROAD.source_atoms(gpd.GeoDataFrame({
+            "N13_003": ["1", "1"], "sourceFeatureIndex": [0, 1],
+            "n13FeatureId": ["up", "down"], "geometry": [upstream, downstream]},
+            crs=MATCH_ROAD.METRIC_CRS))
+        return MATCH_ROAD.connect_adjacent_selected_runs(curated, stage1, reference,
+                                                          {"endpointSnapMeters": 2})
+
+    def test_transition_endpoints_detect_gap_when_whole_geometries_touch_elsewhere(self):
+        upstream = LineString([(0, 0), (60, 20), (46, 4)])
+        downstream = LineString([(54, -4), (60, 20), (100, 0)])
+        self.assertEqual(upstream.distance(downstream), 0)
+        _, report = self.transition_fixture(upstream, downstream)
+        gap = report["continuityConnectors"][0]
+        self.assertEqual(gap["gapKind"], "topology-gap")
+        self.assertGreater(gap["geometryGapMeters"], 8)
+
+    def test_touching_transition_endpoints_do_not_create_gap_for_complex_runs(self):
+        _, report = self.transition_fixture(
+            LineString([(0, 0), (60, 20), (50, 0)]),
+            LineString([(50, 0), (40, -20), (100, 0)]))
+        self.assertEqual(report["continuityGapCount"], 0)
+
+    def test_reversed_selected_substrings_use_route_facing_endpoints(self):
+        _, report = self.transition_fixture(
+            LineString([(45, 0), (0, 0)]), LineString([(100, 0), (55, 0)]))
+        self.assertEqual(report["continuityConnectors"][0]["geometryGapMeters"], 10)
+
+    def test_reference_and_endpoint_gap_remain_independent(self):
+        _, report = self.transition_fixture(
+            LineString([(0, 0), (45, 0)]), LineString([(55, 0), (100, 0)]), 45, 55)
+        self.assertEqual(report["continuityConnectors"][0]["gapKind"],
+                         "reference-and-topology-gap")
+
     def test_topology_only_gap_selects_unique_straight_connector_not_stem(self):
         connected, report = self.topology_gap_fixture([
             LineString([(45, 0), (55, 0)]), LineString([(45, 0), (45, 12)])])
@@ -524,6 +569,8 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertNotIn("candidate-1:0", set(connected.n13AtomId))
         self.assertEqual(report["topologyGapCount"], 1)
         self.assertEqual(report["autoResolvedTopologyGapCount"], 1)
+        self.assertEqual(len(report["continuityChecksFrame"]), 1)
+        self.assertEqual(len(report["continuityGapsFrame"]), 0)
 
     def test_rotated_topology_gap_and_two_atom_path_are_orientation_independent(self):
         connected, report = self.topology_gap_fixture([
@@ -546,6 +593,8 @@ class ReferenceOwnershipTests(unittest.TestCase):
         gap = ambiguous["continuityConnectors"][0]
         self.assertEqual(gap["decision"], "unresolved-ambiguous")
         self.assertEqual(gap["candidatePathCount"], 2)
+        self.assertEqual(len(ambiguous["continuityChecksFrame"]), 1)
+        self.assertEqual(len(ambiguous["continuityGapsFrame"]), 1)
         _, missing = self.topology_gap_fixture([])
         self.assertEqual(missing["continuityConnectors"][0]["decision"], "unresolved-no-path")
 
@@ -1451,6 +1500,12 @@ class StableIdentityAndManualSelectionTests(unittest.TestCase):
         self.assertEqual(connected["networkReport"]["finalSelectedAtomCount"], 2)
         self.assertEqual(connected["connectDiagnostics"]["curatedManualIncludedAtomIds"], ["b:0"])
         self.assertEqual(connected["connectDiagnostics"]["finalManualIncludedAtomIds"], ["b:0"])
+        self.assertEqual(connected["continuitySummary"]["checkedCount"],
+                         len(connected["continuityChecks"]))
+        self.assertEqual(connected["continuitySummary"]["unresolvedCount"],
+                         len(connected["continuityGaps"]))
+        self.assertTrue(all(item.startswith("unresolved-")
+                            for item in connected["continuityGaps"].get("decision", [])))
 
     def test_connect_match_preview_does_not_restore_manual_exclusion_as_connector(self):
         connected = MATCH_ROAD.connect_match_preview(
