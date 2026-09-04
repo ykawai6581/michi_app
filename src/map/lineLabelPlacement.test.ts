@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { buildLineLabelAnchors, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
+import { buildLineLabelAnchors, followRoadPositionAtFraction, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
 
 const map = {
   getCanvas: () => ({ width: 500, height: 300, clientWidth: 500, clientHeight: 300 }),
@@ -66,7 +66,7 @@ describe('selected line label placement', () => {
     expect(result.features[0].geometry.coordinates).toEqual([250, 150])
   })
 
-  it('still anchors a briefly visible fragment at the viewport edge', () => {
+  it('still anchors a briefly visible fragment at the viewport edge without fit presentation', () => {
     const result = buildLineLabelAnchors(map as never, [line('short', [[-2, 150], [3, 150]])])
     expect(result.features.map(feature=>feature.properties.id)).toEqual(['short'])
   })
@@ -90,5 +90,86 @@ describe('selected line label placement', () => {
   it('copies railway color properties to its anchor', () => {
     const railway = line('rail', [[0, 50], [100, 50]], '中央線', { type: 'railway', railColor: '#123456' })
     expect(buildLineLabelAnchors(map as never, [railway]).features[0].properties).toMatchObject({ type: 'railway', railColor: '#123456' })
+  })
+})
+
+describe('zoom-dependent label fit with visual continuity', () => {
+  const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 120 }
+
+  it('suppresses a genuinely short road when its safe visible chain cannot fit the label', () => {
+    const result = buildLineLabelAnchors(map as never, [line('short', [[40, 100], [140, 100]])], presentation)
+    expect(result.features).toEqual([])
+  })
+
+  it('keeps a single road fragment when it is long enough for the rendered label', () => {
+    const result = buildLineLabelAnchors(map as never, [line('long', [[40, 100], [240, 100]])], presentation)
+    expect(result.features.map((feature) => feature.properties.id)).toEqual(['long'])
+  })
+
+  it('stitches visually continuous same-id pieces before deciding whether the label fits', () => {
+    const pieces = [
+      line('aratama', [[40, 100], [100, 100]], '荒玉水道道路'),
+      line('aratama', [[106, 100], [166, 100]], '荒玉水道道路'),
+      line('aratama', [[172, 100], [232, 100]], '荒玉水道道路'),
+    ]
+    const result = buildLineLabelAnchors(map as never, pieces, presentation)
+    expect(result.features.map((feature) => feature.properties.id)).toEqual(['aratama'])
+  })
+})
+
+describe('average-direction label orientation', () => {
+  it('keeps a steep straight road aligned instead of rejecting angles above 40 degrees', () => {
+    const chain = [[{ x: 100, y: 180 }, { x: 180, y: 20 }]]
+    const position = followRoadPositionAtFraction(chain, 0.5, 80)
+    expect(position).not.toBeNull()
+    expect(Math.abs(position!.bearing)).toBeGreaterThan(40)
+    expect(position!.straightness).toBeGreaterThan(0.99)
+  })
+
+  it('uses the broad direction of a curved label-sized window instead of one local segment', () => {
+    const chain = [[{ x: 40, y: 100 }, { x: 100, y: 60 }, { x: 160, y: 100 }]]
+    const position = followRoadPositionAtFraction(chain, 0.5, 120)
+    expect(position).not.toBeNull()
+    expect(Math.abs(position!.bearing)).toBeLessThan(15)
+    expect(position!.straightness).toBeLessThan(1)
+  })
+
+  it('keeps an eligible steep road label in the built anchor set', () => {
+    const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 60 }
+    const result = buildLineLabelAnchors(map as never, [line('steep', [[120, 180], [220, 20]], '急な街道')], presentation)
+    expect(result.features.map((feature) => feature.properties.id)).toEqual(['steep'])
+    expect(Math.abs(result.features[0].properties.bearing)).toBeGreaterThan(40)
+    expect(result.features[0].properties.labelMode).toBe('follow-road')
+  })
+})
+
+describe('app-owned line label overlap resolution', () => {
+  const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 40 }
+
+  it('keeps the active label and moves a colliding retained label to an alternate candidate', () => {
+    const active = line('active', [[30, 100], [430, 100]], 'active', { sceneLineState: 'active', activeLine: true })
+    const retained = line('retained', [[30, 100], [430, 100]], 'retained', { sceneLineState: 'retained' })
+    const result = buildLineLabelAnchors(map as never, [retained, active], presentation).features
+    expect(result.map((feature) => feature.properties.id)).toEqual(['active', 'retained'])
+    expect(result[1].geometry.coordinates).not.toEqual(result[0].geometry.coordinates)
+  })
+
+  it('suppresses a retained label when all candidates collide with the active label', () => {
+    const active = line('active', [[100, 100], [200, 100]], 'active', { sceneLineState: 'active', activeLine: true })
+    const retained = line('retained', [[100, 100], [200, 100]], 'retained', { sceneLineState: 'retained' })
+    expect(buildLineLabelAnchors(map as never, [retained, active], presentation).features.map((feature) => feature.properties.id)).toEqual(['active'])
+  })
+
+  it('gives Multi-mode selected labels equal stable priority and emits at most one per id', () => {
+    const selectedA = line('A', [[30, 80], [430, 80]], 'A', { sceneLineState: 'selected' })
+    const selectedB = line('B', [[30, 80], [430, 80]], 'B', { sceneLineState: 'selected' })
+    const result = buildLineLabelAnchors(map as never, [selectedA, selectedA, selectedB], presentation).features
+    expect(result[0].properties.id).toBe('A')
+    expect(new Set(result.map((feature) => feature.properties.id)).size).toBe(result.length)
+  })
+
+  it('keeps every accepted candidate in the top 65 percent safe region', () => {
+    const result = buildLineLabelAnchors(map as never, [line('A', [[20, 180], [480, 220]])], presentation).features
+    expect(result.every((feature) => feature.geometry.coordinates[1] <= 300 * LABEL_SAFE_HEIGHT_RATIO)).toBe(true)
   })
 })
