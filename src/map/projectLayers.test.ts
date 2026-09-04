@@ -16,7 +16,7 @@ describe('project map layer contract', () => {
     addDataLayers(map as never,{collections} as never)
     const layer=layers.find(candidate=>candidate.id===LAYER_IDS.highlightLineLabels) as {source:string;layout:Record<string,unknown>}
     expect(layer.source).toBe(SOURCE_IDS.highlightLineLabels)
-    expect(layer.layout).toMatchObject({'symbol-placement':'point','text-rotate':['get','bearing'],'text-rotation-alignment':'map'})
+    expect(layer.layout).toMatchObject({'symbol-placement':'point','text-rotate':['get','bearing'],'text-rotation-alignment':'map','text-allow-overlap':true,'text-ignore-placement':true})
     expect(layer.layout).not.toHaveProperty('symbol-spacing')
   })
   it('keeps jurisdiction polygons below roads and its Point label above every road layer',()=>{

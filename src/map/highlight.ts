@@ -2,7 +2,7 @@ import bbox from '@turf/bbox'
 import type { FeatureCollection, Geometry, Position } from 'geojson'
 import type maplibregl from 'maplibre-gl'
 import type { GeoJSONSource } from 'maplibre-gl'
-import type { EntityFeature, EntityProperties, HighlightStyle, RoadSourceVisibility } from '../types/geo'
+import type { EntityFeature, EntityProperties, HighlightStyle, RoadSourceVisibility, SelectionMode } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 import railColors from '../../data/sources/railcolors.json'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
@@ -10,7 +10,10 @@ import { annotationTextSize } from './presentationScale'
 import { buildLineLabelAnchors } from './lineLabelPlacement'
 
 export const FALLBACK_RAIL_COLOR = railColors.fallbackColor
-export const lineColorExpression = (roadColor: string): maplibregl.ExpressionSpecification => ['case', ['==', ['get', 'type'], 'railway'], ['coalesce', ['get', 'railColor'], FALLBACK_RAIL_COLOR], roadColor]
+export const RETAINED_LINE_COLOR = '#7B8589'
+export const selectedLineColorExpression = (roadColor: string): maplibregl.ExpressionSpecification => ['case', ['==', ['get', 'type'], 'railway'], ['coalesce', ['get', 'railColor'], FALLBACK_RAIL_COLOR], roadColor]
+export const sceneLineColorExpression = (roadColor: string): maplibregl.ExpressionSpecification => ['case', ['==', ['get', 'sceneLineState'], 'retained'], RETAINED_LINE_COLOR, selectedLineColorExpression(roadColor)]
+export const lineColorExpression = selectedLineColorExpression
 
 const activeAnimations = new WeakMap<maplibregl.Map, number>()
 
@@ -98,6 +101,11 @@ export function splitRoadSourceFeatures(features: EntityFeature[], roadSources: 
   }
 }
 
+function visibleSceneLabelFeatures(primary: EntityFeature[], osm: EntityFeature[]): EntityFeature[] {
+  const primaryIds = new Set(primary.map((feature) => feature.properties.id))
+  return [...primary, ...osm.filter((feature) => !primaryIds.has(feature.properties.id))]
+}
+
 function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: EntityFeature): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
@@ -115,35 +123,39 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
   activeAnimations.set(map, requestAnimationFrame(frame))
 }
 
-export function markActiveLine(features: EntityFeature[], activeFeature: EntityFeature | null): EntityFeature[] {
+export function markActiveLine(features: EntityFeature[], activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi'): EntityFeature[] {
   const activeType = activeFeature && (activeFeature.properties.type === 'road' || activeFeature.properties.type === 'railway') ? activeFeature.properties.type : null
   const activeId = activeType ? activeFeature?.properties.id : null
-  return features.map((feature) => ({ ...feature, properties: { ...feature.properties,
-    activeLine: feature.properties.type === activeType && feature.properties.id === activeId,
-  } }))
+  return features.map((feature) => {
+    const isLine = feature.properties.type === 'road' || feature.properties.type === 'railway'
+    const activeLine = isLine && feature.properties.type === activeType && feature.properties.id === activeId
+    return { ...feature, properties: { ...feature.properties, activeLine,
+      ...(isLine ? { sceneLineState: selectionMode === 'multi' ? 'selected' : activeLine ? 'active' : 'retained' } : {}),
+    } }
+  })
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, focusFeature?: EntityFeature, animate = false): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', focusFeature?: EntityFeature, animate = false): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature), roadSources)
+  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
   const revealFocus = focusFeature && primary.find((feature) => feature.properties.id === focusFeature.properties.id)
   if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
   ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
-  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, primary))
+  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm)))
   if (!focusFeature) return
   if (focusFeature.geometry.type === 'Point') map.flyTo({ center: focusFeature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
   else { const bounds = bbox(focusFeature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
 }
 
-export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility): void {
-  const { primary } = splitRoadSourceFeatures(features, roadSources)
-  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, primary))
+export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null = null, selectionMode: SelectionMode = 'multi'): void {
+  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
+  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm)))
 }
 
 export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle, presentationScale = 1): void {
-  map.setPaintProperty(LAYER_IDS.highlightLine, 'line-color', ['case', ['==', ['geometry-type'], 'LineString'], lineColorExpression(style.roadColor), style.regionColor])
+  map.setPaintProperty(LAYER_IDS.highlightLine, 'line-color', ['case', ['==', ['geometry-type'], 'LineString'], sceneLineColorExpression(style.roadColor), style.regionColor])
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-color', style.regionColor)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-color', style.locationColor)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-color', style.locationColor)
@@ -166,6 +178,6 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle,
   map.setLayoutProperty(LAYER_IDS.highlightLabels, 'text-size', textSize)
   map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-halo-width', ROAD_LABEL_HALO_WIDTH * presentationScale)
   map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-halo-width', ROAD_LABEL_HALO_WIDTH * presentationScale)
-  map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', lineColorExpression(style.roadColor))
+  map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', sceneLineColorExpression(style.roadColor))
   map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-color', ['match', ['geometry-type'], 'Polygon', style.regionColor, style.locationColor])
 }

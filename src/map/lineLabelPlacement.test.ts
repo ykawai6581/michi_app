@@ -13,6 +13,13 @@ function line(id: string, coordinates: number[][], name = '甲州街道', proper
 }
 
 describe('selected line label placement', () => {
+  it('creates exactly one selected anchor for each of three visible scene roads', () => {
+    const roads = ['A','B','C'].map((id,index)=>line(id, [[0,50+index*50],[100,50+index*50]], id, { sceneLineState:'selected' }))
+    const anchors = buildLineLabelAnchors(map as never, roads).features
+    expect(anchors.map(anchor=>anchor.properties.id)).toEqual(['A','B','C'])
+    expect(anchors.every(anchor=>anchor.properties.sceneLineState==='selected')).toBe(true)
+  })
+
   it('creates one Point anchor for a visible LineString', () => {
     const result = buildLineLabelAnchors(map as never, [line('A', [[0, 100], [400, 100]])])
     expect(result.features).toHaveLength(1)
@@ -42,6 +49,11 @@ describe('selected line label placement', () => {
     expect(result.features[0].geometry.coordinates).toEqual([250, 150])
   })
 
+  it('still anchors a briefly visible fragment at the viewport edge', () => {
+    const result = buildLineLabelAnchors(map as never, [line('short', [[-2, 150], [3, 150]])])
+    expect(result.features.map(feature=>feature.properties.id)).toEqual(['short'])
+  })
+
   it('places a polyline midpoint by cumulative pixel distance rather than coordinate index', () => {
     const result = pointAtPolylineMidpoint([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 110, y: 0 }])
     expect(result?.point).toEqual({ x: 55, y: 0 })
@@ -55,6 +67,7 @@ describe('selected line label placement', () => {
   it('allows separate logical ids with the same name to each have a label', () => {
     const result = buildLineLabelAnchors(map as never, [line('A', [[0, 50], [100, 50]]), line('B', [[0, 100], [100, 100]])])
     expect(result.features.map((feature) => feature.properties.id)).toEqual(['A', 'B'])
+    expect(new Set(result.features.map(feature=>feature.properties.id)).size).toBe(result.features.length)
   })
 
   it('copies railway color properties to its anchor', () => {
