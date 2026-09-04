@@ -10,7 +10,7 @@ const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export const SELECTED_POINT_RADIUS = 10
 export const ACTIVE_LINE_SHADOW_COLOR = '#081218'
 export const ACTIVE_LINE_SHADOW_BLUR = 4.5
-export const ACTIVE_LINE_SHADOW_OPACITY = 0.7
+export const ACTIVE_LINE_SHADOW_OPACITY = 0
 export function getPresentationLayerIds(map: maplibregl.Map): string[] {
   return map.getStyle().layers.map((layer) => layer.id)
 }
