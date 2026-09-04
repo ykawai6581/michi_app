@@ -153,17 +153,6 @@
     }
   },
   {
-    "id": "tokyo-named-kannnana-dori",
-    "name": "環七通り",
-    "aliases": [],
-    "type": "road",
-    "entityType": "named-road",
-    "sources": {
-      "n13": "data/roads/tokyo-named-kannnana-dori-n13.geojson",
-      "osm": "data/roads/tokyo-named-kannnana-dori-osm.geojson"
-    }
-  },
-  {
     "id": "tokyo-named-gaien-higashi-dori",
     "name": "外苑東通り",
     "aliases": [],
@@ -208,14 +197,14 @@
     }
   },
   {
-    "id": "tokyo-named-ome-do",
-    "name": "青梅道",
+    "id": "tokyo-named-kannana-dori",
+    "name": "環七通り",
     "aliases": [],
     "type": "road",
     "entityType": "named-road",
     "sources": {
-      "n13": "data/roads/tokyo-named-ome-do-n13.geojson",
-      "osm": "data/roads/tokyo-named-ome-do-osm.geojson"
+      "n13": "data/roads/tokyo-named-kannana-dori-n13.geojson",
+      "osm": "data/roads/tokyo-named-kannana-dori-osm.geojson"
     }
   }
 ]
