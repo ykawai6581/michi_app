@@ -11,10 +11,7 @@ export const LABEL_SAFE_HEIGHT_RATIO = 0.65
 export const MAX_STITCH_GAP_PX = 12
 export const MAX_STITCH_DIRECTION_DIFF_DEG = 45
 export const LABEL_END_PADDING_PX = 12
-export const MAX_FOLLOW_LABEL_ANGLE = 40
-export const MAX_DIRECTION_DEVIATION_DEG = 15
-export const HORIZONTAL_LABEL_OFFSET_FACTOR = 0.7
-export const HORIZONTAL_LABEL_OFFSET_PADDING_PX = 6
+export const AVERAGE_DIRECTION_SAMPLE_COUNT = 9
 
 export interface LineLabelPresentation {
   fontSize: number
@@ -24,7 +21,7 @@ export interface LineLabelPresentation {
 }
 export type LineLabelMode = 'follow-road' | 'horizontal'
 export type LineLabelAnchor = Feature<Point, EntityProperties & { bearing: number; labelMode?: LineLabelMode }>
-export interface LineLabelCandidate { anchor: LineLabelAnchor; screenPoint: ScreenPoint }
+export interface LineLabelCandidate { anchor: LineLabelAnchor; screenPoint: ScreenPoint; score?: number }
 export type VisualChain = ScreenPoint[][]
 
 export function requiredLabelLength(label: string, presentation: LineLabelPresentation): number {
@@ -224,17 +221,60 @@ export function uprightBearing(before: ScreenPoint, after: ScreenPoint): number 
   return angle
 }
 
-function bearingDifference(first: number, second: number): number {
-  let difference = Math.abs(first - second) % 180
-  if (difference > 90) difference = 180 - difference
-  return difference
+function normalizeUprightBearing(angle: number): number {
+  while (angle > 90) angle -= 180
+  while (angle < -90) angle += 180
+  return angle
 }
 
 interface FollowRoadPosition {
   point: ScreenPoint
   bearing: number
+  straightness: number
 }
 
+function dominantAxis(points: ScreenPoint[]): { bearing: number; straightness: number } | null {
+  if (points.length < 2) return null
+  const center = points.reduce((sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }), { x: 0, y: 0 })
+  center.x /= points.length
+  center.y /= points.length
+
+  let xx = 0
+  let yy = 0
+  let xy = 0
+  for (const point of points) {
+    const dx = point.x - center.x
+    const dy = point.y - center.y
+    xx += dx * dx
+    yy += dy * dy
+    xy += dx * dy
+  }
+  if (xx + yy <= EPSILON) return null
+
+  const angleRadians = 0.5 * Math.atan2(2 * xy, xx - yy)
+  const bearing = normalizeUprightBearing(angleRadians * 180 / Math.PI)
+  const cos = Math.cos(angleRadians)
+  const sin = Math.sin(angleRadians)
+  let perpendicularVariance = 0
+  let axialVariance = 0
+  for (const point of points) {
+    const dx = point.x - center.x
+    const dy = point.y - center.y
+    const axial = dx * cos + dy * sin
+    const perpendicular = -dx * sin + dy * cos
+    axialVariance += axial * axial
+    perpendicularVariance += perpendicular * perpendicular
+  }
+  const straightness = axialVariance <= EPSILON ? 0 : axialVariance / (axialVariance + perpendicularVariance)
+  return { bearing, straightness }
+}
+
+/**
+ * Returns a label position whose angle follows the dominant direction of the
+ * entire label-sized road window. Curvature lowers its score, but never makes
+ * an otherwise eligible label disappear merely because the road is steep or
+ * locally bent.
+ */
 export function followRoadPositionAtFraction(chain: VisualChain, fraction: number, labelWidth: number): FollowRoadPosition | null {
   const chainLength = visualChainLength(chain)
   const centerDistance = chainLength * fraction
@@ -243,19 +283,20 @@ export function followRoadPositionAtFraction(chain: VisualChain, fraction: numbe
   const endDistance = centerDistance + halfWindow
   if (startDistance < 0 || endDistance > chainLength) return null
 
-  const samples = [0, 0.25, 0.5, 0.75, 1].map((amount) => pointAtVisualChainDistance(chain, startDistance + labelWidth * amount)?.point)
-  if (samples.some((sample) => !sample)) return null
-  const points = samples as ScreenPoint[]
-  const overallBearing = uprightBearing(points[0], points[points.length - 1])
-  if (Math.abs(overallBearing) > MAX_FOLLOW_LABEL_ANGLE) return null
-
-  for (let index = 1; index < points.length; index += 1) {
-    const segmentBearing = uprightBearing(points[index - 1], points[index])
-    if (bearingDifference(segmentBearing, overallBearing) > MAX_DIRECTION_DEVIATION_DEG) return null
+  const samples: ScreenPoint[] = []
+  for (let index = 0; index < AVERAGE_DIRECTION_SAMPLE_COUNT; index += 1) {
+    const amount = index / (AVERAGE_DIRECTION_SAMPLE_COUNT - 1)
+    const sample = pointAtVisualChainDistance(chain, startDistance + labelWidth * amount)?.point
+    if (!sample) return null
+    samples.push(sample)
   }
 
   const center = pointAtVisualChainDistance(chain, centerDistance)
-  return center ? { point: center.point, bearing: overallBearing } : null
+  if (!center) return null
+  const axis = dominantAxis(samples)
+  if (axis) return { point: center.point, bearing: axis.bearing, straightness: axis.straightness }
+
+  return { point: center.point, bearing: uprightBearing(center.before, center.after), straightness: 0 }
 }
 
 function lineComponents(feature: EntityFeature): Position[][] {
@@ -309,47 +350,18 @@ function makeCandidate(
   screenPoint: ScreenPoint,
   bearing: number,
   labelMode: LineLabelMode,
+  score = 0,
 ): LineLabelCandidate {
   const coordinate = map.unproject([screenPoint.x, screenPoint.y]).toArray()
   return {
     screenPoint,
+    score,
     anchor: {
       type: 'Feature',
       properties: { ...feature.properties, bearing, labelMode },
       geometry: { type: 'Point', coordinates: coordinate },
     },
   }
-}
-
-function horizontalFallbackCandidates(
-  map: Pick<maplibregl.Map, 'unproject'>,
-  feature: EntityFeature,
-  chain: VisualChain,
-  viewport: Viewport,
-  presentation: LineLabelPresentation,
-): LineLabelCandidate[] {
-  const scale = presentation.presentationScale ?? 1
-  const offset = presentation.fontSize * HORIZONTAL_LABEL_OFFSET_FACTOR + presentation.haloWidth + HORIZONTAL_LABEL_OFFSET_PADDING_PX * scale
-  const candidates: LineLabelCandidate[] = []
-  for (const fraction of [0.5, 0.3, 0.7]) {
-    const position = pointAtVisualChainFraction(chain, fraction)
-    if (!position) continue
-    const dx = position.after.x - position.before.x
-    const dy = position.after.y - position.before.y
-    const tangentLength = Math.hypot(dx, dy)
-    if (tangentLength <= EPSILON) continue
-    const perpendicular = { x: -dy / tangentLength, y: dx / tangentLength }
-    const offsetPoints = [1, -1].map((side) => ({ x: position.point.x + perpendicular.x * offset * side, y: position.point.y + perpendicular.y * offset * side }))
-    const valid = offsetPoints
-      .map((point) => makeCandidate(map, feature, point, 0, 'horizontal'))
-      .filter((candidate) => boxInsideSafeRegion(candidateBox(candidate, presentation), viewport))
-    candidates.push(...valid)
-    if (valid.length === 0) {
-      const centered = makeCandidate(map, feature, position.point, 0, 'horizontal')
-      if (boxInsideSafeRegion(candidateBox(centered, presentation), viewport)) candidates.push(centered)
-    }
-  }
-  return candidates
 }
 
 export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unproject' | 'getCanvas'>, features: EntityFeature[], presentation?: LineLabelPresentation): FeatureCollection<Point, EntityProperties & { bearing: number; labelMode?: LineLabelMode }> {
@@ -396,16 +408,16 @@ export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unp
     }
 
     const renderedLabelWidth = presentation.measureTextWidth(feature.properties.name, presentation.fontSize) + 2 * presentation.haloWidth
-    const followCandidates = [0.5, 0.3, 0.7, 0.2, 0.8].flatMap((fraction): LineLabelCandidate[] => {
+    const fractions = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9]
+    const candidates = fractions.flatMap((fraction): LineLabelCandidate[] => {
       const position = followRoadPositionAtFraction(best, fraction, renderedLabelWidth)
       if (!position || position.point.y > viewport.height * LABEL_SAFE_HEIGHT_RATIO) return []
-      const candidate = makeCandidate(map, feature, position.point, position.bearing, 'follow-road')
+      const centerPreference = 1 - Math.abs(fraction - 0.5) * 2
+      const score = position.straightness + centerPreference * 0.08
+      const candidate = makeCandidate(map, feature, position.point, position.bearing, 'follow-road', score)
       return boxInsideSafeRegion(candidateBox(candidate, presentation), viewport) ? [candidate] : []
-    })
+    }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
 
-    const candidates = followCandidates.length > 0
-      ? followCandidates
-      : horizontalFallbackCandidates(map, feature, best, viewport, presentation)
     if (candidates.length > 0) candidateGroups.push(candidates)
   }
   return { type: 'FeatureCollection', features: presentation ? resolveLineLabelOverlaps(candidateGroups, presentation) : candidateGroups.map((group) => group[0].anchor) }
