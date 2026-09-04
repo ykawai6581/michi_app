@@ -7,6 +7,7 @@ export interface Viewport { width: number; height: number }
 
 const EPSILON = 1e-7
 export const LABEL_SAFE_INSET = 30
+export const LABEL_SAFE_HEIGHT_RATIO = 0.65
 
 /** Clips a screen-space segment to the canvas rectangle using Liang-Barsky. */
 export function clipSegmentToViewport(start: ScreenPoint, end: ScreenPoint, viewport: Viewport): [ScreenPoint, ScreenPoint] | null {
@@ -60,10 +61,11 @@ export function visibleLineFragments(line: ScreenPoint[], viewport: Viewport): S
   return fragments
 }
 
-function insetVisibleLineFragments(line: ScreenPoint[], viewport: Viewport): ScreenPoint[][] {
-  const inset = Math.min(LABEL_SAFE_INSET, viewport.width / 2, viewport.height / 2)
+function preferredLabelFragments(line: ScreenPoint[], viewport: Viewport): ScreenPoint[][] {
+  const safeHeight = viewport.height * LABEL_SAFE_HEIGHT_RATIO
+  const inset = Math.min(LABEL_SAFE_INSET, viewport.width / 2, safeHeight)
   const translated = line.map(({ x, y }) => ({ x: x - inset, y: y - inset }))
-  return visibleLineFragments(translated, { width: viewport.width - inset * 2, height: viewport.height - inset * 2 })
+  return visibleLineFragments(translated, { width: viewport.width - inset * 2, height: safeHeight - inset })
     .map((fragment) => fragment.map(({ x, y }) => ({ x: x + inset, y: y + inset })))
 }
 
@@ -123,15 +125,16 @@ export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unp
       const projected = map.project(coordinate as [number, number])
       return { x: projected.x, y: projected.y }
     }))
-    const visibleFragments = projectedLines.flatMap((line) => visibleLineFragments(line, viewport))
     const longest = (fragments: ScreenPoint[][]) => fragments.reduce<ScreenPoint[] | null>((best, fragment) => !best || polylineLength(fragment) > polylineLength(best) ? fragment : best, null)
-    const visibleBest = longest(visibleFragments)
-    const visibleMidpoint = visibleBest ? pointAtPolylineMidpoint(visibleBest) : null
-    const safelyInset = visibleMidpoint && visibleMidpoint.point.x >= LABEL_SAFE_INSET && visibleMidpoint.point.x <= viewport.width - LABEL_SAFE_INSET
-      && visibleMidpoint.point.y >= LABEL_SAFE_INSET && visibleMidpoint.point.y <= viewport.height - LABEL_SAFE_INSET
-    // Keep a naturally safe midpoint; otherwise prefer an inset fragment, with the
-    // original visible fragment as the unconditional label-existence fallback.
-    const best = safelyInset ? visibleBest : longest(projectedLines.flatMap((line) => insetVisibleLineFragments(line, viewport))) ?? visibleBest
+    // Clip candidates to actual road geometry in the caption-safe portion of the
+    // map canvas. Prefer an edge inset, but retain a safe-area fragment when the
+    // road only appears close to an edge.
+    const safeViewport = { width: viewport.width, height: viewport.height * LABEL_SAFE_HEIGHT_RATIO }
+    const safeBest = longest(projectedLines.flatMap((line) => visibleLineFragments(line, safeViewport)))
+    const safeMidpoint = safeBest ? pointAtPolylineMidpoint(safeBest) : null
+    const safelyInset = safeMidpoint && safeMidpoint.point.x >= LABEL_SAFE_INSET && safeMidpoint.point.x <= viewport.width - LABEL_SAFE_INSET
+      && safeMidpoint.point.y >= LABEL_SAFE_INSET
+    const best = safelyInset ? safeBest : longest(projectedLines.flatMap((line) => preferredLabelFragments(line, viewport))) ?? safeBest
     if (!best) continue
     const midpoint = pointAtPolylineMidpoint(best)
     if (!midpoint) continue
