@@ -3,7 +3,7 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 import { ACTIVE_LINE_SHADOW_BLUR, ACTIVE_LINE_SHADOW_COLOR, ACTIVE_LINE_SHADOW_OPACITY, addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
 import { lineColorExpression } from './highlight'
-import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH } from './highlightDefaults'
+import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
@@ -26,6 +26,17 @@ describe('project map layer contract', () => {
     addDataLayers(map as never,{collections} as never)
     for(const polygonLayer of [LAYER_IDS.jurisdictionHighlightFill,LAYER_IDS.jurisdictionHighlightGlow,LAYER_IDS.jurisdictionHighlightLine])expect(layers.indexOf(polygonLayer)).toBeLessThan(layers.indexOf(LAYER_IDS.historicalRoads))
     for(const roadLayer of [LAYER_IDS.historicalRoads,LAYER_IDS.modernRoads,LAYER_IDS.highlightLine,LAYER_IDS.highlightLineShadow,LAYER_IDS.highlightLineOutline,LAYER_IDS.highlightLineActive,LAYER_IDS.highlightOsmLine])expect(layers.indexOf(LAYER_IDS.jurisdictionHighlightLabel)).toBeGreaterThan(layers.indexOf(roadLayer))
+  })
+  it('uses white only for jurisdiction emphasis layers',()=>{
+    const layers:Record<string,unknown>[]=[]
+    const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    const paint=(id:string)=>layers.find(layer=>layer.id===id)?.paint as Record<string,unknown>
+    expect(paint(LAYER_IDS.jurisdictionHighlightFill)['fill-color']).toBe(JURISDICTION_HIGHLIGHT_COLOR)
+    expect(paint(LAYER_IDS.jurisdictionHighlightLine)['line-color']).toBe(JURISDICTION_HIGHLIGHT_COLOR)
+    expect(paint(LAYER_IDS.highlightFill)['fill-color']).toBe(REGION_HIGHLIGHT_COLOR)
+    expect(paint(LAYER_IDS.highlightLine)['line-color']).toContain(REGION_HIGHLIGHT_COLOR)
   })
   it('stacks retained lines, active shadow, white casing, active core, and labels',()=>{
     const layers:Record<string,unknown>[]=[]

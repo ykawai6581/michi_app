@@ -4,6 +4,7 @@ import type { GeoJSONSource } from 'maplibre-gl'
 import type { JurisdictionFeature, JurisdictionSelection } from '../data/jurisdictions'
 import type { HighlightStyle } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
+import { JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
 
 export const JURISDICTION_EMPHASIS_DURATION = 780
 const FINAL = { dim:0.58, fill:0.2, line:0.96, glow:0.32 }
@@ -14,6 +15,10 @@ const activeAnimations = new WeakMap<maplibregl.Map, Animation>()
 const currentStates = new WeakMap<maplibregl.Map, EmphasisState>()
 const glowEnabled = new WeakMap<maplibregl.Map, boolean>()
 const empty:FeatureCollection = {type:'FeatureCollection',features:[]}
+
+export function jurisdictionHighlightColor(regionColor:string):string {
+  return regionColor===REGION_HIGHLIGHT_COLOR?JURISDICTION_HIGHLIGHT_COLOR:regionColor
+}
 
 export function jurisdictionDimFilter(features:JurisdictionFeature[]):maplibregl.FilterSpecification {
   const ids=[...new Set(features.map(feature=>feature.properties.jurisdictionId))]
@@ -88,9 +93,10 @@ export function jurisdictionLabelOpacity(progress:number):number {
 
 export function updateJurisdictionEmphasisStyle(map:maplibregl.Map,style:Pick<HighlightStyle,'regionColor'|'glow'>):void {
   glowEnabled.set(map,style.glow)
-  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightFill,'fill-color',style.regionColor)
-  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLine,'line-color',style.regionColor)
-  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-color',style.regionColor)
+  const color=jurisdictionHighlightColor(style.regionColor)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightFill,'fill-color',color)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightLine,'line-color',color)
+  map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-color',color)
   const state=currentStates.get(map)
   if(state)map.setPaintProperty(LAYER_IDS.jurisdictionHighlightGlow,'line-opacity',style.glow?state.glow:0)
 }

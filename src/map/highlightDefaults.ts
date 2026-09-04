@@ -2,6 +2,7 @@ import type { HighlightStyle } from '../types/geo'
 
 export const ROAD_LABEL_COLOR = '#FF7B00'
 export const REGION_HIGHLIGHT_COLOR = '#C84646'
+export const JURISDICTION_HIGHLIGHT_COLOR = '#FFFFFF'
 export const ROAD_LABEL_HALO_COLOR = '#FFFFFF'
 export const ROAD_LABEL_HALO_WIDTH = 3
 export const ACTIVE_LINE_CASING_EXTRA_WIDTH = 6
