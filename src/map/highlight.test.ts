@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { FALLBACK_RAIL_COLOR, lineColorExpression, markActiveLine, splitRoadSourceFeatures, updateHighlightStyle } from './highlight'
+import { FALLBACK_RAIL_COLOR, RETAINED_LINE_COLOR, lineColorExpression, markActiveLine, sceneLineColorExpression, splitRoadSourceFeatures, updateHighlightStyle } from './highlight'
 import { LAYER_IDS } from './config'
 
 const road = { type: 'Feature', properties: { id: 'road', name: 'Road', type: 'road', roadSourceGeometries: { n13: { type: 'LineString', coordinates: [[0, 0], [1, 0]] }, osm: { type: 'LineString', coordinates: [[0, 1], [1, 1]] } } }, geometry: { type: 'LineString', coordinates: [[0, 0], [1, 0]] } } as EntityFeature
@@ -26,6 +26,15 @@ describe('active road and railway emphasis', () => {
     expect(result.map((feature) => feature.properties.activeLine)).toEqual([false,true,false])
   })
 
+  it('marks every visible road selected in Multi mode', () => {
+    expect(markActiveLine(roads, roads[1], 'multi').map(feature=>feature.properties.sceneLineState)).toEqual(['selected','selected','selected'])
+  })
+
+  it('retains all labels while switching the active Single-mode road', () => {
+    expect(markActiveLine(roads,roads[1],'single').map(feature=>feature.properties.sceneLineState)).toEqual(['retained','active','retained'])
+    expect(markActiveLine(roads,roads[2],'single').map(feature=>feature.properties.sceneLineState)).toEqual(['retained','retained','active'])
+  })
+
   it('transfers emphasis and removes it for null or non-road active features', () => {
     expect(markActiveLine(roads,roads[2]).map(feature=>feature.properties.activeLine)).toEqual([false,false,true])
     expect(markActiveLine(roads,null).every(feature=>feature.properties.activeLine===false)).toBe(true)
@@ -36,6 +45,8 @@ describe('active road and railway emphasis', () => {
   it('transfers the emphasis from a road to a railway',()=>{const rails=roads.map(feature=>({...feature,properties:{...feature.properties,type:'railway' as const,railColor:'#123456'}}));expect(markActiveLine(rails,rails[1]).map(feature=>feature.properties.activeLine)).toEqual([false,true,false]);expect(markActiveLine([...roads,...rails],rails[2]).filter(feature=>feature.properties.type==='road').every(feature=>!feature.properties.activeLine)).toBe(true)})
 
   it('uses feature type and the catalog fallback in the shared line expression',()=>expect(lineColorExpression('#FF7B00')).toEqual(['case',['==',['get','type'],'railway'],['coalesce',['get','railColor'],FALLBACK_RAIL_COLOR],'#FF7B00']))
+
+  it('uses one state-aware expression for retained lines and their labels',()=>expect(sceneLineColorExpression('#FF7B00')).toEqual(['case',['==',['get','sceneLineState'],'retained'],RETAINED_LINE_COLOR,lineColorExpression('#FF7B00')]))
 })
 
 describe('highlight styling updates', () => {
@@ -73,5 +84,6 @@ describe('highlight styling updates', () => {
     expect(map.setLayoutProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLabels, 'text-size', textSize)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-halo-width', haloWidth)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLabels, 'text-halo-width', haloWidth)
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-color', sceneLineColorExpression('#FF7B00'))
   })
 })

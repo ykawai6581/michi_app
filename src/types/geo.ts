@@ -4,6 +4,8 @@ export type MapEntityType = 'road' | 'historical-road' | 'place' | 'historical-p
 export type Confidence = 'high' | 'medium' | 'low' | 'unknown'
 export type BasemapMode = 'presentation' | 'rekichizu' | 'gsi' | 'white' | 'transparent'
 export type DarkModeBehavior = 'auto' | 'manual'
+export type SelectionMode = 'multi' | 'single'
+export type SceneLineState = 'active' | 'selected' | 'retained'
 export interface RoadSourceGeometries { n13: Geometry; osm: Geometry }
 
 export interface EntityProperties {
@@ -21,6 +23,7 @@ export interface EntityProperties {
   relatedEntities?: string[]
   illustrationWidthScale?: number
   activeLine?: boolean
+  sceneLineState?: SceneLineState
   roadSourceGeometries?: RoadSourceGeometries
   osm_id?: number
   ref?: string
