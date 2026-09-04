@@ -1,4 +1,4 @@
-export const POST_FOCUS_ZOOM_OUT = 0.06
+export const POST_FOCUS_ZOOM_OUT = 0.01
 export const POST_FOCUS_ZOOM_DURATION_MS = 120
 export const LABEL_LAYOUT_DELAY_MS = 150
 export const LABEL_FADE_DURATION_MS = 300

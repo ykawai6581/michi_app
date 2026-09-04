@@ -507,39 +507,6 @@
       "roadClass": "national"
     },
     {
-      "id": "tokyo-named-ome-kaido",
-      "displayName": "青梅街道",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "青梅街道"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "1",
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
       "id": "tokyo-named-aratama-suido-doro",
       "displayName": "荒玉水道道路",
       "entityType": "named-road",
