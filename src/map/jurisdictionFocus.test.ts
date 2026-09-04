@@ -1,0 +1,16 @@
+import { describe, expect, it, vi } from 'vitest'
+import type { JurisdictionFeature, JurisdictionSelection } from '../data/jurisdictions'
+import { createJurisdictionFocusTracker, focusJurisdiction, JURISDICTION_FOCUS_DURATION, JURISDICTION_FOCUS_MAX_ZOOM, JURISDICTION_FOCUS_PADDING, jurisdictionBounds } from './jurisdictionFocus'
+
+const polygon=(id:string,name:string,minX:number,minY:number,maxX:number,maxY:number):JurisdictionFeature=>({type:'Feature',properties:{jurisdictionId:id,snapshotDate:'1924-12-31',prefectureName:'東京府',municipalityName:name,sourceProvider:'Geoshape',sourceDataset:'historical'},geometry:{type:'Polygon',coordinates:[[[minX,minY],[maxX,minY],[maxX,maxY],[minX,maxY],[minX,minY]]]}})
+const selection=(level:'municipality'|'parent',value:string):JurisdictionSelection=>({level,value})
+
+describe('jurisdiction camera focus',()=>{
+  it('fits the actual highlighted municipality geometry',()=>{const fitBounds=vi.fn();const hongo=polygon('hongo','本郷区',139.74,35.7,139.78,35.74);focusJurisdiction({fitBounds} as never,[hongo],false);expect(fitBounds).toHaveBeenCalledWith([[139.74,35.7],[139.78,35.74]],{padding:JURISDICTION_FOCUS_PADDING,maxZoom:JURISDICTION_FOCUS_MAX_ZOOM,duration:JURISDICTION_FOCUS_DURATION})})
+  it('uses the highlighted parent rather than child geometry',()=>{const fitBounds=vi.fn();const tokyo=polygon('tokyo','東京市',139.5,35.5,140,35.9);focusJurisdiction({fitBounds} as never,[tokyo],false);expect(fitBounds).toHaveBeenCalledWith([[139.5,35.5],[140,35.9]],expect.anything())})
+  it('combines every polygon, MultiPolygon component, and feature',()=>{const islands=polygon('islands','島町',1,1,2,2);islands.geometry={type:'MultiPolygon',coordinates:[[[[1,1],[2,1],[2,2],[1,2],[1,1]]],[[[10,-2],[12,-2],[12,3],[10,3],[10,-2]]]]};expect(jurisdictionBounds([polygon('west','西町',-5,0,-3,4),islands])).toEqual([[-5,-2],[12,4]])})
+  it('focuses only when a concrete selection changes',()=>{const a=polygon('a','A',0,0,1,1),b=polygon('b','B',2,2,3,3);const tracker=createJurisdictionFocusTracker(null);expect(tracker(null,[])).toBe(false);expect(tracker(selection('municipality','A'),[a])).toBe(true);expect(tracker(selection('municipality','A'),[a])).toBe(false);expect(tracker(selection('municipality','B'),[b])).toBe(true);expect(tracker(null,[])).toBe(false)})
+  it('does not focus when initial data arrives for the initial selection',()=>{const hongoSelection=selection('municipality','本郷区');const tracker=createJurisdictionFocusTracker(hongoSelection);expect(tracker(hongoSelection,[])).toBe(false);expect(tracker(hongoSelection,[polygon('hongo','本郷区',0,0,1,1)])).toBe(false)})
+  it('treats municipality and parent modes as distinct selections',()=>{const hongo=polygon('hongo','本郷区',0,0,1,1),tokyo=polygon('tokyo','東京市',0,0,3,3);const tracker=createJurisdictionFocusTracker(selection('municipality','本郷区'));expect(tracker(selection('parent','東京市'),[tokyo])).toBe(true);expect(tracker(selection('municipality','本郷区'),[hongo])).toBe(true)})
+  it('uses no animation when reduced motion is requested',()=>{const fitBounds=vi.fn();focusJurisdiction({fitBounds} as never,[polygon('a','A',0,0,1,1)],true);expect(fitBounds).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({duration:0}))})
+})

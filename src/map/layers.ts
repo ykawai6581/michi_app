@@ -3,7 +3,7 @@ import type { FeatureCollection } from 'geojson'
 import type { BasemapMode, LayerVisibility, PointOverlayStyle } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 import type { ProjectData } from '../data/project'
-import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, REGION_HIGHLIGHT_COLOR, ROAD_LABEL_COLOR, ROAD_LABEL_HALO_COLOR, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
+import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR, ROAD_LABEL_COLOR, ROAD_LABEL_HALO_COLOR, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { lineColorExpression, sceneLineColorExpression } from './highlight'
 import { BASE_LINE_LABEL_SIZE_LARGE } from './presentationScale'
 
@@ -41,9 +41,9 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addSource(SOURCE_IDS.highlight, { type: 'geojson', data: empty })
   map.addSource(SOURCE_IDS.highlightOsm, { type: 'geojson', data: empty })
   map.addSource(SOURCE_IDS.highlightLineLabels, { type: 'geojson', data: empty })
-  map.addLayer({id:LAYER_IDS.jurisdictionHighlightFill,type:'fill',source:SOURCE_IDS.jurisdictionHighlight,paint:{'fill-color':REGION_HIGHLIGHT_COLOR,'fill-opacity':0}})
-  map.addLayer({id:LAYER_IDS.jurisdictionHighlightGlow,type:'line',source:SOURCE_IDS.jurisdictionHighlight,paint:{'line-color':REGION_HIGHLIGHT_COLOR,'line-width':17,'line-blur':7,'line-opacity':0}})
-  map.addLayer({id:LAYER_IDS.jurisdictionHighlightLine,type:'line',source:SOURCE_IDS.jurisdictionHighlight,paint:{'line-color':REGION_HIGHLIGHT_COLOR,'line-width':4,'line-opacity':0}})
+  map.addLayer({id:LAYER_IDS.jurisdictionHighlightFill,type:'fill',source:SOURCE_IDS.jurisdictionHighlight,paint:{'fill-color':JURISDICTION_HIGHLIGHT_COLOR,'fill-opacity':0}})
+  map.addLayer({id:LAYER_IDS.jurisdictionHighlightGlow,type:'line',source:SOURCE_IDS.jurisdictionHighlight,paint:{'line-color':JURISDICTION_HIGHLIGHT_COLOR,'line-width':17,'line-blur':7,'line-opacity':0}})
+  map.addLayer({id:LAYER_IDS.jurisdictionHighlightLine,type:'line',source:SOURCE_IDS.jurisdictionHighlight,paint:{'line-color':JURISDICTION_HIGHLIGHT_COLOR,'line-width':4,'line-opacity':0}})
   map.addLayer({ id: LAYER_IDS.historicalRoads, type: 'line', source: SOURCE_IDS.historicalRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#a06d31','line-width':4,'line-opacity':0.9,'line-dasharray':[2,1] } })
   map.addLayer({ id: LAYER_IDS.railways, type: 'line', source: SOURCE_IDS.railways, paint: { 'line-color':'#31383c','line-width':2,'line-opacity':0.8 } })
   map.addLayer({ id: LAYER_IDS.modernRoads, type: 'line', source: SOURCE_IDS.modernRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#8b9498','line-width':5,'line-opacity':0.8 } })
