@@ -4,11 +4,28 @@ import { initialLayerVisibility, initialPointOverlayStyle } from '../map/overlay
 import { LayerPanel } from './LayerPanel'
 
 describe('LayerPanel', () => {
+  const renderPanel = (darkModeBehavior: 'auto' | 'manual') => renderToStaticMarkup(
+    <LayerPanel value={initialLayerVisibility()} onChange={vi.fn()} darkModeBehavior={darkModeBehavior} onDarkModeBehaviorChange={vi.fn()} pointStyle={initialPointOverlayStyle()} onPointStyleChange={vi.fn()} />,
+  )
+
   it('does not expose road source geometry controls', () => {
-    const markup = renderToStaticMarkup(<LayerPanel value={initialLayerVisibility()} onChange={vi.fn()} pointStyle={initialPointOverlayStyle()} onPointStyleChange={vi.fn()} />)
+    const markup = renderPanel('auto')
     expect(markup).not.toContain('ROAD GEOMETRY')
     expect(markup).not.toContain('道路形状')
     expect(markup).not.toContain('N13 道路')
     expect(markup).not.toContain('OSM 道路')
+  })
+
+  it('disables the manual overlay in Auto mode', () => {
+    const markup = renderPanel('auto')
+    expect(markup).toContain('aria-label="Dark overlay" type="checkbox" disabled=""')
+    expect(markup).toContain('選択中のオブジェクトに合わせて自動')
+  })
+
+  it('enables the manual overlay in Manual mode', () => {
+    const markup = renderPanel('manual')
+    expect(markup).toContain('aria-label="Dark overlay" type="checkbox"')
+    expect(markup).not.toContain('aria-label="Dark overlay" type="checkbox" disabled=""')
+    expect(markup).toContain('手動で背景を暗く表示')
   })
 })
