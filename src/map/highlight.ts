@@ -15,6 +15,10 @@ export const selectedLineColorExpression = (roadColor: string): maplibregl.Expre
 export const sceneLineColorExpression = (roadColor: string): maplibregl.ExpressionSpecification => ['case', ['==', ['get', 'sceneLineState'], 'retained'], RETAINED_LINE_COLOR, selectedLineColorExpression(roadColor)]
 export const lineColorExpression = selectedLineColorExpression
 
+function lineLabelPresentation(style: HighlightStyle, presentationScale: number) {
+  return { fontSize: annotationTextSize(style.annotationSize, presentationScale), haloWidth: ROAD_LABEL_HALO_WIDTH * presentationScale }
+}
+
 const activeAnimations = new WeakMap<maplibregl.Map, number>()
 
 function interpolate(from: Position, to: Position, amount: number): Position {
@@ -135,7 +139,7 @@ export function markActiveLine(features: EntityFeature[], activeFeature: EntityF
   })
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', focusFeature?: EntityFeature, animate = false): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, focusFeature: EntityFeature | undefined, animate: boolean, style: HighlightStyle, presentationScale: number): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
   const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
@@ -143,15 +147,15 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
   if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
   ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
-  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm)))
+  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), lineLabelPresentation(style, presentationScale)))
   if (!focusFeature) return
   if (focusFeature.geometry.type === 'Point') map.flyTo({ center: focusFeature.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
   else { const bounds = bbox(focusFeature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
 }
 
-export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null = null, selectionMode: SelectionMode = 'multi'): void {
+export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, style: HighlightStyle, presentationScale: number): void {
   const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
-  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm)))
+  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), lineLabelPresentation(style, presentationScale)))
 }
 
 export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle, presentationScale = 1): void {
