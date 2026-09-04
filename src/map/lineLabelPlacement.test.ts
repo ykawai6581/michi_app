@@ -66,7 +66,7 @@ describe('selected line label placement', () => {
     expect(result.features[0].geometry.coordinates).toEqual([250, 150])
   })
 
-  it('still anchors a briefly visible fragment at the viewport edge', () => {
+  it('still anchors a briefly visible fragment at the viewport edge without fit presentation', () => {
     const result = buildLineLabelAnchors(map as never, [line('short', [[-2, 150], [3, 150]])])
     expect(result.features.map(feature=>feature.properties.id)).toEqual(['short'])
   })
@@ -93,8 +93,32 @@ describe('selected line label placement', () => {
   })
 })
 
+describe('zoom-dependent label fit with visual continuity', () => {
+  const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 120 }
+
+  it('suppresses a genuinely short road when its safe visible chain cannot fit the label', () => {
+    const result = buildLineLabelAnchors(map as never, [line('short', [[40, 100], [140, 100]])], presentation)
+    expect(result.features).toEqual([])
+  })
+
+  it('keeps a single road fragment when it is long enough for the rendered label', () => {
+    const result = buildLineLabelAnchors(map as never, [line('long', [[40, 100], [240, 100]])], presentation)
+    expect(result.features.map((feature) => feature.properties.id)).toEqual(['long'])
+  })
+
+  it('stitches visually continuous same-id pieces before deciding whether the label fits', () => {
+    const pieces = [
+      line('aratama', [[40, 100], [100, 100]], '荒玉水道道路'),
+      line('aratama', [[106, 100], [166, 100]], '荒玉水道道路'),
+      line('aratama', [[172, 100], [232, 100]], '荒玉水道道路'),
+    ]
+    const result = buildLineLabelAnchors(map as never, pieces, presentation)
+    expect(result.features.map((feature) => feature.properties.id)).toEqual(['aratama'])
+  })
+})
+
 describe('app-owned line label overlap resolution', () => {
-  const presentation = { fontSize: 20, haloWidth: 3, measureTextWidth: () => 40 }
+  const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 40 }
 
   it('keeps the active label and moves a colliding retained label to an alternate candidate', () => {
     const active = line('active', [[30, 100], [430, 100]], 'active', { sceneLineState: 'active', activeLine: true })
