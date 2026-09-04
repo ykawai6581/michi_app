@@ -158,7 +158,7 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
 
 export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, style: HighlightStyle, presentationScale: number): void {
   const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
-  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), { fontSize: annotationTextSize(style.annotationSize, presentationScale), haloWidth: ROAD_LABEL_HALO_WIDTH * presentationScale, measureTextWidth: measureLineLabelText }))
+  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), { fontSize: annotationTextSize(style.annotationSize, presentationScale), haloWidth: ROAD_LABEL_HALO_WIDTH * presentationScale, presentationScale, measureTextWidth: measureLineLabelText }))
 }
 
 export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle, presentationScale = 1): void {
