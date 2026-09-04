@@ -5,7 +5,8 @@ import type { GeoJSONSource } from 'maplibre-gl'
 import type { EntityFeature, EntityProperties, HighlightStyle, RoadSourceVisibility } from '../types/geo'
 import { LAYER_IDS, SOURCE_IDS } from './config'
 import railColors from '../../data/sources/railcolors.json'
-import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH } from './highlightDefaults'
+import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
+import { annotationTextSize } from './presentationScale'
 
 export const FALLBACK_RAIL_COLOR = railColors.fallbackColor
 export const lineColorExpression = (roadColor: string): maplibregl.ExpressionSpecification => ['case', ['==', ['get', 'type'], 'railway'], ['coalesce', ['get', 'railColor'], FALLBACK_RAIL_COLOR], roadColor]
@@ -134,7 +135,7 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
   else { const bounds = bbox(focusFeature); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
 }
 
-export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle): void {
+export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle, presentationScale = 1): void {
   map.setPaintProperty(LAYER_IDS.highlightLine, 'line-color', ['case', ['==', ['geometry-type'], 'LineString'], lineColorExpression(style.roadColor), style.regionColor])
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-color', style.regionColor)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-color', style.locationColor)
@@ -153,8 +154,11 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle)
   map.setPaintProperty(LAYER_IDS.highlightFill, 'fill-opacity', style.opacity * 0.38)
   map.setPaintProperty(LAYER_IDS.highlightPoint, 'circle-opacity', style.opacity)
   map.setPaintProperty(LAYER_IDS.highlightPointGlow, 'circle-opacity', style.glow ? style.opacity * 0.24 : 0)
-  map.setLayoutProperty(LAYER_IDS.highlightLineLabels, 'text-size', style.annotationSize === 'large' ? 28 : 14)
-  map.setLayoutProperty(LAYER_IDS.highlightLabels, 'text-size', style.annotationSize === 'large' ? 28 : 14)
+  const textSize = annotationTextSize(style.annotationSize, presentationScale)
+  map.setLayoutProperty(LAYER_IDS.highlightLineLabels, 'text-size', textSize)
+  map.setLayoutProperty(LAYER_IDS.highlightLabels, 'text-size', textSize)
+  map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-halo-width', ROAD_LABEL_HALO_WIDTH * presentationScale)
+  map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-halo-width', ROAD_LABEL_HALO_WIDTH * presentationScale)
   map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', lineColorExpression(style.roadColor))
   map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-color', ['match', ['geometry-type'], 'Polygon', style.regionColor, style.locationColor])
 }
