@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
+from shapely.affinity import rotate
 from shapely.geometry import LineString, MultiLineString, Point
 
 
@@ -488,6 +489,65 @@ class ReferenceOwnershipTests(unittest.TestCase):
                                    "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS)
         stage1 = MATCH_ROAD.source_atoms(stage1)
         return MATCH_ROAD.connect_adjacent_selected_runs(accepted, stage1, reference, settings)
+
+    def topology_gap_fixture(self, candidates, excluded=frozenset(), angle=0):
+        reference = LineString([(0, 0), (100, 0)])
+        anchors = [LineString([(0, 0), (45, 0)]), LineString([(55, 0), (100, 0)])]
+        if angle:
+            reference = rotate(reference, angle, origin=(0, 0))
+            anchors = [rotate(line, angle, origin=(0, 0)) for line in anchors]
+            candidates = [rotate(line, angle, origin=(0, 0)) for line in candidates]
+        curated = gpd.GeoDataFrame({
+            "N13_003": ["1", "1"], "sourceFeatureIndex": [0, 1],
+            "sourceAtomIndex": [0, 0], "n13FeatureId": ["up", "down"],
+            "n13AtomId": ["up:0", "down:0"], "referencePart": [0, 0],
+            "ownedReferenceStartMeters": [0., 50.], "ownedReferenceEndMeters": [50., 100.],
+            "sourceStartDistanceMeters": [0., 0.], "sourceEndDistanceMeters": [45., 45.],
+            "selectionStatus": ["accepted", "accepted"], "geometry": anchors}, crs=MATCH_ROAD.METRIC_CRS)
+        lines = anchors + candidates
+        stage1 = MATCH_ROAD.source_atoms(gpd.GeoDataFrame({
+            "N13_003": ["1"] * len(lines), "sourceFeatureIndex": range(len(lines)),
+            "n13FeatureId": ["up", "down"] + [f"candidate-{i}" for i in range(len(candidates))],
+            "geometry": lines}, crs=MATCH_ROAD.METRIC_CRS))
+        return MATCH_ROAD.connect_adjacent_selected_runs(
+            curated, stage1, reference, {"classPriority": ["1"], "endpointSnapMeters": 2}, excluded)
+
+    def test_topology_only_gap_selects_unique_straight_connector_not_stem(self):
+        connected, report = self.topology_gap_fixture([
+            LineString([(45, 0), (55, 0)]), LineString([(45, 0), (45, 12)])])
+        gap = report["continuityConnectors"][0]
+        self.assertEqual(gap["referenceGapMeters"], 0)
+        self.assertEqual(gap["geometryGapMeters"], 10)
+        self.assertEqual(gap["gapKind"], "topology-gap")
+        self.assertEqual(gap["decision"], "accepted-auto-connector")
+        self.assertEqual(gap["candidatePaths"][0]["atomIds"], ["candidate-0:0"])
+        self.assertNotIn("candidate-1:0", set(connected.n13AtomId))
+        self.assertEqual(report["topologyGapCount"], 1)
+        self.assertEqual(report["autoResolvedTopologyGapCount"], 1)
+
+    def test_rotated_topology_gap_and_two_atom_path_are_orientation_independent(self):
+        connected, report = self.topology_gap_fixture([
+            LineString([(45, 0), (50, 0)]), LineString([(50, 0), (55, 0)])], angle=67)
+        self.assertEqual(report["continuityConnectors"][0]["decision"], "accepted-auto-connector")
+        self.assertEqual(set(connected.n13AtomId), {"up:0", "down:0", "candidate-0:0", "candidate-1:0"})
+
+    def test_manual_exclusion_keeps_topology_connector_unresolved(self):
+        connected, report = self.topology_gap_fixture(
+            [LineString([(45, 0), (55, 0)])], frozenset({"candidate-0:0"}))
+        gap = report["continuityConnectors"][0]
+        self.assertEqual(gap["decision"], "unresolved-no-path")
+        self.assertEqual(gap["candidatePathCount"], 0)
+        self.assertNotIn("candidate-0:0", set(connected.n13AtomId))
+
+    def test_ambiguous_and_missing_topology_connectors_remain_reviewable(self):
+        _, ambiguous = self.topology_gap_fixture([
+            LineString([(45, 0), (50, 1), (55, 0)]),
+            LineString([(45, 0), (50, -1), (55, 0)])])
+        gap = ambiguous["continuityConnectors"][0]
+        self.assertEqual(gap["decision"], "unresolved-ambiguous")
+        self.assertEqual(gap["candidatePathCount"], 2)
+        _, missing = self.topology_gap_fixture([])
+        self.assertEqual(missing["continuityConnectors"][0]["decision"], "unresolved-no-path")
 
     def test_straight_road_rejects_t_stem(self):
         accepted, diagnostic, _ = select([

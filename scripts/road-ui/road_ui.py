@@ -446,6 +446,7 @@ def connect_preview(match_preview_id: str, manual_selection: dict, draft: dict,
     response = {"finalPreviewId": final_preview_id, "matchPreviewId": match_preview_id,
                 "manualSelectionHash": selection_hash, "selected": _geojson(final["selected"]),
                 "curated": _geojson(final["curatedSelected"]), "report": json.loads(artifacts["report"]),
+                "continuityGaps": _geojson(final["continuityGaps"]),
                 "connectDiagnostics": final["connectDiagnostics"],
                 "n13SourceFingerprint": metadata_payload["sourceFingerprint"].get("n13Manifest")}
     (directory / "preview.json").write_text(json.dumps(response, ensure_ascii=False, default=str))

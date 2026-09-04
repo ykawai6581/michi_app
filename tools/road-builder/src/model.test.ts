@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveAvailableAtomIds,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,includeManualAtom,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
+import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,candidatePathGeoJson,deletionApiPaths,deletionConfirmation,deriveAvailableAtomIds,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,gapReviewQueue,includeGapCandidate,includeManualAtom,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -56,6 +56,18 @@ describe('road form helpers',()=>{
     expect(canConnect('MATCH_EDITED')).toBe(true)
     expect(canBuild('MATCH_EDITED','final')).toBe(false)
     expect(canBuild('FINAL_READY','final')).toBe(true)
+  })
+  it('reviews only unresolved non-ignored continuity gaps',()=>{
+    const gap=(gapId:string,decision:string)=>({gapId,decision,gapKind:'topology-gap',referencePart:0,referenceGapMeters:0,geometryGapMeters:5,upstreamN13AtomId:'a',downstreamN13AtomId:'b',candidatePathCount:0,candidatePaths:[]})
+    expect(gapReviewQueue([gap('auto','accepted-auto-connector'),gap('one','unresolved-no-path'),gap('two','unresolved-ambiguous')],new Set(['one'])).map(item=>item.gapId)).toEqual(['two'])
+  })
+  it('adds one or two gap atoms atomically and removes exclusions',()=>{
+    expect(includeGapCandidate({include:[],exclude:['a','keep']},{atomIds:['a']})).toEqual({include:['a'],exclude:['keep']})
+    expect(includeGapCandidate({include:[],exclude:['a','b']},{atomIds:['a','b']})).toEqual({include:['a','b'],exclude:[]})
+  })
+  it('derives candidate highlighting from stable source atom IDs',()=>{
+    const source={features:[{properties:{n13AtomId:'a'},geometry:null},{properties:{n13AtomId:'b'},geometry:null},{properties:{n13AtomId:'c'},geometry:null}]}
+    expect(candidatePathGeoJson(source,{atomIds:['a','c']}).features.map(feature=>feature.properties?.n13AtomId)).toEqual(['a','c'])
   })
   it('region selection uses inclusive line/rectangle intersection for every shortlisted atom',()=>{
     const feature=(id:string,coordinates:number[][],automaticSelection=false)=>({type:'Feature',properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates}})

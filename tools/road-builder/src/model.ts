@@ -8,10 +8,10 @@ export type StatutoryNetworkChoice='national'|'prefectural'|'custom'
 export const statutoryNetworkChoice=(network?:string):StatutoryNetworkChoice=>network==='JP:national'?'national':network==='JP:prefectural'?'prefectural':'custom'
 export const applyStatutoryNetworkChoice=(reference:Road['reference'],choice:StatutoryNetworkChoice):Road['reference']=>({...reference,network:choice==='national'?'JP:national':choice==='prefectural'?'JP:prefectural':reference.network||''})
 
-export const diagnosticLayerIds=['allCandidates','residualRejected','autoSelectedSourceAtoms','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected'] as const
+export const diagnosticLayerIds=['allCandidates','residualRejected','autoSelectedSourceAtoms','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected','continuityGaps','candidateHighlight'] as const
 export type DiagnosticLayerId=typeof diagnosticLayerIds[number]
 export type LayerVisibility=Record<DiagnosticLayerId,boolean>
-export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,autoSelectedSourceAtoms:false,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,allCandidates:false,residualRejected:false})
+export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,autoSelectedSourceAtoms:false,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,continuityGaps:true,candidateHighlight:true,allCandidates:false,residualRejected:false})
 export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
 export const mapLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId,hasData=true):'visible'|'none'=>hasData&&visibility[id]?'visible':'none'
 export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
@@ -60,6 +60,14 @@ export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:Selecti
 export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
   return atomIds.reduce(excludeManualAtom,selection)
 }
+export type ContinuityCandidatePath={atomIds:string[];sourceFeatureIndices:number[];classes:string[];lengthMeters:number;detourRatio:number;progressRatio:number;autoEligible:boolean;rejectionReasons?:string[]}
+export type ContinuityGap={gapId:string;gapKind:string;referencePart:number;referenceGapMeters:number;geometryGapMeters:number;upstreamN13AtomId:string;downstreamN13AtomId:string;candidatePathCount:number;candidatePaths:ContinuityCandidatePath[];decision:string}
+export const isUnresolvedGap=(gap:ContinuityGap)=>gap.decision.startsWith('unresolved-')
+export const gapReviewQueue=(gaps:ContinuityGap[],ignored:Set<string>)=>gaps.filter(gap=>isUnresolvedGap(gap)&&!ignored.has(gap.gapId))
+export const includeGapCandidate=(selection:ManualSelection,path:Pick<ContinuityCandidatePath,'atomIds'>):ManualSelection=>
+  path.atomIds.reduce(includeManualAtom,selection)
+export const candidatePathGeoJson=(sourceAtoms:{features:{properties?:Record<string,unknown>|null}[]},path?:Pick<ContinuityCandidatePath,'atomIds'>)=>({
+  type:'FeatureCollection' as const,features:path?sourceAtoms.features.filter(feature=>path.atomIds.includes(String(feature.properties?.n13AtomId||''))):[]})
 export const deriveAvailableAtomIds=(automaticIds:string[],adjacency:Record<string,string[]>,selection:ManualSelection):string[]=>{
   const excluded=new Set(selection.exclude)
   const selected=new Set([...automaticIds.filter(id=>!excluded.has(id)),...selection.include.filter(id=>!excluded.has(id))])

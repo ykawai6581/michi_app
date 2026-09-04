@@ -20,7 +20,7 @@ export function synchronizeRoadMapData(map:MlMap,layers:DiagnosticLayers,visibil
     const source=map.getSource(id)as GeoJSONSource|undefined
     if(source){source.setData(data);return}
     map.addSource(id,{type:'geojson',data})
-    map.addLayer({id,type:id==='ownership'?'circle':'line',source:id,
+    map.addLayer({id,type:id==='ownership'||id==='continuityGaps'?'circle':'line',source:id,
       layout:{visibility:mapLayerVisibility(visibility,id)},paint:paint[id]} as maplibregl.LayerSpecification)
     if(editable.has(id)){
       const hit=`${id}-hit`
