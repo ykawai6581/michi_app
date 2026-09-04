@@ -7,7 +7,17 @@ import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH } from '
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
-    expect(SOURCE_IDS).toMatchObject({ modernRoads:'project-modern-roads', railways:'project-railways', stations:'project-stations', historicalRoads:'project-historical-roads', historicalPosts:'project-historical-posts' })
+    expect(SOURCE_IDS).toMatchObject({ modernRoads:'project-modern-roads', railways:'project-railways', stations:'project-stations', historicalRoads:'project-historical-roads', historicalPosts:'project-historical-posts', highlightLineLabels:'selected-line-label-anchors' })
+  })
+  it('places selected line labels once from their dedicated Point source',()=>{
+    const layers:Record<string,unknown>[]=[]
+    const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    const layer=layers.find(candidate=>candidate.id===LAYER_IDS.highlightLineLabels) as {source:string;layout:Record<string,unknown>}
+    expect(layer.source).toBe(SOURCE_IDS.highlightLineLabels)
+    expect(layer.layout).toMatchObject({'symbol-placement':'point','text-rotate':['get','bearing'],'text-rotation-alignment':'map'})
+    expect(layer.layout).not.toHaveProperty('symbol-spacing')
   })
   it('keeps jurisdiction polygons below roads and its Point label above every road layer',()=>{
     const layers:string[]=[]
