@@ -1,94 +1,94 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { buildLineLabelAnchors, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
+import {
+  buildLineLabelAnchors, LABEL_SAFE_HEIGHT_RATIO, MAX_STITCH_GAP_PX,
+  pointAtPolylineMidpoint, requiredLabelLength, stitchVisibleFragments,
+  uprightBearing, visualChainLength,
+} from './lineLabelPlacement'
 
 const map = {
   getCanvas: () => ({ width: 500, height: 300, clientWidth: 500, clientHeight: 300 }),
   project: ([x, y]: [number, number]) => ({ x, y }),
   unproject: ([x, y]: [number, number]) => ({ toArray: () => [x, y] }),
 }
+const presentation = { fontSize: 20, haloWidth: 3, presentationScale: 1, measureTextWidth: () => 100 }
 
 function line(id: string, coordinates: number[][], name = '甲州街道', properties = {}): EntityFeature {
   return { type: 'Feature', properties: { id, name, type: 'road', ...properties }, geometry: { type: 'LineString', coordinates } } as EntityFeature
 }
+function anchors(features: EntityFeature[], shown = presentation) {
+  return buildLineLabelAnchors(map as never, features, shown).features
+}
 
-describe('selected line label placement', () => {
-  it('creates exactly one selected anchor for each of three visible scene roads', () => {
-    const roads = ['A','B','C'].map((id,index)=>line(id, [[0,50+index*50],[100,50+index*50]], id, { sceneLineState:'selected' }))
-    const anchors = buildLineLabelAnchors(map as never, roads).features
-    expect(anchors.map(anchor=>anchor.properties.id)).toEqual(['A','B','C'])
-    expect(anchors.every(anchor=>anchor.properties.sceneLineState==='selected')).toBe(true)
+describe('screen-space line label fit and visual continuity', () => {
+  it('labels one sufficiently long fragment and suppresses one just below the additive requirement', () => {
+    expect(requiredLabelLength('road', presentation)).toBe(130)
+    expect(anchors([line('fits', [[30, 50], [160, 50]])])).toHaveLength(1)
+    expect(anchors([line('short', [[30, 50], [159, 50]])])).toHaveLength(0)
   })
 
-  it('creates one Point anchor for a visible LineString', () => {
-    const result = buildLineLabelAnchors(map as never, [line('A', [[0, 100], [400, 100]])])
-    expect(result.features).toHaveLength(1)
-    expect(result.features[0]).toMatchObject({ properties: { id: 'A', name: '甲州街道', type: 'road', bearing: 0 }, geometry: { type: 'Point', coordinates: [200, 100] } })
+  it('regresses 荒玉水道道路 by stitching several individually short same-id pieces', () => {
+    const pieces = [line('aratama', [[30, 60], [95, 60]], '荒玉水道道路'), line('aratama', [[100, 60], [165, 60]], '荒玉水道道路'), line('aratama', [[170, 60], [235, 60]], '荒玉水道道路')]
+    expect([65, 65, 65].every((length) => length < 130)).toBe(true)
+    expect(anchors(pieces)).toHaveLength(1)
   })
 
-  it('chooses an upper component of a MultiLineString instead of a longer component in the caption zone', () => {
-    const feature = { ...line('A', []), geometry: { type: 'MultiLineString', coordinates: [[[0, 20], [100, 20]], [[0, 200], [400, 200]]] } } as EntityFeature
-    const result = buildLineLabelAnchors(map as never, [feature])
-    expect(result.features).toHaveLength(1)
-    expect(result.features[0].geometry.coordinates).toEqual([50, 20])
+  it('never stitches same-name fragments across logical ids', () => {
+    expect(anchors([line('A', [[30, 50], [95, 50]]), line('B', [[100, 50], [165, 50]])])).toHaveLength(0)
   })
 
-  it('chooses a shorter upper fragment when the longest same-id fragment is in the caption zone', () => {
-    const result = buildLineLabelAnchors(map as never, [line('A', [[0, 20], [100, 20]]), line('A', [[0, 200], [400, 200]])])
-    expect(result.features).toHaveLength(1)
-    expect(result.features[0].geometry.coordinates).toEqual([50, 20])
+  it('does not stitch a gap larger than the scaled threshold', () => {
+    expect(anchors([line('A', [[30, 50], [95, 50]]), line('A', [[95 + MAX_STITCH_GAP_PX + 1, 50], [173, 50]])])).toHaveLength(0)
   })
 
-  it('clips a road crossing the caption-safe boundary and anchors above it', () => {
-    const result = buildLineLabelAnchors(map as never, [line('crossing', [[250, 100], [250, 260]])])
-    expect(result.features).toHaveLength(1)
-    expect(result.features[0].geometry.coordinates[1]).toBeLessThanOrEqual(300 * LABEL_SAFE_HEIGHT_RATIO)
-    expect(result.features[0].geometry.coordinates).toEqual([250, 147.5])
+  it('rejects a close join with excessive direction discontinuity', () => {
+    expect(anchors([line('A', [[30, 50], [100, 50]]), line('A', [[105, 50], [105, 120]])])).toHaveLength(0)
   })
 
-  it('omits a road whose visible geometry is entirely in the caption zone', () => {
-    expect(buildLineLabelAnchors(map as never, [line('lower', [[20, 220], [480, 220]])]).features).toEqual([])
+  it('stitches reversed source ordering', () => {
+    expect(anchors([line('A', [[30, 50], [100, 50]]), line('A', [[175, 50], [105, 50]])])).toHaveLength(1)
   })
 
-  it.each(['selected', 'retained'] as const)('keeps %s state labels in the caption-safe region', (sceneLineState) => {
-    const anchor = buildLineLabelAnchors(map as never, [line(sceneLineState, [[10, 180], [490, 220]], sceneLineState, { sceneLineState })]).features[0]
-    expect(anchor.properties.sceneLineState).toBe(sceneLineState)
-    expect(anchor.geometry.coordinates[1]).toBeLessThanOrEqual(300 * LABEL_SAFE_HEIGHT_RATIO)
+  it('stitches compatible MultiLineString components into one candidate', () => {
+    const feature = { ...line('A', []), geometry: { type: 'MultiLineString', coordinates: [[[30, 50], [95, 50]], [[100, 50], [165, 50]]] } } as EntityFeature
+    expect(anchors([feature])).toHaveLength(1)
   })
 
-  it('omits a line entirely outside the viewport', () => {
-    expect(buildLineLabelAnchors(map as never, [line('A', [[-200, -20], [-100, -20]])]).features).toEqual([])
+  it('clips before stitching and cannot connect upper pieces through the caption zone', () => {
+    const feature = { ...line('A', []), geometry: { type: 'MultiLineString', coordinates: [[[30, 100], [90, 100]], [[90, 100], [90, 240], [110, 240], [110, 100]], [[110, 100], [170, 100]]] } } as EntityFeature
+    expect(anchors([feature])).toHaveLength(0)
   })
 
-  it('clips a crossing whose endpoints are both outside the viewport', () => {
-    const result = buildLineLabelAnchors(map as never, [line('A', [[-100, 150], [600, 150]])])
-    expect(result.features).toHaveLength(1)
-    expect(result.features[0].geometry.coordinates).toEqual([250, 150])
+  it('scales padding, halo, and stitch gap with presentation scale', () => {
+    const scaled = { ...presentation, haloWidth: 6, presentationScale: 2, measureTextWidth: () => 200 }
+    expect(requiredLabelLength('road', scaled)).toBe(260)
+    expect(stitchVisibleFragments([[{ x: 0, y: 0 }, { x: 20, y: 0 }], [{ x: 20 + MAX_STITCH_GAP_PX * 2, y: 0 }, { x: 50, y: 0 }]], MAX_STITCH_GAP_PX * 2)).toHaveLength(1)
   })
 
-  it('still anchors a briefly visible fragment at the viewport edge', () => {
-    const result = buildLineLabelAnchors(map as never, [line('short', [[-2, 150], [3, 150]])])
-    expect(result.features.map(feature=>feature.properties.id)).toEqual(['short'])
+  it('places the anchor at the cumulative midpoint of real fragment lengths without counting gaps', () => {
+    const result = anchors([line('A', [[30, 50], [110, 50]]), line('A', [[120, 50], [180, 50]])], { ...presentation, measureTextWidth: () => 20 })
+    expect(result[0].geometry.coordinates).toEqual([100, 50])
   })
 
-  it('places a polyline midpoint by cumulative pixel distance rather than coordinate index', () => {
-    const result = pointAtPolylineMidpoint([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 110, y: 0 }])
-    expect(result?.point).toEqual({ x: 55, y: 0 })
+  it('creates at most one anchor per logical id while preserving properties', () => {
+    const result = anchors([line('A', [[30, 50], [200, 50]], '中央線', { type: 'railway', railColor: '#123456' }), line('A', [[30, 100], [200, 100]], '中央線', { type: 'railway', railColor: '#123456' })])
+    expect(result).toHaveLength(1)
+    expect(result[0].properties).toMatchObject({ id: 'A', type: 'railway', railColor: '#123456' })
   })
 
-  it('normalizes reversed directions so text remains upright', () => {
+  it('omits offscreen geometry and geometry entirely below the safe region', () => {
+    expect(anchors([line('offscreen', [[-200, -20], [-100, -20]])])).toEqual([])
+    expect(anchors([line('caption', [[20, 220], [480, 220]])])).toEqual([])
+  })
+
+  it('clips a safe-boundary crossing and retains existing orientation helpers', () => {
+    const result = anchors([line('crossing', [[250, 20], [250, 260]])], { ...presentation, measureTextWidth: () => 20 })
+    expect(result[0].geometry.coordinates[1]).toBeLessThanOrEqual(300 * LABEL_SAFE_HEIGHT_RATIO)
+    expect(pointAtPolylineMidpoint([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 110, y: 0 }])?.point).toEqual({ x: 55, y: 0 })
     expect(uprightBearing({ x: 100, y: 20 }, { x: 0, y: 0 })).toBeCloseTo(11.31, 2)
-    expect(uprightBearing({ x: 100, y: 0 }, { x: 0, y: 20 })).toBeCloseTo(-11.31, 2)
   })
 
-  it('allows separate logical ids with the same name to each have a label', () => {
-    const result = buildLineLabelAnchors(map as never, [line('A', [[0, 50], [100, 50]]), line('B', [[0, 100], [100, 100]])])
-    expect(result.features.map((feature) => feature.properties.id)).toEqual(['A', 'B'])
-    expect(new Set(result.features.map(feature=>feature.properties.id)).size).toBe(result.features.length)
-  })
-
-  it('copies railway color properties to its anchor', () => {
-    const railway = line('rail', [[0, 50], [100, 50]], '中央線', { type: 'railway', railColor: '#123456' })
-    expect(buildLineLabelAnchors(map as never, [railway]).features[0].properties).toMatchObject({ type: 'railway', railColor: '#123456' })
+  it('does not include stitch gaps in visual chain length', () => {
+    expect(visualChainLength([[{ x: 0, y: 0 }, { x: 10, y: 0 }], [{ x: 20, y: 0 }, { x: 30, y: 0 }]])).toBe(20)
   })
 })
