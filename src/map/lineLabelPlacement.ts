@@ -8,27 +8,6 @@ export interface Viewport { width: number; height: number }
 const EPSILON = 1e-7
 export const LABEL_SAFE_INSET = 30
 export const LABEL_SAFE_HEIGHT_RATIO = 0.65
-export const LABEL_FIT_RATIO = 1.3
-
-export interface LineLabelPresentation {
-  fontSize: number
-  haloWidth: number
-  measureTextWidth?: (label: string, fontSize: number) => number
-}
-
-let measurementContext: CanvasRenderingContext2D | null | undefined
-
-function canvasTextWidth(label: string, fontSize: number): number {
-  if (measurementContext === undefined) measurementContext = document.createElement('canvas').getContext('2d')
-  if (!measurementContext) return Number.POSITIVE_INFINITY
-  measurementContext.font = `${fontSize}px "Noto Sans"`
-  return measurementContext.measureText(label).width
-}
-
-export function labelFitsFragment(fragmentPixelLength: number, label: string, presentation: LineLabelPresentation): boolean {
-  const textWidth = (presentation.measureTextWidth ?? canvasTextWidth)(label, presentation.fontSize)
-  return fragmentPixelLength >= (textWidth + 2 * presentation.haloWidth) * LABEL_FIT_RATIO
-}
 
 /** Clips a screen-space segment to the canvas rectangle using Liang-Barsky. */
 export function clipSegmentToViewport(start: ScreenPoint, end: ScreenPoint, viewport: Viewport): [ScreenPoint, ScreenPoint] | null {
@@ -127,7 +106,7 @@ function lineComponents(feature: EntityFeature): Position[][] {
 
 export type LineLabelAnchor = Feature<Point, EntityProperties & { bearing: number }>
 
-export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unproject' | 'getCanvas'>, features: EntityFeature[], presentation: LineLabelPresentation): FeatureCollection<Point, EntityProperties & { bearing: number }> {
+export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unproject' | 'getCanvas'>, features: EntityFeature[]): FeatureCollection<Point, EntityProperties & { bearing: number }> {
   const canvas = map.getCanvas()
   const viewport = { width: canvas.clientWidth || canvas.width, height: canvas.clientHeight || canvas.height }
   const logicalLines = new Map<string, { feature: EntityFeature; lines: Position[][] }>()
@@ -157,7 +136,6 @@ export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unp
       && safeMidpoint.point.y >= LABEL_SAFE_INSET
     const best = safelyInset ? safeBest : longest(projectedLines.flatMap((line) => preferredLabelFragments(line, viewport))) ?? safeBest
     if (!best) continue
-    if (!labelFitsFragment(polylineLength(best), feature.properties.name, presentation)) continue
     const midpoint = pointAtPolylineMidpoint(best)
     if (!midpoint) continue
     const coordinate = map.unproject([midpoint.point.x, midpoint.point.y]).toArray()

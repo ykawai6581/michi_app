@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { buildLineLabelAnchors as placeLabels, LABEL_FIT_RATIO, LABEL_SAFE_HEIGHT_RATIO, labelFitsFragment, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
+import { buildLineLabelAnchors, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
 
 const map = {
   getCanvas: () => ({ width: 500, height: 300, clientWidth: 500, clientHeight: 300 }),
   project: ([x, y]: [number, number]) => ({ x, y }),
   unproject: ([x, y]: [number, number]) => ({ toArray: () => [x, y] }),
 }
-
-const permissivePresentation = { fontSize: 28, haloWidth: 0, measureTextWidth: () => 0 }
-const buildLineLabelAnchors = (candidateMap: typeof map, features: EntityFeature[]) => placeLabels(candidateMap as never, features, permissivePresentation)
 
 function line(id: string, coordinates: number[][], name = '甲州街道', properties = {}): EntityFeature {
   return { type: 'Feature', properties: { id, name, type: 'road', ...properties }, geometry: { type: 'LineString', coordinates } } as EntityFeature
@@ -93,56 +90,5 @@ describe('selected line label placement', () => {
   it('copies railway color properties to its anchor', () => {
     const railway = line('rail', [[0, 50], [100, 50]], '中央線', { type: 'railway', railColor: '#123456' })
     expect(buildLineLabelAnchors(map as never, [railway]).features[0].properties).toMatchObject({ type: 'railway', railColor: '#123456' })
-  })
-
-  it('shows a long fragment and suppresses one shorter than its measured label threshold', () => {
-    const presentation = { fontSize: 20, haloWidth: 2, measureTextWidth: () => 100 }
-    expect(placeLabels(map as never, [line('long', [[0, 100], [200, 100]])], presentation).features).toHaveLength(1)
-    expect(placeLabels(map as never, [line('short', [[0, 100], [130, 100]])], presentation).features).toHaveLength(0)
-  })
-
-  it('uses the exact centralized fit ratio', () => {
-    const presentation = { fontSize: 20, haloWidth: 0, measureTextWidth: () => 100 }
-    expect(labelFitsFragment(100 * LABEL_FIT_RATIO, 'road', presentation)).toBe(true)
-    expect(labelFitsFragment(100 * LABEL_FIT_RATIO - 0.01, 'road', presentation)).toBe(false)
-  })
-
-  it('responds to projected screen scale without a zoom threshold', () => {
-    const feature = line('scaled', [[0, 100], [100, 100]], 'Road')
-    const presentation = { fontSize: 20, haloWidth: 0, measureTextWidth: () => 60 }
-    const atScale = (scale: number) => ({ ...map, project: ([x,y]: [number,number]) => ({ x:x*scale, y }) })
-    expect(placeLabels(atScale(1) as never, [feature], presentation).features).toHaveLength(1)
-    expect(placeLabels(atScale(0.5) as never, [feature], presentation).features).toHaveLength(0)
-  })
-
-  it('clips to the top safe region before testing fit', () => {
-    const presentation = { fontSize: 20, haloWidth: 0, measureTextWidth: () => 50 }
-    const crossing = line('crossing-fit', [[250, 170], [250, 400]], 'Road')
-    expect(placeLabels(map as never, [crossing], presentation).features).toHaveLength(0)
-  })
-
-  it('includes both halo sides in the required width', () => {
-    const presentation = { fontSize: 20, haloWidth: 10, measureTextWidth: () => 80 }
-    expect(labelFitsFragment(80 * LABEL_FIT_RATIO, 'Road', presentation)).toBe(false)
-    expect(labelFitsFragment(100 * LABEL_FIT_RATIO, 'Road', presentation)).toBe(true)
-  })
-
-  it('uses presentation-scaled font size for measurement', () => {
-    const measuredSizes: number[] = []
-    const measureTextWidth = (_label: string, size: number) => { measuredSizes.push(size); return size * 4 }
-    expect(labelFitsFragment(105, 'Road', { fontSize: 20, haloWidth: 0, measureTextWidth })).toBe(true)
-    expect(labelFitsFragment(105, 'Road', { fontSize: 40, haloWidth: 0, measureTextWidth })).toBe(false)
-    expect(measuredSizes).toEqual([20, 40])
-  })
-
-  it('tests the longest eligible MultiLineString fragment', () => {
-    const feature = { ...line('multi', []), geometry: { type:'MultiLineString', coordinates:[[[0,50],[60,50]],[[0,100],[180,100]]] } } as EntityFeature
-    const result = placeLabels(map as never, [feature], { fontSize:20, haloWidth:0, measureTextWidth:()=>100 })
-    expect(result.features[0].geometry.coordinates).toEqual([90,100])
-  })
-
-  it.each(['selected', 'active', 'retained'] as const)('does not let %s selection state change fit', (sceneLineState) => {
-    const feature = line(sceneLineState, [[0,100],[100,100]], 'Road', { sceneLineState })
-    expect(placeLabels(map as never, [feature], { fontSize:20, haloWidth:0, measureTextWidth:()=>80 }).features).toHaveLength(0)
   })
 })
