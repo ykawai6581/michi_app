@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { buildLineLabelAnchors, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
+import { buildLineLabelAnchors, LABEL_SAFE_HEIGHT_RATIO, pointAtPolylineMidpoint, uprightBearing } from './lineLabelPlacement'
 
 const map = {
   getCanvas: () => ({ width: 500, height: 300, clientWidth: 500, clientHeight: 300 }),
@@ -26,17 +26,34 @@ describe('selected line label placement', () => {
     expect(result.features[0]).toMatchObject({ properties: { id: 'A', name: '甲州街道', type: 'road', bearing: 0 }, geometry: { type: 'Point', coordinates: [200, 100] } })
   })
 
-  it('chooses one anchor from the longest component of a MultiLineString', () => {
+  it('chooses an upper component of a MultiLineString instead of a longer component in the caption zone', () => {
     const feature = { ...line('A', []), geometry: { type: 'MultiLineString', coordinates: [[[0, 20], [100, 20]], [[0, 200], [400, 200]]] } } as EntityFeature
     const result = buildLineLabelAnchors(map as never, [feature])
     expect(result.features).toHaveLength(1)
-    expect(result.features[0].geometry.coordinates).toEqual([200, 200])
+    expect(result.features[0].geometry.coordinates).toEqual([50, 20])
   })
 
-  it('chooses the longest visible fragment across separate pieces with the same id', () => {
+  it('chooses a shorter upper fragment when the longest same-id fragment is in the caption zone', () => {
     const result = buildLineLabelAnchors(map as never, [line('A', [[0, 20], [100, 20]]), line('A', [[0, 200], [400, 200]])])
     expect(result.features).toHaveLength(1)
-    expect(result.features[0].geometry.coordinates).toEqual([200, 200])
+    expect(result.features[0].geometry.coordinates).toEqual([50, 20])
+  })
+
+  it('clips a road crossing the caption-safe boundary and anchors above it', () => {
+    const result = buildLineLabelAnchors(map as never, [line('crossing', [[250, 100], [250, 260]])])
+    expect(result.features).toHaveLength(1)
+    expect(result.features[0].geometry.coordinates[1]).toBeLessThanOrEqual(300 * LABEL_SAFE_HEIGHT_RATIO)
+    expect(result.features[0].geometry.coordinates).toEqual([250, 147.5])
+  })
+
+  it('omits a road whose visible geometry is entirely in the caption zone', () => {
+    expect(buildLineLabelAnchors(map as never, [line('lower', [[20, 220], [480, 220]])]).features).toEqual([])
+  })
+
+  it.each(['selected', 'retained'] as const)('keeps %s state labels in the caption-safe region', (sceneLineState) => {
+    const anchor = buildLineLabelAnchors(map as never, [line(sceneLineState, [[10, 180], [490, 220]], sceneLineState, { sceneLineState })]).features[0]
+    expect(anchor.properties.sceneLineState).toBe(sceneLineState)
+    expect(anchor.geometry.coordinates[1]).toBeLessThanOrEqual(300 * LABEL_SAFE_HEIGHT_RATIO)
   })
 
   it('omits a line entirely outside the viewport', () => {
