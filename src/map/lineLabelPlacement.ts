@@ -8,32 +8,8 @@ export interface Viewport { width: number; height: number }
 const EPSILON = 1e-7
 export const LABEL_SAFE_INSET = 30
 export const LABEL_SAFE_HEIGHT_RATIO = 0.65
-export const MAX_STITCH_GAP_PX = 12
-export const MAX_STITCH_DIRECTION_DIFF_DEG = 45
-export const LABEL_END_PADDING_PX = 12
-
-export interface LineLabelPresentation {
-  fontSize: number
-  haloWidth: number
-  presentationScale: number
-  measureTextWidth?: (label: string, fontSize: number) => number
-}
-
-export type VisualChain = ScreenPoint[][]
-
-let measurementContext: CanvasRenderingContext2D | null | undefined
-
-function canvasTextWidth(label: string, fontSize: number): number {
-  if (measurementContext === undefined) measurementContext = document.createElement('canvas').getContext('2d')
-  if (!measurementContext) return Number.POSITIVE_INFINITY
-  measurementContext.font = `${fontSize}px "Noto Sans"`
-  return measurementContext.measureText(label).width
-}
-
-export function requiredLabelLength(label: string, presentation: LineLabelPresentation): number {
-  const textWidth = (presentation.measureTextWidth ?? canvasTextWidth)(label, presentation.fontSize)
-  return textWidth + 2 * presentation.haloWidth + 2 * LABEL_END_PADDING_PX * presentation.presentationScale
-}
+export interface LineLabelPresentation { fontSize: number; haloWidth: number; measureTextWidth: (label: string, fontSize: number) => number }
+export interface LineLabelCandidate { anchor: LineLabelAnchor; screenPoint: ScreenPoint }
 
 /** Clips a screen-space segment to the canvas rectangle using Liang-Barsky. */
 export function clipSegmentToViewport(start: ScreenPoint, end: ScreenPoint, viewport: Viewport): [ScreenPoint, ScreenPoint] | null {
@@ -99,102 +75,28 @@ export function polylineLength(line: ScreenPoint[]): number {
   return line.slice(1).reduce((length, point, index) => length + Math.hypot(point.x - line[index].x, point.y - line[index].y), 0)
 }
 
-export function visualChainLength(chain: VisualChain): number {
-  return chain.reduce((length, fragment) => length + polylineLength(fragment), 0)
-}
-
-function endpointDirection(fragment: ScreenPoint[], atStart: boolean): ScreenPoint | null {
-  const endpoint = atStart ? fragment[0] : fragment[fragment.length - 1]
-  for (let offset = 1; offset < fragment.length; offset += 1) {
-    const inner = atStart ? fragment[offset] : fragment[fragment.length - 1 - offset]
-    const vector = atStart
-      ? { x: inner.x - endpoint.x, y: inner.y - endpoint.y }
-      : { x: endpoint.x - inner.x, y: endpoint.y - inner.y }
-    if (Math.hypot(vector.x, vector.y) > EPSILON) return vector
-  }
-  return null
-}
-
-function directionDifference(first: ScreenPoint, second: ScreenPoint): number {
-  const dot = first.x * second.x + first.y * second.y
-  const lengths = Math.hypot(first.x, first.y) * Math.hypot(second.x, second.y)
-  return Math.acos(Math.max(-1, Math.min(1, dot / lengths))) * 180 / Math.PI
-}
-
-interface StitchMatch { fragmentIndex: number; reverse: boolean; prepend: boolean; gap: number }
-
-function stitchMatch(chain: VisualChain, fragment: ScreenPoint[], fragmentIndex: number, maximumGap: number): StitchMatch | null {
-  const options: StitchMatch[] = []
-  for (const prepend of [false, true]) {
-    for (const reverse of [false, true]) {
-      const oriented = reverse ? [...fragment].reverse() : fragment
-      const chainFragment = prepend ? chain[0] : chain[chain.length - 1]
-      const chainPoint = prepend ? chainFragment[0] : chainFragment[chainFragment.length - 1]
-      const candidatePoint = prepend ? oriented[oriented.length - 1] : oriented[0]
-      const gap = Math.hypot(chainPoint.x - candidatePoint.x, chainPoint.y - candidatePoint.y)
-      const chainDirection = endpointDirection(chainFragment, prepend)
-      const candidateDirection = endpointDirection(oriented, !prepend)
-      if (gap <= maximumGap && chainDirection && candidateDirection
-        && directionDifference(chainDirection, candidateDirection) <= MAX_STITCH_DIRECTION_DIFF_DEG) {
-        options.push({ fragmentIndex, reverse, prepend, gap })
-      }
-    }
-  }
-  return options.sort((a, b) => a.gap - b.gap || Number(a.prepend) - Number(b.prepend) || Number(a.reverse) - Number(b.reverse))[0] ?? null
-}
-
-/** Greedily joins only visually compatible screen-space fragments. */
-export function stitchVisibleFragments(fragments: ScreenPoint[][], maximumGap: number): VisualChain[] {
-  const unused = new Set(fragments.map((_, index) => index))
-  const chains: VisualChain[] = []
-  while (unused.size > 0) {
-    const first = unused.values().next().value as number
-    unused.delete(first)
-    const chain: VisualChain = [fragments[first]]
-    while (true) {
-      const match = [...unused].flatMap((index) => {
-        const candidate = stitchMatch(chain, fragments[index], index, maximumGap)
-        return candidate ? [candidate] : []
-      }).sort((a, b) => a.gap - b.gap || a.fragmentIndex - b.fragmentIndex)[0]
-      if (!match) break
-      const fragment = match.reverse ? [...fragments[match.fragmentIndex]].reverse() : fragments[match.fragmentIndex]
-      if (match.prepend) chain.unshift(fragment)
-      else chain.push(fragment)
-      unused.delete(match.fragmentIndex)
-    }
-    chains.push(chain)
-  }
-  return chains
-}
-
-export function pointAtVisualChainMidpoint(chain: VisualChain): { point: ScreenPoint; before: ScreenPoint; after: ScreenPoint } | null {
-  const target = visualChainLength(chain) / 2
-  let travelled = 0
-  for (const fragment of chain) {
-    const length = polylineLength(fragment)
-    if (travelled + length >= target) {
-      const localTarget = target - travelled
-      let localTravelled = 0
-      for (let index = 1; index < fragment.length; index += 1) {
-        const before = fragment[index - 1]
-        const after = fragment[index]
-        const segmentLength = Math.hypot(after.x - before.x, after.y - before.y)
-        if (localTravelled + segmentLength >= localTarget && segmentLength > EPSILON) {
-          const amount = (localTarget - localTravelled) / segmentLength
-          return { point: { x: before.x + (after.x - before.x) * amount, y: before.y + (after.y - before.y) * amount }, before, after }
-        }
-        localTravelled += segmentLength
-      }
-    }
-    travelled += length
-  }
-  return null
-}
-
 export function pointAtPolylineMidpoint(line: ScreenPoint[]): { point: ScreenPoint; before: ScreenPoint; after: ScreenPoint } | null {
   const length = polylineLength(line)
   if (length <= EPSILON) return null
   const target = length / 2
+  let travelled = 0
+  for (let index = 1; index < line.length; index += 1) {
+    const before = line[index - 1]
+    const after = line[index]
+    const segmentLength = Math.hypot(after.x - before.x, after.y - before.y)
+    if (travelled + segmentLength >= target && segmentLength > EPSILON) {
+      const amount = (target - travelled) / segmentLength
+      return { point: { x: before.x + (after.x - before.x) * amount, y: before.y + (after.y - before.y) * amount }, before, after }
+    }
+    travelled += segmentLength
+  }
+  return null
+}
+
+function pointAtPolylineFraction(line: ScreenPoint[], fraction: number): { point: ScreenPoint; before: ScreenPoint; after: ScreenPoint } | null {
+  const length = polylineLength(line)
+  if (length <= EPSILON) return null
+  const target = length * fraction
   let travelled = 0
   for (let index = 1; index < line.length; index += 1) {
     const before = line[index - 1]
@@ -224,7 +126,42 @@ function lineComponents(feature: EntityFeature): Position[][] {
 
 export type LineLabelAnchor = Feature<Point, EntityProperties & { bearing: number }>
 
-export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unproject' | 'getCanvas'>, features: EntityFeature[], presentation: LineLabelPresentation): FeatureCollection<Point, EntityProperties & { bearing: number }> {
+interface LabelBox { left: number; top: number; right: number; bottom: number }
+
+function candidateBox(candidate: LineLabelCandidate, presentation: LineLabelPresentation): LabelBox {
+  const width = presentation.measureTextWidth(candidate.anchor.properties.name, presentation.fontSize) + presentation.haloWidth * 2
+  const height = presentation.fontSize + presentation.haloWidth * 2
+  const radians = candidate.anchor.properties.bearing * Math.PI / 180
+  const boxWidth = Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians))
+  const boxHeight = Math.abs(width * Math.sin(radians)) + Math.abs(height * Math.cos(radians))
+  return { left: candidate.screenPoint.x - boxWidth / 2, right: candidate.screenPoint.x + boxWidth / 2, top: candidate.screenPoint.y - boxHeight / 2, bottom: candidate.screenPoint.y + boxHeight / 2 }
+}
+
+function overlaps(a: LabelBox, b: LabelBox): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+}
+
+function labelPriority(candidate: LineLabelCandidate): number {
+  if (candidate.anchor.properties.activeLine || candidate.anchor.properties.sceneLineState === 'active') return 2
+  if (candidate.anchor.properties.sceneLineState === 'selected') return 1
+  return 0
+}
+
+export function resolveLineLabelOverlaps(groups: LineLabelCandidate[][], presentation: LineLabelPresentation): LineLabelAnchor[] {
+  const accepted: { anchor: LineLabelAnchor; box: LabelBox }[] = []
+  const ordered = groups.map((candidates, index) => ({ candidates, index }))
+    .sort((a, b) => labelPriority(b.candidates[0]) - labelPriority(a.candidates[0]) || a.index - b.index)
+  for (const { candidates } of ordered) {
+    const choice = candidates.find((candidate) => {
+      const box = candidateBox(candidate, presentation)
+      return !accepted.some((item) => overlaps(item.box, box))
+    })
+    if (choice) accepted.push({ anchor: choice.anchor, box: candidateBox(choice, presentation) })
+  }
+  return accepted.map(({ anchor }) => anchor)
+}
+
+export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unproject' | 'getCanvas'>, features: EntityFeature[], presentation?: LineLabelPresentation): FeatureCollection<Point, EntityProperties & { bearing: number }> {
   const canvas = map.getCanvas()
   const viewport = { width: canvas.clientWidth || canvas.width, height: canvas.clientHeight || canvas.height }
   const logicalLines = new Map<string, { feature: EntityFeature; lines: Position[][] }>()
@@ -237,33 +174,34 @@ export function buildLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unp
     else logicalLines.set(feature.properties.id, { feature, lines: [...lines] })
   }
 
-  const anchors: LineLabelAnchor[] = []
+  const candidateGroups: LineLabelCandidate[][] = []
   for (const { feature, lines } of logicalLines.values()) {
     const projectedLines = lines.map((line) => line.map((coordinate) => {
       const projected = map.project(coordinate as [number, number])
       return { x: projected.x, y: projected.y }
     }))
-    const bestChain = (fragments: ScreenPoint[][]) => stitchVisibleFragments(fragments, MAX_STITCH_GAP_PX * presentation.presentationScale)
-      .reduce<VisualChain | null>((best, chain) => !best || visualChainLength(chain) > visualChainLength(best) ? chain : best, null)
+    const longest = (fragments: ScreenPoint[][]) => fragments.reduce<ScreenPoint[] | null>((best, fragment) => !best || polylineLength(fragment) > polylineLength(best) ? fragment : best, null)
     // Clip candidates to actual road geometry in the caption-safe portion of the
     // map canvas. Prefer an edge inset, but retain a safe-area fragment when the
     // road only appears close to an edge.
     const safeViewport = { width: viewport.width, height: viewport.height * LABEL_SAFE_HEIGHT_RATIO }
-    const safeBest = bestChain(projectedLines.flatMap((line) => visibleLineFragments(line, safeViewport)))
-    const safeMidpoint = safeBest ? pointAtVisualChainMidpoint(safeBest) : null
+    const safeBest = longest(projectedLines.flatMap((line) => visibleLineFragments(line, safeViewport)))
+    const safeMidpoint = safeBest ? pointAtPolylineMidpoint(safeBest) : null
     const safelyInset = safeMidpoint && safeMidpoint.point.x >= LABEL_SAFE_INSET && safeMidpoint.point.x <= viewport.width - LABEL_SAFE_INSET
       && safeMidpoint.point.y >= LABEL_SAFE_INSET
-    const best = safelyInset ? safeBest : bestChain(projectedLines.flatMap((line) => preferredLabelFragments(line, viewport))) ?? safeBest
+    const best = safelyInset ? safeBest : longest(projectedLines.flatMap((line) => preferredLabelFragments(line, viewport))) ?? safeBest
     if (!best) continue
-    if (visualChainLength(best) < requiredLabelLength(feature.properties.name, presentation)) continue
-    const midpoint = pointAtVisualChainMidpoint(best)
-    if (!midpoint) continue
-    const coordinate = map.unproject([midpoint.point.x, midpoint.point.y]).toArray()
-    anchors.push({
-      type: 'Feature',
-      properties: { ...feature.properties, bearing: uprightBearing(midpoint.before, midpoint.after) },
-      geometry: { type: 'Point', coordinates: coordinate },
+    const candidates = [0.5, 0.3, 0.7].flatMap((fraction): LineLabelCandidate[] => {
+      const position = pointAtPolylineFraction(best, fraction)
+      if (!position || position.point.y > viewport.height * LABEL_SAFE_HEIGHT_RATIO) return []
+      const coordinate = map.unproject([position.point.x, position.point.y]).toArray()
+      return [{ screenPoint: position.point, anchor: {
+        type: 'Feature',
+        properties: { ...feature.properties, bearing: uprightBearing(position.before, position.after) },
+        geometry: { type: 'Point', coordinates: coordinate },
+      } }]
     })
+    if (candidates.length > 0) candidateGroups.push(candidates)
   }
-  return { type: 'FeatureCollection', features: anchors }
+  return { type: 'FeatureCollection', features: presentation ? resolveLineLabelOverlaps(candidateGroups, presentation) : candidateGroups.map((group) => group[0].anchor) }
 }
