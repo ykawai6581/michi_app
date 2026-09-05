@@ -153,4 +153,13 @@ describe('project map layer contract', () => {
     expect(calls).toContainEqual([LAYER_IDS.selectedStationSymbol,'text-offset',pointLabelOffset(3,28)])
     expect(calls).toContainEqual([LAYER_IDS.selectedShukubaSymbol,'icon-size',pointIconSize(4)])
   })
+  it('applies the effective scene scale to point labels, icons, and offsets',()=>{
+    const calls:unknown[][]=[];const map={setLayoutProperty:(...args:unknown[])=>calls.push(args)}
+    const style=initialPointOverlayStyle()
+    updatePointOverlayStyle(map as never,style,'large',0.5)
+    expect(calls).toContainEqual([LAYER_IDS.stations,'text-size',14])
+    expect(calls).toContainEqual([LAYER_IDS.stations,'icon-size',pointIconSize()*0.5])
+    expect(calls).toContainEqual([LAYER_IDS.stations,'text-offset',pointLabelOffset(style.stations.radius,14,0.5)])
+    expect(calls).toContainEqual([LAYER_IDS.selectedShukubaSymbol,'icon-size',pointIconSize()*0.5])
+  })
 })
