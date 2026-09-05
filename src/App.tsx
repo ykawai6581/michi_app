@@ -48,9 +48,22 @@ export default function App() {
   const [jurisdictionData, setJurisdictionData] = useState<JurisdictionCollection | null>(null)
   const [jurisdictionLoading, setJurisdictionLoading] = useState(false)
   const [jurisdictionError, setJurisdictionError] = useState<string | null>(null)
+  const [storyCommitTick, setStoryCommitTick] = useState(0)
+  const storyCommitWaiters = useRef(new Set<() => void>())
 
   const current = useRef({ sceneItems, activeFeature, layers, darkModeBehavior, jurisdiction, jurisdictionData })
   current.current = { sceneItems, activeFeature, layers, darkModeBehavior, jurisdiction, jurisdictionData }
+
+  const waitForAppCommit = useCallback(() => new Promise<void>((resolve) => {
+    storyCommitWaiters.current.add(resolve)
+    setStoryCommitTick((value) => value + 1)
+  }), [])
+  useEffect(() => {
+    if (!storyCommitWaiters.current.size) return
+    const waiters = [...storyCommitWaiters.current]
+    storyCommitWaiters.current.clear()
+    waiters.forEach((resolve) => resolve())
+  }, [storyCommitTick])
 
   useEffect(() => {
     let active = true
@@ -86,15 +99,18 @@ export default function App() {
 
   const operations = useMemo<StoryAppOperations>(() => ({
     snapshot: () => { const state = current.current; return { selected: state.sceneItems.filter((item) => item.visible).map((item) => item.feature), activeFeature: state.activeFeature, basemap: state.layers.basemap, layers: { ...state.layers }, darkMode: state.darkModeBehavior, jurisdiction: state.jurisdiction.selection } },
-    restore: (snapshot: StoryAppSnapshot) => { const ids = new Set(snapshot.selected.map((feature) => feature.properties.id)); setSceneItems((items) => { const byId = new Map(items.map((item) => [item.feature.properties.id, item])); snapshot.selected.forEach((feature) => { if (!byId.has(feature.properties.id)) byId.set(feature.properties.id, { feature, visible: true }) }); return [...byId.values()].map((item) => ({ ...item, visible: ids.has(item.feature.properties.id) })) }); setActiveFeature(snapshot.activeFeature); setLayers({ ...snapshot.layers }); setDarkModeBehavior(snapshot.darkMode); setJurisdiction((value) => ({ ...value, selection: snapshot.jurisdiction })) },
-    showFeature, hideFeature, activateFeature, deactivateFeature: () => setActiveFeature(null),
-    setBasemap: async (value) => { setLayers((layers) => ({ ...layers, basemap: value })); await mapRef.current?.waitForBasemap(value) },
-    setOverlayVisibility: (layer, visible) => { setLayers((layers) => ({ ...layers, [layer]: visible })); if (layer === 'jurisdictions') setJurisdiction((value) => ({ ...value, enabled: visible })) },
-    setDarkMode: setDarkModeBehavior,
-    setManualDarkBasemap: (value) => setLayers((layers) => ({ ...layers, darkBasemap: value })),
-    selectJurisdiction: (id, options) => { const feature = current.current.jurisdictionData?.features.find((feature) => feature.properties.jurisdictionId === id); if (!feature) throw new Error(`Story jurisdiction not found: ${id}`); selectJurisdictionFeature(feature, options?.animateCamera !== false) },
-    clearJurisdiction: () => setJurisdiction((value) => ({ ...value, selection: null })),
-  }), [activateFeature, hideFeature, selectJurisdictionFeature, showFeature])
+    restore: async (snapshot: StoryAppSnapshot) => { const ids = new Set(snapshot.selected.map((feature) => feature.properties.id)); setSceneItems((items) => { const byId = new Map(items.map((item) => [item.feature.properties.id, item])); snapshot.selected.forEach((feature) => { if (!byId.has(feature.properties.id)) byId.set(feature.properties.id, { feature, visible: true }) }); return [...byId.values()].map((item) => ({ ...item, visible: ids.has(item.feature.properties.id) })) }); setActiveFeature(snapshot.activeFeature); setLayers({ ...snapshot.layers }); setDarkModeBehavior(snapshot.darkMode); setJurisdiction((value) => ({ ...value, selection: snapshot.jurisdiction })); await waitForAppCommit() },
+    showFeature: async (feature) => { showFeature(feature); await waitForAppCommit() },
+    hideFeature: async (feature) => { hideFeature(feature); await waitForAppCommit() },
+    activateFeature: async (feature, options) => { activateFeature(feature, options); await waitForAppCommit() },
+    deactivateFeature: async () => { setActiveFeature(null); setFocusRequest(null); await waitForAppCommit() },
+    setBasemap: async (value) => { setLayers((layers) => ({ ...layers, basemap: value })); await waitForAppCommit(); await mapRef.current?.waitForBasemap(value) },
+    setOverlayVisibility: async (layer, visible) => { setLayers((layers) => ({ ...layers, [layer]: visible })); if (layer === 'jurisdictions') setJurisdiction((value) => ({ ...value, enabled: visible })); await waitForAppCommit() },
+    setDarkMode: async (value) => { setDarkModeBehavior(value); await waitForAppCommit() },
+    setManualDarkBasemap: async (value) => { setLayers((layers) => ({ ...layers, darkBasemap: value })); await waitForAppCommit() },
+    selectJurisdiction: async (id, options) => { const feature = current.current.jurisdictionData?.features.find((feature) => feature.properties.jurisdictionId === id); if (!feature) throw new Error(`Story jurisdiction not found: ${id}`); selectJurisdictionFeature(feature, options?.animateCamera !== false); await waitForAppCommit() },
+    clearJurisdiction: async () => { setJurisdiction((value) => ({ ...value, selection: null })); await waitForAppCommit() },
+  }), [activateFeature, hideFeature, selectJurisdictionFeature, showFeature, waitForAppCommit])
   const { player, state: storyState } = useStoryPlayer(story, project, operations, ready && !jurisdictionLoading, query.autoplay)
 
   const visibleFeatures = useMemo(() => sceneItems.filter((item) => item.visible).map((item) => item.feature), [sceneItems])
