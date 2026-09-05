@@ -28,7 +28,7 @@ function deferred() {
 }
 
 function operations(calls: string[], showGate?: Promise<void>, activateGate?: Promise<void>): StoryAppOperations {
-  const snapshot: StoryAppSnapshot = { selected: [], activeFeature: null, basemap: 'presentation', layers, darkMode: 'auto', jurisdiction: null }
+  const snapshot: StoryAppSnapshot = { selected: [], activeFeature: null, basemap: 'presentation', layers, darkMode: 'auto', jurisdiction: null, camera: { center: [139, 35], zoom: 10, bearing: 0, pitch: 0 } }
   return {
     snapshot: () => snapshot,
     restore: async () => { calls.push('restore') },
@@ -42,6 +42,8 @@ function operations(calls: string[], showGate?: Promise<void>, activateGate?: Pr
     setManualDarkBasemap: async () => {},
     selectJurisdiction: async () => {},
     clearJurisdiction: async () => {},
+    getCurrentView: () => snapshot.camera,
+    setView: async (view) => { snapshot.camera = view },
   }
 }
 

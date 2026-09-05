@@ -7,6 +7,7 @@ const IDLE_STATE: StoryPlayerState = { status: 'idle', currentStepIndex: 0, curr
 
 export function useStoryPlayer(story: Story | null, project: ProjectData | null, operations: StoryAppOperations | null, ready: boolean, autoplay: boolean) {
   const operationsRef = useRef<StoryAppOperations | null>(operations)
+  const autoplayedStoryId = useRef<string | null>(null)
   operationsRef.current = operations
 
   const stableOperations = useMemo<StoryAppOperations>(() => {
@@ -28,12 +29,14 @@ export function useStoryPlayer(story: Story | null, project: ProjectData | null,
       setManualDarkBasemap: (value) => current().setManualDarkBasemap(value),
       selectJurisdiction: (id, options) => current().selectJurisdiction(id, options),
       clearJurisdiction: () => current().clearJurisdiction(),
+      getCurrentView: () => current().getCurrentView(),
+      setView: (view, options) => current().setView(view, options),
     }
   }, [])
 
   const player = useMemo(
-    () => story && project && operations ? new StoryPlayer(story, project, stableOperations) : null,
-    [project, stableOperations, story],
+    () => story && project && ready ? new StoryPlayer(story, project, stableOperations) : null,
+    [project, ready, stableOperations, story],
   )
   const state = useSyncExternalStore(player?.subscribe ?? (() => () => undefined), player?.getState ?? (() => IDLE_STATE), player?.getState ?? (() => IDLE_STATE))
   useEffect(() => () => player?.dispose(), [player])
@@ -41,8 +44,8 @@ export function useStoryPlayer(story: Story | null, project: ProjectData | null,
     if (!player || !ready) return
     window.__michiStory = { play: () => player.play(), pause: () => player.pause(), restart: () => player.restart(), next: () => player.next(), previous: () => player.previous(), getState: player.getState }
     window.dispatchEvent(new CustomEvent('michi:story-ready'))
-    if (autoplay) void player.play()
+    if (autoplay && story && autoplayedStoryId.current !== story.id) { autoplayedStoryId.current = story.id; void player.play() }
     return () => { delete window.__michiStory }
-  }, [autoplay, player, ready])
+  }, [autoplay, player, ready, story])
   return { player, state }
 }
