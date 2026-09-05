@@ -1,0 +1,134 @@
+{
+  "id": "shinjuku-koshu-oiwake-demo",
+  "displayName": "甲州道中 → 内藤新宿 → 新宿追分",
+  "project": "shinjuku",
+  "steps": [
+    {
+      "action": "hide",
+      "id": "jp-national-20",
+      "label": "Hide 甲州街道 initially"
+    },
+    {
+      "action": "hide",
+      "id": "tokyo-named-ome-kaido-short",
+      "label": "Hide 青梅街道 initially"
+    },
+    {
+      "action": "hide",
+      "id": "historical-road:R003:0",
+      "label": "Hide 甲州道中 initially"
+    },
+    {
+      "action": "deactivate",
+      "label": "Clear initial focus"
+    },
+    {
+      "action": "setBasemap",
+      "value": "rekichizu",
+      "label": "れきちずへ切替"
+    },
+    {
+      "action": "wait",
+      "duration": 2.0
+    },
+    {
+      "action": "show",
+      "id": "historical-road:R003:0",
+      "label": "甲州道中を表示"
+    },
+    {
+      "action": "show",
+      "id": "historical-post:R003-046",
+      "label": "下諏訪を表示"
+    },
+    {
+      "action": "show",
+      "id": "historical-post:R003-001",
+      "label": "日本橋を表示"
+    },
+    {
+      "action": "activate",
+      "id": "historical-road:R003:0",
+      "cameraDuration": 1.5,
+      "label": "甲州道中をアクティブ化"
+    },
+    {
+      "action": "wait",
+      "duration": 3.0
+    },
+    {
+      "action": "show",
+      "id": "historical-post:R003-001",
+      "label": "日本橋を表示"
+    },
+    {
+      "action": "activate",
+      "id": "historical-post:R003-001",
+      "label": "日本橋を表示"
+    },
+    {
+      "action": "show",
+      "id": "historical-post:R003-003",
+      "label": "日本橋を表示"
+    },
+    {
+      "action": "activate",
+      "id": "historical-post:R003-003",
+      "label": "下高井戸を表示"
+    },
+    {
+      "action": "wait",
+      "duration": 2.5
+    },
+    {
+      "action": "show",
+      "id": "historical-post:R003-002",
+      "label": "内藤新宿を表示"
+    },
+    {
+      "action": "activate",
+      "id": "historical-post:R003-002",
+      "cameraDuration": 1.5,
+      "label": "内藤新宿へパン"
+    },
+    {
+      "action": "hide",
+      "id": "historical-road:R003:0",
+      "label": "Hide 甲州道中 again"
+    },
+    {
+      "action": "wait",
+      "duration": 3.0
+    },
+    {
+      "action": "show",
+      "id": "location:shinjuku-oiwake",
+      "label": "新宿追分を表示"
+    },
+    {
+      "action": "activate",
+      "id": "location:shinjuku-oiwake",
+      "cameraDuration": 1.5,
+      "label": "新宿追分へパン"
+    },
+    {
+      "action": "wait",
+      "duration": 3.0
+    },
+
+    {
+      "action": "show",
+      "id": "historical-road:R003:0",
+      "label": "甲州道中を表示"
+    },
+    {
+      "action": "show",
+      "id": "tokyo-named-ome-kaido-short",
+      "label": "青梅街道を表示（カメラ維持）"
+    },
+    {
+      "action": "wait",
+      "duration": 3.0
+    }
+  ]
+}
