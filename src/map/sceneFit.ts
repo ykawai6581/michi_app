@@ -68,6 +68,10 @@ export function sceneFitPadding(features: EntityFeature[], style: HighlightStyle
   return padding
 }
 
+export function shouldFitVisibleScene(activeFeature: EntityFeature | null): boolean {
+  return activeFeature?.properties.type === 'historical-road' || activeFeature?.properties.type === 'railway'
+}
+
 export function fitVisibleScene(map: maplibregl.Map, features: EntityFeature[], style: HighlightStyle, presentationScale: number, sceneSize: SceneSize, duration = 900): void {
   const bounds = sceneBounds(features)
   if (!bounds) return
