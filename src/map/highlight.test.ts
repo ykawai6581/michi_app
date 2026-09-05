@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { EntityFeature } from '../types/geo'
-import { FALLBACK_RAIL_COLOR, RETAINED_LINE_COLOR, lineColorExpression, markActiveLine, sceneLineColorExpression, splitRoadSourceFeatures, updateHighlightStyle } from './highlight'
+import { FALLBACK_RAIL_COLOR, RETAINED_LINE_COLOR, lineColorExpression, markActiveLine, sceneLineColorExpression, splitRoadSourceFeatures, updateHighlightStyle, updateSelectedPointFilters } from './highlight'
 import { LAYER_IDS } from './config'
 
 const road = { type: 'Feature', properties: { id: 'road', name: 'Road', type: 'road', roadSourceGeometries: { n13: { type: 'LineString', coordinates: [[0, 0], [1, 0]] }, osm: { type: 'LineString', coordinates: [[0, 1], [1, 1]] } } }, geometry: { type: 'LineString', coordinates: [[0, 0], [1, 0]] } } as EntityFeature
@@ -14,6 +14,21 @@ describe('canonical road source visibility', () => {
   ] as const)('splits N13=%s and OSM source features independently', (visibility, primary, osm) => {
     const result = splitRoadSourceFeatures([road], visibility)
     expect([result.primary.length, result.osm.length]).toEqual([primary, osm])
+  })
+})
+
+describe('selected point suppression in normal overlays',()=>{
+  const point=(id:string,type:'station'|'historical-place',postId?:string)=>({type:'Feature',properties:{id,name:id,type,...(postId?{postId}:{})},geometry:{type:'Point',coordinates:[0,0]}} as EntityFeature)
+  it('excludes selected IDs from normal layers without changing overlay visibility',()=>{
+    const setFilter=vi.fn();updateSelectedPointFilters({setFilter} as never,[point('station-a','station'),point('post-a','historical-place','post-1')])
+    const expected=['!', ['in',['get','id'],['literal',['station-a','post-a']]]]
+    expect(setFilter).toHaveBeenCalledWith(LAYER_IDS.stations,expected)
+    expect(setFilter).toHaveBeenCalledWith(LAYER_IDS.historicalPosts,expected)
+  })
+  it('restores normal filters when selection is cleared',()=>{
+    const setFilter=vi.fn();updateSelectedPointFilters({setFilter} as never,[])
+    expect(setFilter).toHaveBeenCalledWith(LAYER_IDS.stations,['==',['literal',true],true])
+    expect(setFilter).toHaveBeenCalledWith(LAYER_IDS.historicalPosts,['==',['literal',true],true])
   })
 })
 

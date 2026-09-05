@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LAYER_IDS, SOURCE_IDS } from './config'
-import { ACTIVE_LINE_SHADOW_BLUR, ACTIVE_LINE_SHADOW_COLOR, ACTIVE_LINE_SHADOW_OPACITY, addDataLayers, pointLabelOffset, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
+import { ACTIVE_LINE_SHADOW_BLUR, ACTIVE_LINE_SHADOW_COLOR, ACTIVE_LINE_SHADOW_OPACITY, addDataLayers, pointLabelOffset, POINT_LABEL_SIZE, SELECTED_POINT_RADIUS, selectedShukubaFilter, selectedStationFilter, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
 import { lineColorExpression } from './highlight'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
@@ -80,6 +80,28 @@ describe('project map layer contract', () => {
     expect(index(LAYER_IDS.stations)).toBeGreaterThan(index(LAYER_IDS.highlightLineLabels))
     expect(index(LAYER_IDS.historicalPosts)).toBeGreaterThan(index(LAYER_IDS.jurisdictionHighlightLabel))
   })
+  it('renders selected station and shukuba from the highlight source with shared collision-safe artwork',()=>{
+    const layers:Record<string,unknown>[]=[]
+    const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    for(const [selectedId,normalId,image,filter] of [
+      [LAYER_IDS.selectedStationSymbol,LAYER_IDS.stations,POINT_ICON_IDS.stations,selectedStationFilter],
+      [LAYER_IDS.selectedShukubaSymbol,LAYER_IDS.historicalPosts,POINT_ICON_IDS.historicalPosts,selectedShukubaFilter],
+    ] as const){
+      const selected=layers.find(layer=>layer.id===selectedId) as {source:string;filter:unknown;layout:Record<string,unknown>;paint:unknown}
+      const normal=layers.find(layer=>layer.id===normalId) as {layout:Record<string,unknown>;paint:unknown}
+      expect(selected.source).toBe(SOURCE_IDS.highlight)
+      expect(selected.filter).toEqual(filter)
+      expect(selected.layout).toEqual(normal.layout)
+      expect(selected.paint).toEqual(normal.paint)
+      expect(selected.layout).toMatchObject({'icon-image':image,'text-size':POINT_LABEL_SIZE,'text-anchor':'left','icon-allow-overlap':false,'icon-ignore-placement':false,'icon-optional':false,'text-allow-overlap':false,'text-ignore-placement':false,'text-optional':false})
+    }
+    const index=(id:string)=>layers.findIndex(layer=>layer.id===id)
+    expect(index(LAYER_IDS.selectedStationSymbol)).toBeGreaterThan(index(LAYER_IDS.highlightLineLabels))
+    expect(index(LAYER_IDS.selectedStationSymbol)).toBeLessThan(index(LAYER_IDS.stations))
+    expect(index(LAYER_IDS.selectedShukubaSymbol)).toBeLessThan(index(LAYER_IDS.historicalPosts))
+  })
   it('suppresses opaque selected dots and duplicate labels for stations and postId features',()=>{
     const layers:Record<string,unknown>[]=[]
     const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
@@ -96,6 +118,8 @@ describe('project map layer contract', () => {
     expect(calls).toContainEqual(['railway-tracks','visibility','none'])
     expect(calls).toContainEqual(['railway-stations','visibility','visible'])
     expect(calls).toContainEqual(['jurisdiction-fill','visibility','none'])
+    expect(calls.flat()).not.toContain(LAYER_IDS.selectedStationSymbol)
+    expect(calls.flat()).not.toContain(LAYER_IDS.selectedShukubaSymbol)
     expect(calls).toHaveLength(12)
   })
   it('starts railways and stations hidden while historical posts remain visible',()=>{
@@ -122,7 +146,11 @@ describe('project map layer contract', () => {
     const calls:unknown[][]=[];const map={setLayoutProperty:(...args:unknown[])=>calls.push(args)}
     const style=initialPointOverlayStyle();style.stations={radius:3};style.historicalPosts={radius:4}
     updatePointOverlayStyle(map as never,style)
-    expect(calls).toContainEqual(['railway-stations','icon-size',pointIconSize(3)]);expect(calls).toContainEqual(['railway-stations','text-offset',pointLabelOffset(3)])
+    expect(calls).toContainEqual(['railway-stations','icon-size',pointIconSize(3)]);expect(calls).toContainEqual(['railway-stations','text-offset',pointLabelOffset(3,28)])
     expect(calls).toContainEqual(['historical-posts','icon-size',pointIconSize(4)]);expect(calls).not.toEqual(expect.arrayContaining([expect.arrayContaining(['icon-color'])]))
+    expect(calls).toContainEqual([LAYER_IDS.selectedStationSymbol,'icon-size',pointIconSize(3)])
+    expect(calls).toContainEqual([LAYER_IDS.selectedStationSymbol,'text-size',28])
+    expect(calls).toContainEqual([LAYER_IDS.selectedStationSymbol,'text-offset',pointLabelOffset(3,28)])
+    expect(calls).toContainEqual([LAYER_IDS.selectedShukubaSymbol,'icon-size',pointIconSize(4)])
   })
 })
