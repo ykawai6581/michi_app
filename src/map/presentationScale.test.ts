@@ -3,7 +3,7 @@ import { ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { annotationTextSize, calculatePresentationScale, getEffectiveSceneSize, SCENE_ASPECT_RATIO, SCENE_REFERENCE_HEIGHT, SCENE_REFERENCE_WIDTH } from './presentationScale'
 
 describe('map-canvas presentation scale', () => {
-  it.each([[960, 1], [480, 0.5]])('calculates effective width %d as scale %f', (width, expected) => {
+  it.each([[SCENE_REFERENCE_WIDTH, 1], [SCENE_REFERENCE_WIDTH / 2, 0.5]])('calculates effective width %d as scale %f', (width, expected) => {
     expect(calculatePresentationScale(width)).toBeCloseTo(expected)
   })
 
@@ -13,8 +13,8 @@ describe('map-canvas presentation scale', () => {
   })
 
   it('shrinks to fit while preserving the 16:9 scene ratio', () => {
-    const scene = getEffectiveSceneSize(800, 1000)
-    expect(scene).toEqual({ width: 800, height: 450 })
+    const scene = getEffectiveSceneSize(SCENE_REFERENCE_WIDTH - 80, 1000)
+    expect(scene).toEqual({ width: SCENE_REFERENCE_WIDTH - 80, height: (SCENE_REFERENCE_WIDTH - 80) / SCENE_ASPECT_RATIO })
     expect(scene.width / scene.height).toBe(SCENE_ASPECT_RATIO)
   })
 
@@ -24,9 +24,9 @@ describe('map-canvas presentation scale', () => {
 
   it('depends only on the supplied effective scene width', () => {
     vi.stubGlobal('window', { innerWidth: 4000 })
-    expect(calculatePresentationScale(960)).toBe(1)
+    expect(calculatePresentationScale(SCENE_REFERENCE_WIDTH)).toBe(1)
     vi.stubGlobal('window', { innerWidth: 500 })
-    expect(calculatePresentationScale(960)).toBe(1)
+    expect(calculatePresentationScale(SCENE_REFERENCE_WIDTH)).toBe(1)
     vi.unstubAllGlobals()
   })
 

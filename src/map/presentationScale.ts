@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { mapRenderPixelRatio } from './renderPixelRatio'
 
 export const SCENE_REFERENCE_WIDTH = 960*0.8
 export const SCENE_REFERENCE_HEIGHT = 540*0.8
@@ -28,6 +29,7 @@ export function usePresentationScale<T extends HTMLElement>() {
   const ref = useRef<T>(null)
   const [sceneSize, setSceneSize] = useState<SceneSize>({ width: SCENE_REFERENCE_WIDTH, height: SCENE_REFERENCE_HEIGHT })
   const [actualSize, setActualSize] = useState<SceneSize>({ width: SCENE_REFERENCE_WIDTH, height: SCENE_REFERENCE_HEIGHT })
+  const [devicePixelRatio, setDevicePixelRatio] = useState(1)
 
   useEffect(() => {
     const element = ref.current
@@ -35,18 +37,27 @@ export function usePresentationScale<T extends HTMLElement>() {
     const update = (width: number, height: number) => {
       setActualSize({ width, height })
       setSceneSize(getEffectiveSceneSize(width, height))
+      setDevicePixelRatio(window.devicePixelRatio || 1)
     }
     const bounds = element.getBoundingClientRect()
     update(bounds.width, bounds.height)
     const observer = new ResizeObserver(([entry]) => update(entry.contentRect.width, entry.contentRect.height))
     observer.observe(element)
-    return () => observer.disconnect()
+    const handleWindowResize = () => {
+      const resizedBounds = element.getBoundingClientRect()
+      update(resizedBounds.width, resizedBounds.height)
+    }
+    window.addEventListener('resize', handleWindowResize)
+    return () => { observer.disconnect(); window.removeEventListener('resize', handleWindowResize) }
   }, [])
+
+  const renderRatio = mapRenderPixelRatio({ logicalWidth: sceneSize.width, logicalHeight: sceneSize.height, displayedWidth: actualSize.width, displayedHeight: actualSize.height, devicePixelRatio })
 
   return {
     ref,
     sceneSize,
     presentationScale: calculatePresentationScale(sceneSize.width),
-    visualScale: actualSize.width > 0 ? actualSize.width / sceneSize.width : 1,
+    visualScale: renderRatio.visualScale,
+    renderPixelRatio: renderRatio.effectivePixelRatio,
   }
 }
