@@ -10,13 +10,15 @@ const systemClock: StoryClock = { now: () => performance.now(), schedule: (callb
 export class StoryPlayer {
   private readonly baseline; private listeners = new Set<() => void>(); private timer: unknown; private waitStarted = 0; private waitRemainingMs: number | null = null; private generation = 0
   private state: StoryPlayerState
+  private snapshot: StoryPlayerState
   constructor(private story: Story, private project: ProjectData, private operations: StoryAppOperations, private clock: StoryClock = systemClock) {
     this.baseline = operations.snapshot()
     this.state = { status: 'paused', currentStepIndex: 0, currentStep: story.steps[0] ?? null, elapsedSeconds: 0, totalWaitDuration: story.steps.reduce((sum, step) => sum + (step.action === 'wait' ? step.duration : 0), 0), error: null }
+    this.snapshot = { ...this.state }
   }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
-  getState = () => ({ ...this.state })
-  private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.listeners.forEach((listener) => listener()) }
+  getState = () => this.snapshot
+  private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.snapshot = { ...this.state }; this.listeners.forEach((listener) => listener()) }
   private setError(error: unknown) { this.cancelWait(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
   private cancelWait() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.generation++ }
   private completedWaitSeconds(index = this.state.currentStepIndex) { return this.story.steps.slice(0, index).reduce((sum, step) => sum + (step.action === 'wait' ? step.duration : 0), 0) }
