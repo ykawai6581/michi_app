@@ -163,6 +163,12 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
   if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
   ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
+
+  // Historical roads and railways use the scene-wide, label-aware fit in MapView.
+  // Every other feature keeps the pre-sceneFit camera behavior.
+  if (!revealTarget || revealTarget.properties.type === 'historical-road' || revealTarget.properties.type === 'railway') return
+  if (revealTarget.geometry.type === 'Point') map.flyTo({ center: revealTarget.geometry.coordinates as [number, number], zoom: 15, duration: 900 })
+  else { const bounds = bbox(revealTarget); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
 }
 
 export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, style: HighlightStyle, presentationScale: number): void {
