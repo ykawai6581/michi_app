@@ -3,7 +3,7 @@ import { CameraPanel } from './components/CameraPanel'
 import { ActiveFeatureOverlay } from './components/ActiveFeatureOverlay'
 import { DataPanel } from './components/DataPanel'
 import { LayerPanel } from './components/LayerPanel'
-import { MapView, type FeatureFocusRequest, type MapHandle } from './components/MapView'
+import { MapView, type MapHandle } from './components/MapView'
 import { SearchPanel } from './components/SearchPanel'
 import { StylePanel } from './components/StylePanel'
 import { exportPNG } from './export/exportPNG'
@@ -17,9 +17,12 @@ import { JurisdictionPanel } from './components/JurisdictionPanel'
 import { clearTemporarySceneItems, removeTemporarySceneItem, seedProjectRoads } from './scene/items'
 import { jurisdictionSnapshotDate, loadJurisdictionManifest, loadJurisdictionSnapshot, normalizeJurisdictionConfig, reconcileJurisdictionSelection, selectedJurisdictions, type JurisdictionCollection, type JurisdictionFeature, type JurisdictionLayerConfig, type JurisdictionManifest } from './data/jurisdictions'
 import { loadStory, parseStoryQuery, resolveStoryProject } from './story/storyLoader'
-import type { Story, StoryAppOperations, StoryAppSnapshot } from './story/storyTypes'
+import type { FeatureFocusOptions, Story, StoryAppOperations, StoryAppSnapshot } from './story/storyTypes'
 import { useStoryPlayer } from './story/useStoryPlayer'
 import { StoryControls } from './story/StoryControls'
+import { selectFeatures } from './map/highlight'
+import { fitVisibleScene, shouldFitVisibleScene } from './map/sceneFit'
+import { activeRevealCircle } from './map/revealArea'
 
 const roadSources: RoadSourceVisibility = { n13: true, osm: false }
 
@@ -32,8 +35,6 @@ export default function App() {
   const [project, setProject] = useState<ProjectData | null>(null)
   const [sceneItems, setSceneItems] = useState<SceneItem[]>([])
   const [activeFeature, setActiveFeature] = useState<EntityFeature | null>(null)
-  const [focusRequest, setFocusRequest] = useState<FeatureFocusRequest | null>(null)
-  const focusSequence = useRef(0)
   const [selectionMode, setSelectionMode] = useState<'multi' | 'single'>('multi')
   const [dataLoading, setDataLoading] = useState(true)
   const [dataLoadError, setDataLoadError] = useState(false)
@@ -64,6 +65,7 @@ export default function App() {
     storyCommitWaiters.current.clear()
     waiters.forEach((resolve) => resolve())
   }, [storyCommitTick])
+  const waitForMapPaint = useCallback(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())), [])
 
   useEffect(() => {
     let active = true
@@ -91,10 +93,24 @@ export default function App() {
   const onReady = useCallback(() => setReady(true), [])
   const showFeature = useCallback((feature: EntityFeature) => setSceneItems((items) => { const existing = items.find((item) => item.feature.properties.id === feature.properties.id); return existing ? items.map((item) => item === existing ? { ...item, visible: true } : item) : [...items, { feature, visible: true }] }), [])
   const hideFeature = useCallback((feature: EntityFeature) => { setSceneItems((items) => items.map((item) => item.feature.properties.id === feature.properties.id ? { ...item, visible: false } : item)); setActiveFeature((active) => active?.properties.id === feature.properties.id ? null : active) }, [])
-  const activateFeature = useCallback((feature: EntityFeature, options?: FeatureFocusRequest['options']) => { setActiveFeature(feature); setFocusRequest({ sequence: ++focusSequence.current, feature, options }) }, [])
-  const toggleFeature = useCallback((feature: EntityFeature) => { const existing = current.current.sceneItems.find((item) => item.feature.properties.id === feature.properties.id); const selecting = !existing?.visible; if (selecting) { showFeature(feature); activateFeature(feature) } else hideFeature(feature) }, [activateFeature, hideFeature, showFeature])
-  const selectFeature = useCallback((feature: EntityFeature) => { if (selectionMode === 'multi') { toggleFeature(feature); return } showFeature(feature); activateFeature(feature) }, [activateFeature, selectionMode, showFeature, toggleFeature])
-  const selectJurisdictionFeature = useCallback((feature: JurisdictionFeature, animateCamera = true) => { setJurisdiction((current) => ({ ...current, selection: { level: feature.properties.jurisdictionLevel === 'parent' ? 'parent' : 'municipality', value: feature.properties.municipalityName } })); setActiveFeature({ type: 'Feature', properties: { id: feature.properties.jurisdictionId, name: feature.properties.municipalityName, type: 'jurisdiction', period: feature.properties.snapshotDate, note: feature.properties.derived ? `Historical parent municipality · Derived from ${feature.properties.memberCount} ward polygons · ${feature.properties.prefectureName}` : [feature.properties.parentJurisdictionName, feature.properties.prefectureName].filter(Boolean).join(' · ') }, geometry: feature.geometry }); if (!animateCamera) setFocusRequest(null) }, [])
+  const focusFeatureOnMap = useCallback((feature: EntityFeature, options?: FeatureFocusOptions) => {
+    if (options?.animateCamera === false) return
+    const map = mapRef.current?.getMap()
+    if (!map?.isStyleLoaded()) return
+    const selected = current.current.sceneItems.filter((item) => item.visible).map((item) => item.feature)
+    const reveal = activeRevealCircle(feature, current.current.darkModeBehavior === 'auto')
+    selectFeatures(map, selected, roadSources, feature, selectionMode, feature, style.animate, reveal, options?.durationMs)
+    if (shouldFitVisibleScene(feature)) fitVisibleScene(map, selected, style, presentationScale, sceneSize, options?.durationMs)
+  }, [presentationScale, sceneSize, selectionMode, style])
+  const activateFeature = useCallback(async (feature: EntityFeature, options?: FeatureFocusOptions) => {
+    setActiveFeature(feature)
+    await waitForAppCommit()
+    await waitForMapPaint()
+    focusFeatureOnMap(feature, options)
+  }, [focusFeatureOnMap, waitForAppCommit, waitForMapPaint])
+  const toggleFeature = useCallback((feature: EntityFeature) => { const existing = current.current.sceneItems.find((item) => item.feature.properties.id === feature.properties.id); const selecting = !existing?.visible; if (selecting) { showFeature(feature); void activateFeature(feature) } else hideFeature(feature) }, [activateFeature, hideFeature, showFeature])
+  const selectFeature = useCallback((feature: EntityFeature) => { if (selectionMode === 'multi') { toggleFeature(feature); return } showFeature(feature); void activateFeature(feature) }, [activateFeature, selectionMode, showFeature, toggleFeature])
+  const selectJurisdictionFeature = useCallback((feature: JurisdictionFeature, animateCamera = true) => { setJurisdiction((current) => ({ ...current, selection: { level: feature.properties.jurisdictionLevel === 'parent' ? 'parent' : 'municipality', value: feature.properties.municipalityName } })); setActiveFeature({ type: 'Feature', properties: { id: feature.properties.jurisdictionId, name: feature.properties.municipalityName, type: 'jurisdiction', period: feature.properties.snapshotDate, note: feature.properties.derived ? `Historical parent municipality · Derived from ${feature.properties.memberCount} ward polygons · ${feature.properties.prefectureName}` : [feature.properties.parentJurisdictionName, feature.properties.prefectureName].filter(Boolean).join(' · ') }, geometry: feature.geometry }); if (!animateCamera) return }, [])
   const deleteFeature = (id: string) => { setSceneItems((items) => removeTemporarySceneItem(items, id)); setActiveFeature((feature) => feature?.properties.id === id ? null : feature) }
 
   const operations = useMemo<StoryAppOperations>(() => ({
@@ -102,8 +118,8 @@ export default function App() {
     restore: async (snapshot: StoryAppSnapshot) => { const ids = new Set(snapshot.selected.map((feature) => feature.properties.id)); setSceneItems((items) => { const byId = new Map(items.map((item) => [item.feature.properties.id, item])); snapshot.selected.forEach((feature) => { if (!byId.has(feature.properties.id)) byId.set(feature.properties.id, { feature, visible: true }) }); return [...byId.values()].map((item) => ({ ...item, visible: ids.has(item.feature.properties.id) })) }); setActiveFeature(snapshot.activeFeature); setLayers({ ...snapshot.layers }); setDarkModeBehavior(snapshot.darkMode); setJurisdiction((value) => ({ ...value, selection: snapshot.jurisdiction })); await waitForAppCommit() },
     showFeature: async (feature) => { showFeature(feature); await waitForAppCommit() },
     hideFeature: async (feature) => { hideFeature(feature); await waitForAppCommit() },
-    activateFeature: async (feature, options) => { activateFeature(feature, options); await waitForAppCommit() },
-    deactivateFeature: async () => { setActiveFeature(null); setFocusRequest(null); await waitForAppCommit() },
+    activateFeature,
+    deactivateFeature: async () => { setActiveFeature(null); await waitForAppCommit() },
     setBasemap: async (value) => { setLayers((layers) => ({ ...layers, basemap: value })); await waitForAppCommit(); await mapRef.current?.waitForBasemap(value) },
     setOverlayVisibility: async (layer, visible) => { setLayers((layers) => ({ ...layers, [layer]: visible })); if (layer === 'jurisdictions') setJurisdiction((value) => ({ ...value, enabled: visible })); await waitForAppCommit() },
     setDarkMode: async (value) => { setDarkModeBehavior(value); await waitForAppCommit() },
@@ -119,7 +135,7 @@ export default function App() {
   if (storyLoadError) return <main className="app-load-error" role="alert">{storyLoadError}</main>
   return <main className={`app ${query.capture ? 'capture-mode' : ''}`}>
     <header><div className="brand-mark">道</div><div className="brand"><strong>MICHI MAP</strong><span>Historical scene editor</span></div><div className="header-context"><span>PROJECT</span><b>{project?.config.displayName ?? '読み込み中…'}</b></div><button className="mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)}>編集パネル</button><button className="export" disabled={!ready} onClick={() => { const map = mapRef.current?.getMap(); if (map) exportPNG(map) }}><span>↓</span> PNGを書き出す</button></header>
-    <div className="workspace"><div ref={mapStageRef} className={`map-stage ${darkBasemap ? 'dark-map' : ''}`}><div className="scene-frame" style={{ width: sceneSize.width, height: sceneSize.height, transform: `scale(${visualScale})`, '--map-scale': presentationScale } as CSSProperties}><MapView ref={mapRef} project={project} selected={visibleFeatures} activeFeature={activeFeature} focusRequest={focusRequest} selectionMode={selectionMode} jurisdictionData={jurisdictionData} jurisdictionHighlight={jurisdictionHighlight} jurisdictionSelection={jurisdiction.selection} highlightStyle={style} presentationScale={presentationScale} sceneSize={sceneSize} renderPixelRatio={renderPixelRatio} visibility={layers} darkBasemap={darkBasemap} revealAreaEnabled={darkModeBehavior === 'auto'} pointStyle={pointStyle} roadSources={roadSources} onSelectFeature={selectFeature} onSelectJurisdiction={selectJurisdictionFeature} onReady={onReady} /><ActiveFeatureOverlay feature={activeFeature} highlightStyle={style} /></div></div>
+    <div className="workspace"><div ref={mapStageRef} className={`map-stage ${darkBasemap ? 'dark-map' : ''}`}><div className="scene-frame" style={{ width: sceneSize.width, height: sceneSize.height, transform: `scale(${visualScale})`, '--map-scale': presentationScale } as CSSProperties}><MapView ref={mapRef} project={project} selected={visibleFeatures} activeFeature={activeFeature} selectionMode={selectionMode} jurisdictionData={jurisdictionData} jurisdictionHighlight={jurisdictionHighlight} jurisdictionSelection={jurisdiction.selection} highlightStyle={style} presentationScale={presentationScale} sceneSize={sceneSize} renderPixelRatio={renderPixelRatio} visibility={layers} darkBasemap={darkBasemap} revealAreaEnabled={darkModeBehavior === 'auto'} pointStyle={pointStyle} roadSources={roadSources} onSelectFeature={selectFeature} onSelectJurisdiction={selectJurisdictionFeature} onReady={onReady} /><ActiveFeatureOverlay feature={activeFeature} highlightStyle={style} /></div></div>
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>{story && player && <StoryControls story={story} player={player} state={storyState} />}<SearchPanel entities={project?.searchable ?? []} loading={dataLoading} loadError={dataLoadError} items={sceneItems} selectionMode={selectionMode} onSelectionMode={setSelectionMode} onSelect={selectFeature} onToggle={toggleFeature} onDelete={deleteFeature} onClear={() => { setSceneItems(clearTemporarySceneItems); setActiveFeature(null) }} /><LayerPanel value={layers} onChange={setLayers} darkModeBehavior={darkModeBehavior} onDarkModeBehaviorChange={setDarkModeBehavior} pointStyle={pointStyle} onPointStyleChange={setPointStyle} /><JurisdictionPanel manifest={jurisdictionManifest} collection={jurisdictionData} value={jurisdiction} loading={jurisdictionLoading} error={jurisdictionError} onChange={changeJurisdiction} /><StylePanel value={style} onChange={setStyle} /><CameraPanel getMap={() => mapRef.current?.getMap() ?? null} /><DataPanel /><footer>地図: {layers.basemap === 'rekichizu' ? 'れきちず / Rekichizu (CC BY-NC-ND 4.0)' : 'OpenFreeMap / OSM'} · Project bundle: {project?.config.id ?? '…'} <span>v0.3-alpha</span></footer></aside>
     </div>
   </main>
