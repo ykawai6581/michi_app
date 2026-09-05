@@ -7,7 +7,7 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 import railColors from '../../data/sources/railcolors.json'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { annotationTextSize } from './presentationScale'
-import { buildLineLabelAnchors } from './lineLabelPlacement'
+import { buildLineLabelAnchors, type LineLabelPresentation } from './lineLabelPlacement'
 
 export const FALLBACK_RAIL_COLOR = railColors.fallbackColor
 export const RETAINED_LINE_COLOR = '#7B8589'
@@ -125,6 +125,20 @@ function visibleSceneLabelFeatures(primary: EntityFeature[], osm: EntityFeature[
   return [...primary, ...osm.filter((feature) => !primaryIds.has(feature.properties.id))]
 }
 
+export function buildSceneLineLabelAnchors(map: Pick<maplibregl.Map, 'project' | 'unproject' | 'getCanvas'>, features: EntityFeature[], presentation: LineLabelPresentation) {
+  const historicalRoadIds = new Set(features.filter((feature) => feature.properties.type === 'historical-road').map((feature) => feature.properties.id))
+  const placementFeatures = features.map((feature) => feature.properties.type === 'historical-road'
+    ? { ...feature, properties: { ...feature.properties, type: 'road' as const } }
+    : feature)
+  const anchors = buildLineLabelAnchors(map, placementFeatures, presentation)
+  return {
+    ...anchors,
+    features: anchors.features.map((anchor) => historicalRoadIds.has(anchor.properties.id)
+      ? { ...anchor, properties: { ...anchor.properties, type: 'historical-road' as const } }
+      : anchor),
+  }
+}
+
 function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: EntityFeature): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
@@ -173,7 +187,7 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
 
 export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, style: HighlightStyle, presentationScale: number): void {
   const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
-  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), { fontSize: annotationTextSize(style.annotationSize, presentationScale), haloWidth: ROAD_LABEL_HALO_WIDTH * presentationScale, presentationScale, measureTextWidth: measureLineLabelText }))
+  ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildSceneLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), { fontSize: annotationTextSize(style.annotationSize, presentationScale), haloWidth: ROAD_LABEL_HALO_WIDTH * presentationScale, presentationScale, measureTextWidth: measureLineLabelText }))
 }
 
 export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle, presentationScale = 1): void {
