@@ -1,0 +1,12 @@
+{
+  "id": "shinjuku-demo",
+  "displayName": "新宿 demo",
+  "project": "shinjuku",
+  "steps": [
+    { "action": "setBasemap", "value": "presentation" },
+    { "action": "setOverlay", "layer": "modernRoads", "visible": true },
+    { "action": "show", "id": "jp-national-20" },
+    { "action": "activate", "id": "jp-national-20", "label": "Focus 甲州街道" },
+    { "action": "wait", "duration": 3 }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "id": "shinjuku-sequencing-test",
+  "displayName": "新宿 Story sequencing test",
+  "project": "shinjuku",
+  "steps": [
+    { "action": "setBasemap", "value": "presentation", "label": "Use presentation basemap" },
+    { "action": "setOverlay", "layer": "modernRoads", "visible": true },
+    { "action": "setOverlay", "layer": "historicalRoads", "visible": true },
+    { "action": "setOverlay", "layer": "historicalPosts", "visible": true },
+
+    { "action": "deactivate", "label": "Reset narrative focus" },
+    { "action": "hide", "id": "jp-national-20" },
+    { "action": "hide", "id": "tokyo-named-ome-kaido-short" },
+    { "action": "hide", "id": "historical-road:R003:0" },
+    { "action": "wait", "duration": 1 },
+
+    { "action": "show", "id": "jp-national-20", "label": "Show modern road only" },
+    { "action": "activate", "id": "jp-national-20", "cameraDuration": 1.2, "label": "Activate Route 20" },
+    { "action": "wait", "duration": 2 },
+    { "action": "hide", "id": "jp-national-20" },
+    { "action": "deactivate" },
+    { "action": "wait", "duration": 0.75 },
+
+    { "action": "show", "id": "historical-road:R003:0", "label": "Show historical road only" },
+    { "action": "activate", "id": "historical-road:R003:0", "cameraDuration": 1.2, "label": "Activate 甲州道中" },
+    { "action": "wait", "duration": 2 },
+    { "action": "hide", "id": "historical-road:R003:0" },
+    { "action": "deactivate" },
+    { "action": "wait", "duration": 0.75 },
+
+    { "action": "show", "id": "historical-post:R003-001", "label": "Show 内藤新宿" },
+    { "action": "activate", "id": "historical-post:R003-001", "cameraDuration": 1.2, "label": "Activate 内藤新宿" },
+    { "action": "wait", "duration": 2 },
+    { "action": "hide", "id": "historical-post:R003-001" },
+    { "action": "deactivate" },
+    { "action": "wait", "duration": 0.75 },
+
+    { "action": "show", "id": "location:shinjuku-oiwake", "label": "Show 新宿追分 reveal location" },
+    { "action": "activate", "id": "location:shinjuku-oiwake", "cameraDuration": 1.2, "label": "Activate 新宿追分" },
+    { "action": "wait", "duration": 2 },
+    { "action": "hide", "id": "location:shinjuku-oiwake" },
+    { "action": "deactivate" },
+    { "action": "wait", "duration": 1 },
+
+    { "action": "show", "id": "jp-national-20", "label": "Rapid re-show Route 20" },
+    { "action": "activate", "id": "jp-national-20", "cameraDuration": 0.9 },
+    { "action": "show", "id": "historical-post:R003-001", "label": "Immediately add shukuba without camera" },
+    { "action": "wait", "duration": 2 }
+  ]
+}
