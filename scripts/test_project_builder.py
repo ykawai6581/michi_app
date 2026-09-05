@@ -64,6 +64,39 @@ class ProjectBuilderTest(unittest.TestCase):
         config={**self.config,"bounds":{"mode":"auto","from":"modernRoads","paddingKm":3},"layers":{**self.config["layers"],"modernRoads":[]}}
         with self.assertRaisesRegex(ProjectBuildError,"no modernRoads"): resolve_project_bounds(config,[])
     def test_select_modern_road_by_id(self): self.assertEqual(select_modern_roads(self.root,["road-a"])[0]["properties"]["name"],"Road A")
+    def test_builder_road_materializes_by_presentation_type(self):
+        modern_output=self.root/"modern-output"
+        modern_config={**self.config,"layers":{"modernRoads":["road-a"]}}
+        self.write_config(modern_config); materialize_project(self.root,"demo",modern_output)
+        modern=json.loads((modern_output/"data/modern-roads.geojson").read_text())["features"]
+        historical=json.loads((modern_output/"data/historical-roads.geojson").read_text())["features"]
+        self.assertEqual(modern[0]["properties"]["type"],"road"); self.assertEqual(historical,[])
+
+        registry=json.loads((self.root/"data/roads/registry.json").read_text())
+        registry["roads"][0]["presentationType"]="historical-road"
+        (self.root/"data/roads/registry.json").write_text(json.dumps(registry))
+        historical_output=self.root/"historical-output"
+        self.write_config({**self.config,"layers":{"modernRoads":["road-a"],"historicalRoads":["R003"]}})
+        materialize_project(self.root,"demo",historical_output)
+        self.assertEqual(json.loads((historical_output/"data/modern-roads.geojson").read_text())["features"],[])
+        combined=json.loads((historical_output/"data/historical-roads.geojson").read_text())["features"]
+        self.assertEqual(len(combined),2)
+        custom=next(feature for feature in combined if feature["properties"].get("roadId")=="road-a")
+        self.assertEqual(custom["properties"]["type"],"historical-road")
+        self.assertEqual(custom["properties"]["sourceType"],"canonical-road")
+        self.assertEqual(custom["properties"]["name"],"Road A")
+        self.assertEqual(custom["properties"]["aliases"],["A"])
+        self.assertNotIn("routeId",custom["properties"])
+
+    def test_auto_bounds_use_historical_builder_road_geometry(self):
+        registry=json.loads((self.root/"data/roads/registry.json").read_text())
+        registry["roads"][0]["presentationType"]="historical-road"
+        (self.root/"data/roads/registry.json").write_text(json.dumps(registry))
+        self.write_config({"id":"demo","displayName":"Demo","bounds":{"mode":"auto","from":"modernRoads","paddingKm":1},"layers":{"modernRoads":["road-a"]}})
+        output=self.root/"historical-auto-output"; manifest=materialize_project(self.root,"demo",output)
+        self.assertLess(manifest["bounds"][0],139.1); self.assertGreater(manifest["bounds"][2],139.2)
+        self.assertEqual(manifest["featureCounts"]["modernRoads"],0)
+        self.assertEqual(manifest["featureCounts"]["historicalRoadFeatures"],1)
     def test_missing_modern_road(self):
         with self.assertRaisesRegex(ProjectBuildError,"build-road.py"): select_modern_roads(self.root,["absent"])
     def test_empty_modern_road_geometry(self):

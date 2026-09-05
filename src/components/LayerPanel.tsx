@@ -2,7 +2,7 @@ import type { BasemapMode, DarkModeBehavior, LayerVisibility, PointOverlayStyle 
 import stationIconUrl from '../icons/stations.png'
 import shukubaIconUrl from '../icons/shukuba.png'
 const basemaps:{id:BasemapMode;name:string;hint:string}[]=[{id:'presentation',name:'OpenStreetMap',hint:'現代地図'},{id:'rekichizu',name:'Rekichizu（れきちず）',hint:'江戸後期・歴史地図'},{id:'gsi',name:'地理院地図',hint:'詳細'},{id:'white',name:'白背景',hint:'素材用'},{id:'transparent',name:'透明',hint:'合成用'}]
-const overlays:{id:'modernRoads'|'railways'|'historicalRoads';name:string;hint:string}[]=[{id:'modernRoads',name:'現代道路',hint:'canonical'},{id:'railways',name:'鉄道',hint:'OSM'},{id:'historicalRoads',name:'江戸街道',hint:'CODH'}]
+const overlays:{id:'modernRoads'|'railways'|'historicalRoads';name:string;hint:string}[]=[{id:'modernRoads',name:'現代道路',hint:'canonical'},{id:'railways',name:'鉄道',hint:'OSM'},{id:'historicalRoads',name:'歴史街道',hint:'CODH + custom'}]
 interface Props{value:LayerVisibility;onChange:(value:LayerVisibility)=>void;darkModeBehavior:DarkModeBehavior;onDarkModeBehaviorChange:(value:DarkModeBehavior)=>void;pointStyle:PointOverlayStyle;onPointStyleChange:(value:PointOverlayStyle)=>void}
 export function LayerPanel({value,onChange,darkModeBehavior,onDarkModeBehaviorChange}:Props){
  const pointIcons={stations:stationIconUrl,historicalPosts:shukubaIconUrl}

@@ -126,6 +126,7 @@ def project_catalog(root: Path = ROOT) -> dict:
     registry = json.loads((root / "data/roads/registry.json").read_text(encoding="utf-8"))
     roads = [{"id": road["id"], "displayName": road.get("displayName", road["id"]),
               "aliases": road.get("aliases", []),
+              "presentationType": road.get("presentationType", "road"),
               "built": (root / "public/data/roads" / f"{road['id']}-n13.geojson").is_file()}
              for road in registry.get("roads", [])]
     codh_index = root / "data/cache/codh/edo-roads/index.json"
@@ -290,6 +291,7 @@ def draft_hash(draft: dict) -> str:
     normalized = validate_road(draft)
     normalized.pop("manualSelection", None)
     normalized.pop("manualSelectionN13Fingerprint", None)
+    normalized.pop("presentationType", None)
     payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()
 

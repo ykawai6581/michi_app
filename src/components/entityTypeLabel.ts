@@ -2,7 +2,7 @@ import type { EntityFeature, MapEntityType } from '../types/geo'
 
 const entityTypeLabels: Record<MapEntityType, string> = {
   road: '現代道路',
-  'historical-road': '江戸街道',
+  'historical-road': '歴史街道',
   railway: '鉄道',
   station: '駅',
   'historical-place': '宿場',

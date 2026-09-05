@@ -43,8 +43,18 @@ class RoadBuilderTests(unittest.TestCase):
 
     def test_validate_named_draft_deduplicates(self):
         result = road_ui.validate_road(ROAD)
+        self.assertEqual(result["presentationType"], "road")
         self.assertEqual(result["aliases"], ["テスト通り"])
         self.assertEqual(result["reference"]["names"], ["テスト通り"])
+
+    def test_presentation_type_validation_and_persistence(self):
+        for presentation_type in ("road", "historical-road"):
+            self.assertEqual(road_ui.validate_road({**ROAD, "presentationType": presentation_type})["presentationType"], presentation_type)
+        with self.assertRaisesRegex(ValueError, "presentationType"):
+            road_ui.validate_road({**ROAD, "presentationType": "invalid"})
+        historical = {**ROAD, "id": "tokyo-named-historical-test", "presentationType": "historical-road"}
+        road_ui.save_road(self.registry, historical)
+        self.assertEqual(road_ui.get_road(self.registry, historical["id"])["presentationType"], "historical-road")
 
     def test_statutory_network_is_preserved_on_save_and_load(self):
         road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "displayName": "国道20号",
@@ -239,6 +249,10 @@ class RoadBuilderTests(unittest.TestCase):
         self.assertNotEqual(baseline, road_ui.draft_hash(changed_classes))
         self.assertNotEqual(baseline, road_ui.draft_hash(changed_exclusions))
 
+    def test_presentation_type_does_not_alter_draft_hash(self):
+        self.assertEqual(road_ui.draft_hash({**ROAD, "presentationType": "road"}),
+                         road_ui.draft_hash({**ROAD, "presentationType": "historical-road"}))
+
     def test_background_preview_returns_immediately_and_reports_monotonic_progress(self):
         cache = Path(self.temp.name) / "previews"
         expected = {"previewId": "replaced", "selected": {"features": []}}
@@ -370,6 +384,11 @@ class RoadBuilderTests(unittest.TestCase):
         (root / "public/data/roads").mkdir(parents=True); (root / "public/data/roads/built-n13.geojson").write_text("{}")
         missing = road_ui.project_catalog(root)
         self.assertEqual([r["built"] for r in missing["modernRoads"]], [True, False])
+        self.assertEqual([r["presentationType"] for r in missing["modernRoads"]], ["road", "road"])
+        registry = json.loads((root / "data/roads/registry.json").read_text())
+        registry["roads"][1]["presentationType"] = "historical-road"
+        (root / "data/roads/registry.json").write_text(json.dumps(registry))
+        self.assertEqual(road_ui.project_catalog(root)["modernRoads"][1]["presentationType"], "historical-road")
         self.assertFalse(missing["availability"]["codh"]["ready"]); self.assertFalse(missing["availability"]["rail"]["ready"])
         index = root / "data/cache/codh/edo-roads/index.json"; index.parent.mkdir(parents=True)
         index.write_text(json.dumps([{"id":"R003","displayName":"甲州道中","altName":"甲州街道","start":"江戸","end":"下諏訪","featureCount":1}]))
