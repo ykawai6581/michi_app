@@ -170,7 +170,7 @@ export function markActiveLine(features: EntityFeature[], activeFeature: EntityF
   })
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', revealTarget?: EntityFeature, animate = false, revealCircle?:RevealCircle, cameraDuration = 900, explicitRevealProgress?: number): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', revealTarget?: EntityFeature, animate = false, revealCircle?:RevealCircle, cameraDuration = 900, explicitRevealProgress?: number, moveCamera = true): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
   const rendered=clipFeaturesOutsideReveal(map,features,revealCircle)
@@ -182,9 +182,10 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
   ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
 
+  // Passive map rendering must never re-issue focus camera commands.
   // Historical roads and railways use the scene-wide, label-aware fit in MapView.
-  // Every other feature keeps the pre-sceneFit camera behavior.
-  if (!revealTarget || revealTarget.properties.type === 'historical-road' || revealTarget.properties.type === 'railway') return
+  // Every other feature keeps the pre-sceneFit camera behavior when focus is intentional.
+  if (!moveCamera || !revealTarget || revealTarget.properties.type === 'historical-road' || revealTarget.properties.type === 'railway') return
   if (revealTarget.geometry.type === 'Point') map.flyTo({ center: revealTarget.geometry.coordinates as [number, number], zoom: 15, duration: cameraDuration })
   else { const bounds = bbox(revealTarget); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: cameraDuration }) }
 }
