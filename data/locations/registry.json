@@ -1,3 +1,11 @@
 {
-  "locations": []
+  "locations": [
+    {
+      "id": "shinjuku-oiwake",
+      "displayName": "新宿追分",
+      "coordinates": [139.704, 35.69],
+      "presentationType": "reveal-area",
+      "revealRadiusPx": 120
+    }
+  ]
 }
