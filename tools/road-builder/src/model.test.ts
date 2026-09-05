@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,deletionApiPaths,deletionConfirmation,deriveAvailableAtomIds,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,includeManualAtom,initialLayerVisibility,mapLayerVisibility,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
+import {applyGapCandidateEdit,applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,candidatePathGeoJson,continuityInspection,continuitySummaryText,deletionApiPaths,deletionConfirmation,deriveAvailableAtomIds,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,gapReviewQueue,includeGapCandidate,includeManualAtom,initialLayerVisibility,isAddableCandidate,mapLayerVisibility,nextReviewGap,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,selectedContinuityCheck,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
@@ -56,6 +56,46 @@ describe('road form helpers',()=>{
     expect(canConnect('MATCH_EDITED')).toBe(true)
     expect(canBuild('MATCH_EDITED','final')).toBe(false)
     expect(canBuild('FINAL_READY','final')).toBe(true)
+  })
+  it('reviews only unresolved non-ignored continuity gaps',()=>{
+    const gap=(gapId:string,decision:string)=>({gapId,decision,gapKind:'topology-gap',referencePart:0,referenceGapMeters:0,geometryGapMeters:5,upstreamN13AtomId:'a',downstreamN13AtomId:'b',candidatePathCount:0,candidatePaths:[]})
+    expect(gapReviewQueue([gap('auto','accepted-auto-connector'),gap('one','unresolved-no-path'),gap('two','unresolved-ambiguous')],new Set(['one'])).map(item=>item.gapId)).toEqual(['two'])
+  })
+  it('selects resolved and unresolved checks independently of the review queue',()=>{
+    const check=(gapId:string,decision:string)=>({gapId,decision,gapKind:'topology-gap',referencePart:0,referenceGapMeters:0,geometryGapMeters:5,upstreamN13AtomId:'a',downstreamN13AtomId:'b',candidatePathCount:0,candidatePaths:[]})
+    const checks=[check('resolved','accepted-auto-connector'),check('gap','unresolved-no-path')]
+    expect(selectedContinuityCheck(checks,'resolved')?.decision).toBe('accepted-auto-connector')
+    expect(gapReviewQueue(checks,new Set()).map(item=>item.gapId)).toEqual(['gap'])
+    expect(initialLayerVisibility()).toMatchObject({continuityGaps:true,continuityChecks:false})
+    const resolved=continuityInspection(checks,[checks[1]],'resolved',new Set())
+    expect(resolved).toMatchObject({check:checks[0],unresolved:undefined,showCandidateActions:false,queueIndex:-1})
+    const unresolved=continuityInspection(checks,[checks[1]],'gap',new Set())
+    expect(unresolved).toMatchObject({check:checks[1],unresolved:checks[1],showCandidateActions:true,queueIndex:0})
+    expect(continuitySummaryText({checkedCount:2,autoResolvedCount:1,unresolvedCount:1,topologyCheckedCount:2,referenceCheckedCount:0,autoResolvedTopologyCount:1}))
+      .toBe('2 transitions checked · 1 connected / auto repaired · 1 unresolved')
+  })
+  it('adds one or two gap atoms atomically and removes exclusions',()=>{
+    expect(includeGapCandidate({include:[],exclude:['a','keep']},{atomIds:['a']})).toEqual({include:['a'],exclude:['keep']})
+    expect(includeGapCandidate({include:[],exclude:['a','b']},{atomIds:['a','b']})).toEqual({include:['a','b'],exclude:[]})
+    const unchanged={include:['existing'],exclude:[]}
+    expect(includeGapCandidate(unchanged,{atomIds:[]})).toBe(unchanged)
+    expect(isAddableCandidate({atomIds:[]})).toBe(false)
+  })
+  it('removes handled and ignored gaps and advances through the remaining snapshot',()=>{
+    const gap=(gapId:string)=>({gapId,decision:'unresolved-no-path',gapKind:'topology-gap',referencePart:0,referenceGapMeters:0,geometryGapMeters:5,upstreamN13AtomId:'a',downstreamN13AtomId:'b',candidatePathCount:0,candidatePaths:[]})
+    const gaps=[gap('one'),gap('two'),gap('three')],handled=new Set(['one']),ignored=new Set(['two'])
+    expect(gapReviewQueue(gaps,ignored,handled).map(item=>item.gapId)).toEqual(['three'])
+    expect(nextReviewGap(gaps,'one',new Set(),handled)?.gapId).toBe('two')
+    expect(nextReviewGap(gaps,'two',ignored,handled)?.gapId).toBe('three')
+    expect(gaps).toHaveLength(3)
+    const edit=applyGapCandidateEdit({include:[],exclude:['atom']},{atomIds:['atom']},gaps,'one',new Set(),new Set())!
+    expect(edit).toMatchObject({manualSelection:{include:['atom'],exclude:[]},nextGapId:'two',finalPreviewId:undefined,stage:'MATCH_EDITED'})
+    expect([...edit.handledGapIds]).toEqual(['one'])
+    expect(applyGapCandidateEdit(emptyManualSelection(),{atomIds:[]},gaps,'one',new Set(),new Set())).toBeUndefined()
+  })
+  it('derives candidate highlighting from stable source atom IDs',()=>{
+    const source={features:[{properties:{n13AtomId:'a'},geometry:null},{properties:{n13AtomId:'b'},geometry:null},{properties:{n13AtomId:'c'},geometry:null}]}
+    expect(candidatePathGeoJson(source,{atomIds:['a','c']}).features.map(feature=>feature.properties?.n13AtomId)).toEqual(['a','c'])
   })
   it('region selection uses inclusive line/rectangle intersection for every shortlisted atom',()=>{
     const feature=(id:string,coordinates:number[][],automaticSelection=false)=>({type:'Feature',properties:{n13AtomId:id,automaticSelection},geometry:{type:'LineString' as const,coordinates}})

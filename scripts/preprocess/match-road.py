@@ -808,6 +808,92 @@ def source_atom_adjacency(atoms: gpd.GeoDataFrame, tolerance: float) -> dict[str
     return {atom_id: sorted(neighbors) for atom_id, neighbors in sorted(graph.items())}
 
 
+def selected_connected_components(selected: gpd.GeoDataFrame, osm_reference,
+                                  endpoint_snap_meters: float) -> list[dict]:
+    """Build route-part-aware endpoint components from actual selected rows."""
+    if selected.empty:
+        return []
+    frame = selected.reset_index(drop=True)
+    parts = _ordered_reference_parts(osm_reference)
+    components = []
+    for part_index, reference_part in enumerate(parts):
+        row_indices = list(frame.index[frame.referencePart.astype(int) == part_index])
+        if not row_indices:
+            continue
+        local = frame.loc[row_indices]
+        spatial = local.geometry.sindex
+        adjacency = {index: set() for index in row_indices}
+        local_to_global = list(local.index)
+        for first in row_indices:
+            for local_second in spatial.query(frame.at[first, "geometry"].buffer(endpoint_snap_meters)):
+                second = local_to_global[int(local_second)]
+                if second <= first:
+                    continue
+                if _source_junctions(frame.at[first, "geometry"], frame.at[second, "geometry"],
+                                     endpoint_snap_meters):
+                    adjacency[first].add(second)
+                    adjacency[second].add(first)
+        remaining = set(row_indices)
+        while remaining:
+            seed = min(remaining)
+            stack, members = [seed], set()
+            while stack:
+                current = stack.pop()
+                if current in members:
+                    continue
+                members.add(current)
+                stack.extend(adjacency[current] - members)
+            remaining -= members
+            member_indices = sorted(members)
+            endpoint_records, projections = [], []
+            for row_index in member_indices:
+                geometry = frame.at[row_index, "geometry"]
+                lines = list(geometry.geoms) if geometry.geom_type == "MultiLineString" else [geometry]
+                for line in lines:
+                    projections.extend(float(reference_part.project(Point(coordinate)))
+                                       for coordinate in line.coords)
+                    for position in (0, -1):
+                        point = Point(line.coords[position])
+                        endpoint_records.append((float(reference_part.project(point)), row_index, point))
+            start, end = min(projections), max(projections)
+            atom_ids = sorted(set(frame.loc[member_indices].n13AtomId.astype(str)))
+            identity = "|".join([str(part_index), *atom_ids,
+                *sorted(hashlib.sha256(frame.at[index, "geometry"].wkb).hexdigest()[:12]
+                        for index in member_indices)])
+            first_endpoint = min(endpoint_records, key=lambda item: item[0])
+            last_endpoint = max(endpoint_records, key=lambda item: item[0])
+            components.append({"componentId": hashlib.sha256(identity.encode()).hexdigest()[:20],
+                "rowIndices": member_indices, "n13AtomIds": atom_ids, "referencePart": part_index,
+                "referenceStartMeters": start, "referenceEndMeters": end,
+                "referenceMidMeters": (start + end) / 2,
+                "upstreamRowIndex": first_endpoint[1], "upstreamPoint": first_endpoint[2],
+                "downstreamRowIndex": last_endpoint[1], "downstreamPoint": last_endpoint[2],
+                "geometry": unary_union(list(frame.loc[member_indices].geometry))})
+    return components
+
+
+def uncovered_reference_intervals(osm_reference, selected_union, sample_meters: float,
+                                  tolerance: float, minimum_samples: int = 2) -> list[dict]:
+    """Group sustained uncovered reference samples into diagnostic intervals."""
+    intervals = []
+    for part_index, part in enumerate(_ordered_reference_parts(osm_reference)):
+        offsets = np.unique(np.append(np.arange(0, part.length, sample_meters), part.length))
+        uncovered = [selected_union.distance(part.interpolate(float(offset))) > tolerance
+                     for offset in offsets]
+        start = None
+        for index, missing in enumerate([*uncovered, False]):
+            if missing and start is None:
+                start = index
+            elif not missing and start is not None:
+                if index - start >= minimum_samples:
+                    intervals.append({"referencePart": part_index,
+                        "referenceStartMeters": float(offsets[start]),
+                        "referenceEndMeters": float(offsets[index - 1]),
+                        "sampleCount": index - start})
+                start = None
+    return intervals
+
+
 def available_source_atom_ids(automatic_ids, adjacency: dict[str, list[str]],
                               manual_selection: dict | None = None) -> list[str]:
     """Derive the cheap manual-inclusion frontier from cached source topology."""
@@ -1505,16 +1591,25 @@ def select_reference_network(stage1: gpd.GeoDataFrame, reference, config: dict |
 
 def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates: gpd.GeoDataFrame,
                                    osm_reference, config: dict | None = None,
-                                   excluded_atom_ids=frozenset(), progress_callback=None):
-    """Recover unambiguous source-native pieces between consecutive owned runs."""
+                                   excluded_atom_ids=frozenset(), progress_callback=None,
+                                   automatic_candidate_atom_ids=None):
+    """Recover local source paths between ordered curated topology components."""
     settings = {**DEFAULT_NETWORK_SELECTION, **(config or {})}
     if selected.empty:
+        empty_points = gpd.GeoDataFrame({"geometry": []}, geometry="geometry", crs=selected.crs)
         return selected.copy(), {"continuityConnectorCount": 0,
                                  "continuityConnectorLengthMeters": 0.0,
                                  "continuityUnresolvedGapCount": 0, "ownershipGapCount": 0,
+                                 "continuityGapCount": 0, "topologyGapCount": 0,
+                                 "referenceGapCount": 0, "autoResolvedGapCount": 0,
+                                 "autoResolvedTopologyGapCount": 0,
+                                 "curatedConnectedComponentCount": 0,
+                                 "componentGapCount": 0, "uncoveredReferenceIntervalCount": 0,
                                  "directSourceJunctionCount": 0, "sameSourceMergeCount": 0,
                                  "connectorGraphSearchCount": 0, "connectorCandidateEdgeCount": 0,
-                                 "continuityConnectors": []}
+                                 "continuityConnectors": [],
+                                 "continuityChecksFrame": empty_points,
+                                 "continuityGapsFrame": empty_points.copy()}
     tolerance = float(settings["endpointSnapMeters"])
     corridor = (float(settings["maximumSampleDistanceMeters"])
                 + float(settings["continuityCorridorSafetyMarginMeters"]))
@@ -1550,6 +1645,9 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
     connector_candidate_edge_count = 0
     curated_union = selected.geometry.union_all()
     connector_union = None
+    components = selected_connected_components(result, osm_reference, tolerance)
+    automatic_candidate_atom_ids = (None if automatic_candidate_atom_ids is None else
+                                    set(map(str, automatic_candidate_atom_ids)))
 
     def atom(row):
         matches = source[(source.sourceFeatureIndex == row.sourceFeatureIndex)
@@ -1586,27 +1684,50 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
         return sum(piece.length for piece in added)
 
     for part_index, reference_part in enumerate(parts):
-        ordered = list(result[result.referencePart == part_index].sort_values(
-            ["ownedReferenceStartMeters", "ownedReferenceEndMeters"]).index)
-        for upstream_index, downstream_index in zip(ordered, ordered[1:]):
+        ordered = sorted((component for component in components
+                          if component["referencePart"] == part_index),
+                         key=lambda component: (component["referenceMidMeters"],
+                                                component["referenceStartMeters"],
+                                                component["componentId"]))
+        for upstream_component, downstream_component in zip(ordered, ordered[1:]):
             if progress_callback:
                 progress_callback(progress=min(89, 40 + int(49 * ownership_gap_count / max(1, len(result)))),
                                   phase="Searching local connector gaps",
                                   completed=ownership_gap_count, total=max(1, len(result) - 1))
-            if upstream_index not in result.index or downstream_index not in result.index:
-                continue
-            upstream = result.loc[upstream_index]
-            downstream = result.loc[downstream_index]
-            gap_start = float(upstream.ownedReferenceEndMeters)
-            gap_end = float(downstream.ownedReferenceStartMeters)
+            upstream = result.loc[upstream_component["downstreamRowIndex"]]
+            downstream = result.loc[downstream_component["upstreamRowIndex"]]
+            gap_start = float(upstream_component["referenceEndMeters"])
+            gap_end = float(downstream_component["referenceStartMeters"])
             gap = max(0.0, gap_end - gap_start)
-            if gap <= 1e-9:
+            upstream_point = upstream_component["downstreamPoint"]
+            downstream_point = downstream_component["upstreamPoint"]
+            geometry_gap = float(upstream_point.distance(downstream_point))
+            has_reference_gap = gap > 1e-9
+            has_topology_gap = geometry_gap > tolerance
+            if not has_reference_gap and not has_topology_gap:
                 continue
             ownership_gap_count += 1
-            base = {"upstreamSourceFeatureIndex": int(upstream.sourceFeatureIndex),
+            transition = (gap_start + gap_end) / 2
+            gap_key = (f"{part_index}|{upstream_component['componentId']}|"
+                       f"{downstream_component['componentId']}|{transition:.3f}")
+            gap_kind = ("reference-and-topology-gap" if has_reference_gap and has_topology_gap
+                        else "topology-gap" if has_topology_gap else "reference-gap")
+            marker = Point((upstream_point.x + downstream_point.x) / 2,
+                           (upstream_point.y + downstream_point.y) / 2)
+            base = {"gapId": hashlib.sha256(gap_key.encode()).hexdigest()[:20],
+                    "gapKind": gap_kind,
+                    "upstreamN13AtomId": str(upstream.n13AtomId),
+                    "downstreamN13AtomId": str(downstream.n13AtomId),
+                    "upstreamComponentId": upstream_component["componentId"],
+                    "downstreamComponentId": downstream_component["componentId"],
+                    "upstreamN13AtomIds": upstream_component["n13AtomIds"],
+                    "downstreamN13AtomIds": downstream_component["n13AtomIds"],
+                    "upstreamSourceFeatureIndex": int(upstream.sourceFeatureIndex),
                     "downstreamSourceFeatureIndex": int(downstream.sourceFeatureIndex),
                     "referencePart": part_index, "referenceGapStartMeters": round(gap_start, 3),
-                    "referenceGapEndMeters": round(gap_end, 3), "referenceGapMeters": round(gap, 3)}
+                    "referenceGapEndMeters": round(gap_end, 3), "referenceGapMeters": round(gap, 3),
+                    "geometryGapMeters": round(geometry_gap, 3), "candidatePathCount": 0,
+                    "candidatePaths": [], "_gapGeometry": marker}
             if gap > maximum_length:
                 unresolved += 1
                 decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
@@ -1639,6 +1760,11 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                     continue
             direct = _source_junctions(source_geometries[upstream_atom],
                                        source_geometries[downstream_atom], tolerance)
+            direct = [pair for pair in direct if
+                      gap_start - tolerance <= float(reference_part.project(
+                          source_geometries[upstream_atom].interpolate(pair[0]))) <= gap_end + tolerance and
+                      gap_start - tolerance <= float(reference_part.project(
+                          source_geometries[downstream_atom].interpolate(pair[1]))) <= gap_end + tolerance]
             if direct:
                 first, second = min(direct, key=lambda pair:
                     abs(pair[0] - float(upstream.sourceEndDistanceMeters))
@@ -1660,8 +1786,11 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                 direct_junction_count += 1
                 continue
 
-            gap_line = substring(reference_part, max(0.0, gap_start - window_buffer),
-                                 min(reference_part.length, gap_end + window_buffer))
+            # Topology-only gaps have no reference interval.  Always use a
+            # buffered local chainage window rather than an empty substring.
+            window_start = max(0.0, min(gap_start, gap_end) - window_buffer)
+            window_end = min(reference_part.length, max(gap_start, gap_end) + window_buffer)
+            gap_line = substring(reference_part, window_start, window_end)
             nearby = list(map(int, source_index.query(gap_line.buffer(corridor))))
             allowed_classes = {str(upstream.N13_003), str(downstream.N13_003)}
             selected_atoms = {atom(row) for _, row in result.iterrows()}
@@ -1681,10 +1810,36 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
             adjacency = _edge_adjacency(local_edges, source_geometries, tolerance)
             graph_paths = _graph_path(adjacency, upstream_atom, downstream_atom, maximum_edges)
             plausible = []
+            candidate_paths = []
             for graph_path in graph_paths:
                 path = graph_path[1:-1]
+                # A direct anchor-to-anchor graph edge has no intermediate N13
+                # atom for a reviewer to add. Direct source junctions are
+                # handled above; never serialize an empty actionable path.
+                if not path:
+                    continue
+                # An adjacency walk can enter and leave a junction stem at the
+                # same physical endpoint (or walk between parallel edges that
+                # share both endpoints).  It is graph-connected but is not a
+                # traversable connector path.
+                traversal_valid = True
+                if any(len(_source_junctions(source_geometries[first], source_geometries[second], tolerance)) != 1
+                       for first, second in zip(path, path[1:])):
+                    traversal_valid = False
+                for position, edge in enumerate(path, 1):
+                    incoming = _source_junctions(source_geometries[graph_path[position - 1]],
+                                                 source_geometries[edge], tolerance)
+                    outgoing = _source_junctions(source_geometries[edge],
+                                                 source_geometries[graph_path[position + 1]], tolerance)
+                    if not any(abs(first[1] - second[0]) > tolerance
+                               for first in incoming for second in outgoing):
+                        traversal_valid = False
+                        break
+                if not traversal_valid:
+                    continue
                 length = sum(source_geometries[edge].length for edge in path)
-                ratio = length / max(gap, 1.0)
+                expected = max(gap, geometry_gap, 1.0)
+                ratio = length / expected
                 midpoints = [float(reference_part.project(geometry.interpolate(geometry.length / 2)))
                              for geometry in (source_geometries[edge] for edge in path)]
                 monotonic = all(second + window_buffer >= first
@@ -1692,14 +1847,42 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                 progress = sum(abs(float(reference_part.project(Point(geometry.coords[-1])))
                                    - float(reference_part.project(Point(geometry.coords[0]))))
                                for geometry in (source_geometries[edge] for edge in path))
-                if (length <= maximum_length and ratio <= maximum_detour and monotonic
-                        and progress / max(length, 1.0) >= float(settings["minimumProgressRatio"])):
+                edge_progress = [abs(float(reference_part.project(Point(geometry.coords[-1])))
+                                     - float(reference_part.project(Point(geometry.coords[0])))) /
+                                 max(geometry.length, 1.0)
+                                 for geometry in (source_geometries[edge] for edge in path)]
+                progress_ratio = progress / max(length, 1.0)
+                passes_automatic_pool = (automatic_candidate_atom_ids is None or all(
+                    str(source.at[edge, "n13AtomId"]) in automatic_candidate_atom_ids for edge in path))
+                auto_eligible = (length <= maximum_length and ratio <= maximum_detour and monotonic
+                                 and progress_ratio >= float(settings["minimumProgressRatio"])
+                                 and all(value >= float(settings["minimumProgressRatio"])
+                                         for value in edge_progress) and passes_automatic_pool)
+                candidate_paths.append({
+                    "atomIds": [str(source.at[edge, "n13AtomId"]) for edge in path],
+                    "sourceFeatureIndices": [int(source.at[edge, "sourceFeatureIndex"]) for edge in path],
+                    "classes": [source_classes[edge] for edge in path],
+                    "lengthMeters": round(length, 3), "detourRatio": round(ratio, 3),
+                    "progressRatio": round(progress_ratio, 3), "autoEligible": bool(auto_eligible),
+                    "rejectionReasons": ([] if auto_eligible else [reason for failed, reason in (
+                        (length > maximum_length, "maximum-length"),
+                        (ratio > maximum_detour, "detour-ratio"), (not monotonic, "non-monotonic-progression"),
+                        (progress_ratio < float(settings["minimumProgressRatio"]) or
+                         any(value < float(settings["minimumProgressRatio"]) for value in edge_progress),
+                         "insufficient-progression"),
+                        (not passes_automatic_pool, "outside-automatic-candidate-pool")) if failed])})
+                if auto_eligible:
                     plausible.append((path, length, ratio))
+            base["candidatePaths"] = candidate_paths
+            base["candidatePathCount"] = len(candidate_paths)
             if len(plausible) != 1:
                 unresolved += 1
+                unresolved_decision = ("unresolved-ambiguous" if len(plausible) > 1 else
+                                       "unresolved-threshold" if candidate_paths else
+                                       "unresolved-no-path")
                 decisions.append({**base, "connectorSourceFeatureIndices": [], "connectorClasses": [],
                                   "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
-                                  "decision": "unresolved-ambiguous" if len(plausible) > 1 else "unresolved-no-path"})
+                                  "decision": unresolved_decision})
                 continue
             path, length, ratio = plausible[0]
             first_junction = _source_junctions(source_geometries[upstream_atom], source_geometries[path[0]], tolerance)[0]
@@ -1721,23 +1904,93 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
                               "connectorSourceFeatureIndices": [int(source.at[edge, "sourceFeatureIndex"]) for edge in path],
                               "connectorClasses": sorted({source_classes[edge] for edge in path}),
                               "connectorLengthMeters": round(length, 3),
-                              "connectorDetourRatio": round(ratio, 3), "decision": "accepted-connector"})
+                              "connectorDetourRatio": round(ratio, 3), "decision": "accepted-auto-connector"})
+    component_gap_count = len(decisions)
+    uncovered_intervals = uncovered_reference_intervals(
+        osm_reference, curated_union, float(settings["progressSampleMeters"]), corridor)
+    for interval in uncovered_intervals:
+        part_index = interval["referencePart"]
+        overlapping = any(item["referencePart"] == part_index and
+                          item["referenceGapStartMeters"] <= interval["referenceEndMeters"] and
+                          item["referenceGapEndMeters"] >= interval["referenceStartMeters"]
+                          for item in decisions)
+        if overlapping:
+            continue
+        part_components = sorted((component for component in components
+                                  if component["referencePart"] == part_index),
+                                 key=lambda component: component["referenceMidMeters"])
+        upstream_component = next((component for component in reversed(part_components)
+                                   if component["referenceEndMeters"] <= interval["referenceStartMeters"]), None)
+        downstream_component = next((component for component in part_components
+                                     if component["referenceStartMeters"] >= interval["referenceEndMeters"]), None)
+        if not upstream_component or not downstream_component:
+            continue
+        gap_start, gap_end = interval["referenceStartMeters"], interval["referenceEndMeters"]
+        transition = (gap_start + gap_end) / 2
+        marker = parts[part_index].interpolate(transition)
+        gap_key = f"uncovered|{part_index}|{upstream_component['componentId']}|{downstream_component['componentId']}|{transition:.3f}"
+        upstream_row = result.loc[upstream_component["downstreamRowIndex"]]
+        downstream_row = result.loc[downstream_component["upstreamRowIndex"]]
+        decisions.append({"gapId": hashlib.sha256(gap_key.encode()).hexdigest()[:20],
+            "gapKind": "reference-gap", "referencePart": part_index,
+            "upstreamComponentId": upstream_component["componentId"],
+            "downstreamComponentId": downstream_component["componentId"],
+            "upstreamN13AtomIds": upstream_component["n13AtomIds"],
+            "downstreamN13AtomIds": downstream_component["n13AtomIds"],
+            "upstreamN13AtomId": str(upstream_row.n13AtomId),
+            "downstreamN13AtomId": str(downstream_row.n13AtomId),
+            "upstreamSourceFeatureIndex": int(upstream_row.sourceFeatureIndex),
+            "downstreamSourceFeatureIndex": int(downstream_row.sourceFeatureIndex),
+            "referenceGapStartMeters": round(gap_start, 3),
+            "referenceGapEndMeters": round(gap_end, 3),
+            "referenceGapMeters": round(max(0.0, gap_end - gap_start), 3),
+            "geometryGapMeters": 0.0, "candidatePathCount": 0, "candidatePaths": [],
+            "connectorSourceFeatureIndices": [], "connectorClasses": [],
+            "connectorLengthMeters": 0.0, "connectorDetourRatio": None,
+            "decision": "unresolved-no-path", "uncoveredReferenceSampleCount": interval["sampleCount"],
+            "_gapGeometry": marker})
+        unresolved += 1
     if connector_rows:
         result = gpd.GeoDataFrame(pd.concat(
             [result, gpd.GeoDataFrame(connector_rows, crs=selected.crs)], ignore_index=True), crs=selected.crs)
     connector_length = sum(item["connectorLengthMeters"] for item in decisions
-                           if item["decision"] in {"accepted-connector", "accepted-same-source-range"})
-    connector_count = sum(item["decision"] in {"accepted-connector", "accepted-same-source-range"}
+                           if item["decision"] in {"accepted-auto-connector", "accepted-same-source-range"})
+    connector_count = sum(item["decision"] in {"accepted-auto-connector", "accepted-same-source-range"}
                           for item in decisions)
+    accepted_decisions = {"accepted-auto-connector", "accepted-direct-source-junction",
+                          "accepted-same-source-range"}
+    topology_count = sum("topology" in item["gapKind"] for item in decisions)
+    reference_count = sum("reference" in item["gapKind"] for item in decisions)
+    auto_resolved = sum(item["decision"] in accepted_decisions for item in decisions)
+    auto_resolved_topology = sum("topology" in item["gapKind"] and
+                                 item["decision"] in accepted_decisions for item in decisions)
+    serial_decisions = [{key: value for key, value in item.items() if key != "_gapGeometry"}
+                        for item in decisions]
+    check_rows = [{**{key: value for key, value in item.items() if key != "_gapGeometry"},
+                   "geometry": item["_gapGeometry"]} for item in decisions]
+    empty_points = gpd.GeoDataFrame({"geometry": []}, geometry="geometry", crs=selected.crs)
+    checks_frame = (gpd.GeoDataFrame(check_rows, geometry="geometry", crs=selected.crs)
+                    if check_rows else empty_points)
+    gap_rows = [row for row in check_rows if str(row["decision"]).startswith("unresolved-")]
+    gaps_frame = (gpd.GeoDataFrame(gap_rows, geometry="geometry", crs=selected.crs)
+                  if gap_rows else empty_points.copy())
     return result, {"continuityConnectorCount": connector_count,
                     "continuityConnectorLengthMeters": round(connector_length, 3),
                     "continuityUnresolvedGapCount": unresolved,
                     "ownershipGapCount": ownership_gap_count,
+                    "continuityGapCount": len(decisions), "topologyGapCount": topology_count,
+                    "referenceGapCount": reference_count, "autoResolvedGapCount": auto_resolved,
+                    "autoResolvedTopologyGapCount": auto_resolved_topology,
                     "directSourceJunctionCount": direct_junction_count,
                     "sameSourceMergeCount": same_source_merge_count,
                     "connectorGraphSearchCount": graph_search_count,
                     "connectorCandidateEdgeCount": connector_candidate_edge_count,
-                    "continuityConnectors": decisions}
+                    "curatedConnectedComponentCount": len(components),
+                    "componentGapCount": component_gap_count,
+                    "uncoveredReferenceIntervalCount": len(uncovered_intervals),
+                    "continuityConnectors": serial_decisions,
+                    "continuityChecksFrame": checks_frame,
+                    "continuityGapsFrame": gaps_frame}
 
 
 def write_selection_diagnostics(frame: gpd.GeoDataFrame, output: Path) -> None:
@@ -1889,9 +2142,24 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
               "classPriority": result["road"]["n13"]["classifications"],
               "endpointSnapMeters": result["displayConfig"].get(
                   "endpointSnapMeters", DEFAULT_ENDPOINT_SNAP_METERS)}
+    strict_candidates = result["residualPass"]
+    if "n13AtomId" not in strict_candidates:
+        strict_candidates = source_atoms(strict_candidates)
     connected, connector_report = connect_adjacent_selected_runs(
-        curated, result["residualPass"], result["reference"], config,
-        frozenset(manual_selection.get("exclude", [])), progress_callback)
+        curated, result.get("sourceAtoms", strict_candidates), result["reference"], config,
+        frozenset(manual_selection.get("exclude", [])), progress_callback,
+        set(strict_candidates.n13AtomId.astype(str)))
+    empty_points = gpd.GeoDataFrame({"geometry": []}, geometry="geometry", crs=curated.crs)
+    continuity_checks = connector_report.pop("continuityChecksFrame", empty_points)
+    continuity_gaps = connector_report.pop("continuityGapsFrame", empty_points.copy())
+    continuity_summary = {
+        "checkedCount": int(connector_report.get("continuityGapCount", len(continuity_checks))),
+        "autoResolvedCount": int(connector_report.get("autoResolvedGapCount", 0)),
+        "unresolvedCount": len(continuity_gaps),
+        "topologyCheckedCount": int(connector_report.get("topologyGapCount", 0)),
+        "referenceCheckedCount": int(connector_report.get("referenceGapCount", 0)),
+        "autoResolvedTopologyCount": int(connector_report.get("autoResolvedTopologyGapCount", 0)),
+    }
     curated_atom_ids = set(curated.n13AtomId.astype(str))
     connected_atom_ids = set(connected.n13AtomId.astype(str))
     # Preserve rows, not merely atom IDs: one atom can contribute multiple
@@ -1917,6 +2185,9 @@ def connect_match_preview(result: dict, manual_selection: dict | None = None, pr
     final["selected"] = connected
     final["curatedSelected"] = curated
     final["manualSelection"] = manual_selection
+    final["continuityChecks"] = continuity_checks
+    final["continuityGaps"] = continuity_gaps
+    final["continuitySummary"] = continuity_summary
     final["networkReport"] = {**result["networkReport"], **connector_report,
         "automaticSelectedAtomCount": len(set(result["selected"].n13AtomId)),
         "manualIncludedAtomCount": len(manual_selection.get("include", [])),

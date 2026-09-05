@@ -32,6 +32,12 @@ describe('Road Builder MapLibre lifecycle',()=>{
   expect(map.addLayer).toHaveBeenCalledWith(expect.objectContaining({id:'autoSelected',layout:{visibility:'none'}}))
   expect(map.addLayer).toHaveBeenCalledWith(expect.objectContaining({id:'autoSelected-hit',layout:{visibility:'none'}}))
  })
+ it('creates enlarged invisible hit targets for continuity points',()=>{
+  const{map}=fakeMap()
+  synchronizeRoadMapData(map,{continuityGaps:collection('gap'),continuityChecks:collection('check')},initialLayerVisibility(),{} as never,()=>{})
+  expect(map.addLayer).toHaveBeenCalledWith(expect.objectContaining({id:'continuityGaps-hit',type:'circle',paint:{'circle-radius':16,'circle-opacity':0}}))
+  expect(map.addLayer).toHaveBeenCalledWith(expect.objectContaining({id:'continuityChecks-hit',type:'circle',paint:{'circle-radius':16,'circle-opacity':0}}))
+ })
  it('removes known legacy review layers and sources left by Fast Refresh',()=>{
   const{map,layers,sources}=fakeMap()
   for(const id of ['selected','selected-hit','candidates','candidates-hit','rejected'])layers.add(id)

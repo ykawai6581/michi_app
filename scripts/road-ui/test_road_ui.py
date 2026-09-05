@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 import road_ui
 
@@ -121,6 +121,36 @@ class RoadBuilderTests(unittest.TestCase):
         # The HTTP boundary also safely handles any numpy/date-like diagnostic
         # scalar that an existing matcher report happens to expose.
         json.dumps(response, default=str)
+
+    def test_continuity_gap_properties_survive_preview_geojson_serialization(self):
+        frame = gpd.GeoDataFrame({
+            "gapId": ["part-0-a-b-50"], "gapKind": ["topology-gap"],
+            "referenceGapMeters": [0.0], "geometryGapMeters": [6.4],
+            "candidatePathCount": [1],
+            "candidatePaths": [[{"atomIds": ["candidate:0"], "autoEligible": False}]],
+            "decision": ["unresolved-threshold"], "geometry": [Point(0, 0)]},
+            crs=road_ui.MATCHER.METRIC_CRS)
+        properties = road_ui._geojson(frame)["features"][0]["properties"]
+        self.assertEqual(properties["gapId"], "part-0-a-b-50")
+        self.assertEqual(properties["candidatePaths"][0]["atomIds"], ["candidate:0"])
+        self.assertEqual(properties["geometryGapMeters"], 6.4)
+
+    def test_connected_preview_separates_checks_gaps_and_explicit_summary(self):
+        checks = gpd.GeoDataFrame({
+            "gapId": ["resolved", "unresolved"],
+            "decision": ["accepted-auto-connector", "unresolved-no-path"],
+            "geometry": [Point(0, 0), Point(1, 0)]}, crs=road_ui.MATCHER.METRIC_CRS)
+        gaps = checks[checks.decision.str.startswith("unresolved-")].copy()
+        payload = road_ui._continuity_preview_payload({
+            "continuityChecks": checks, "continuityGaps": gaps,
+            "continuitySummary": {"checkedCount": 2, "autoResolvedCount": 1,
+                "unresolvedCount": 1, "topologyCheckedCount": 2,
+                "referenceCheckedCount": 0, "autoResolvedTopologyCount": 1}})
+        self.assertEqual(len(payload["continuityChecks"]["features"]), 2)
+        self.assertEqual([feature["properties"]["gapId"]
+                          for feature in payload["continuityGaps"]["features"]], ["unresolved"])
+        self.assertEqual(payload["continuitySummary"]["unresolvedCount"],
+                         len(payload["continuityGaps"]["features"]))
 
     def test_match_preview_layers_are_atom_disjoint_and_rejected_is_filtered(self):
         diagnostics = gpd.GeoDataFrame({

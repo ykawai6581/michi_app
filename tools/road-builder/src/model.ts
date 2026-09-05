@@ -8,10 +8,10 @@ export type StatutoryNetworkChoice='national'|'prefectural'|'custom'
 export const statutoryNetworkChoice=(network?:string):StatutoryNetworkChoice=>network==='JP:national'?'national':network==='JP:prefectural'?'prefectural':'custom'
 export const applyStatutoryNetworkChoice=(reference:Road['reference'],choice:StatutoryNetworkChoice):Road['reference']=>({...reference,network:choice==='national'?'JP:national':choice==='prefectural'?'JP:prefectural':reference.network||''})
 
-export const diagnosticLayerIds=['allCandidates','residualRejected','autoSelectedSourceAtoms','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected'] as const
+export const diagnosticLayerIds=['allCandidates','residualRejected','autoSelectedSourceAtoms','referenceExcluded','reference','ownership','autoSelected','unselectedShortlist','manuallyIncluded','manuallyExcluded','finalConnected','continuityChecks','continuityGaps','candidateHighlight'] as const
 export type DiagnosticLayerId=typeof diagnosticLayerIds[number]
 export type LayerVisibility=Record<DiagnosticLayerId,boolean>
-export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,autoSelectedSourceAtoms:false,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,allCandidates:false,residualRejected:false})
+export const initialLayerVisibility=():LayerVisibility=>({reference:true,referenceExcluded:false,ownership:true,autoSelected:true,autoSelectedSourceAtoms:false,unselectedShortlist:true,manuallyIncluded:true,manuallyExcluded:false,finalConnected:true,continuityChecks:false,continuityGaps:true,candidateHighlight:true,allCandidates:false,residualRejected:false})
 export const toggleLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId):LayerVisibility=>({...visibility,[id]:!visibility[id]})
 export const mapLayerVisibility=(visibility:LayerVisibility,id:DiagnosticLayerId,hasData=true):'visible'|'none'=>hasData&&visibility[id]?'visible':'none'
 export const emptyDiagnosticState=()=>({layers:{},analysis:undefined,discovered:[] as string[],picked:{}})
@@ -60,6 +60,39 @@ export const atomIdsIntersectingBounds=(collection:AtomCollection,bounds:Selecti
 export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):ManualSelection=>{
   return atomIds.reduce(excludeManualAtom,selection)
 }
+export type ContinuityCandidatePath={atomIds:string[];sourceFeatureIndices:number[];classes:string[];lengthMeters:number;detourRatio:number;progressRatio:number;autoEligible:boolean;rejectionReasons?:string[]}
+export type ContinuityGap={gapId:string;gapKind:string;referencePart:number;referenceGapMeters:number;geometryGapMeters:number;upstreamN13AtomId:string;downstreamN13AtomId:string;candidatePathCount:number;candidatePaths:ContinuityCandidatePath[];decision:string}
+export type ContinuitySummary={checkedCount:number;autoResolvedCount:number;unresolvedCount:number;topologyCheckedCount:number;referenceCheckedCount:number;autoResolvedTopologyCount:number}
+export const continuitySummaryText=(summary:ContinuitySummary)=>
+  `${summary.checkedCount} transitions checked · ${summary.autoResolvedCount} connected / auto repaired · ${summary.unresolvedCount} unresolved`
+export const isUnresolvedGap=(gap:ContinuityGap)=>gap.decision.startsWith('unresolved-')
+export const gapReviewQueue=(gaps:ContinuityGap[],ignored:Set<string>,handled=new Set<string>())=>
+  gaps.filter(gap=>isUnresolvedGap(gap)&&!ignored.has(gap.gapId)&&!handled.has(gap.gapId))
+export const nextReviewGap=(gaps:ContinuityGap[],currentId:string,ignored:Set<string>,handled:Set<string>)=>{
+  const remaining=gapReviewQueue(gaps,ignored,handled)
+  const currentIndex=gaps.findIndex(gap=>gap.gapId===currentId)
+  return remaining.find(gap=>gaps.findIndex(item=>item.gapId===gap.gapId)>currentIndex)||remaining[0]
+}
+export const isAddableCandidate=(path:Pick<ContinuityCandidatePath,'atomIds'>)=>path.atomIds.length>0
+export const selectedContinuityCheck=(checks:ContinuityGap[],id?:string)=>checks.find(check=>check.gapId===id)
+export const continuityInspection=(checks:ContinuityGap[],gaps:ContinuityGap[],id:string|undefined,ignored:Set<string>)=>{
+  const check=selectedContinuityCheck(checks,id)
+  const queue=gapReviewQueue(gaps,ignored)
+  const unresolved=check&&isUnresolvedGap(check)?check:undefined
+  return{check,unresolved,queue,showCandidateActions:Boolean(unresolved),queueIndex:unresolved?queue.findIndex(item=>item.gapId===unresolved.gapId):-1}
+}
+export const includeGapCandidate=(selection:ManualSelection,path:Pick<ContinuityCandidatePath,'atomIds'>):ManualSelection=>
+  isAddableCandidate(path)?path.atomIds.reduce(includeManualAtom,selection):selection
+export const applyGapCandidateEdit=(selection:ManualSelection,path:Pick<ContinuityCandidatePath,'atomIds'>,
+  gaps:ContinuityGap[],currentId:string,ignored:Set<string>,handled:Set<string>)=>{
+  if(!isAddableCandidate(path))return undefined
+  const nextHandled=new Set([...handled,currentId])
+  return{manualSelection:includeGapCandidate(selection,path),handledGapIds:nextHandled,
+    nextGapId:nextReviewGap(gaps,currentId,ignored,nextHandled)?.gapId,
+    finalPreviewId:undefined,stage:'MATCH_EDITED' as const}
+}
+export const candidatePathGeoJson=(sourceAtoms:{features:{properties?:Record<string,unknown>|null}[]},path?:Pick<ContinuityCandidatePath,'atomIds'>)=>({
+  type:'FeatureCollection' as const,features:path?sourceAtoms.features.filter(feature=>path.atomIds.includes(String(feature.properties?.n13AtomId||''))):[]})
 export const deriveAvailableAtomIds=(automaticIds:string[],adjacency:Record<string,string[]>,selection:ManualSelection):string[]=>{
   const excluded=new Set(selection.exclude)
   const selected=new Set([...automaticIds.filter(id=>!excluded.has(id)),...selection.include.filter(id=>!excluded.has(id))])
