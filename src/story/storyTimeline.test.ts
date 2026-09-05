@@ -13,6 +13,7 @@ const compile=(steps:Story['steps'])=>compileStoryTimeline({id:'x',project:'x',s
 describe('Story timeline compilation',()=>{
   it('keeps instant actions at one cursor and includes all timed actions in duration',()=>{const timeline=compile([{action:'show',id:'road'},{action:'activate',id:'road',cameraDuration:1.2},{action:'wait',duration:2},{action:'setView',center:[30,20],zoom:12,bearing:0,pitch:0,duration:1}]);expect(timeline.stepBoundariesMs).toEqual([0,0,1200,3200]);expect(timeline.durationMs).toBe(4200)})
   it('uses the default camera duration and supports zero-duration jumps',()=>{expect(compile([{action:'setView',center:[1,2],zoom:3,bearing:4,pitch:5}]).durationMs).toBe(1200);const timeline=compile([{action:'setView',center:[1,2],zoom:3,bearing:4,pitch:5,duration:0}]);expect(timeline.durationMs).toBe(0);expect(evaluateTimeline(timeline,0).camera.center).toEqual([1,2])})
+  it('exposes authoritative row boundaries for edited timing',()=>{const timeline=compile([{action:'activate',id:'road',cameraDuration:.8},{action:'wait',duration:1.5},{action:'setView',center:[1,2],zoom:3,bearing:0,pitch:0,duration:.7},{action:'show',id:'place'}]);expect(timeline.stepBoundariesMs).toEqual([0,800,2300,3000]);expect(timeline.durationMs).toBe(3000)})
 })
 
 describe('Story timeline evaluation',()=>{

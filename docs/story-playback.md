@@ -115,6 +115,20 @@ For example, `activate location:shinjuku-oiwake`, then `setView` to a slightly w
 
 Opening a Story displays its editable ordered steps above the regular sidebar controls. Click a row to select it as the insertion point; **Current View** captures the actual MapLibre center, zoom, bearing, and pitch, while **Wait** adds a two-second hold. New steps are inserted after the selection (or appended when nothing is selected).
 
+Each row shows its compiled Story start time. `activate`, `setView`, and `wait`
+rows also show their authored duration. Selecting an activation exposes its
+`cameraDuration` alongside the existing View and Wait timing fields; zero is a
+valid instantaneous camera change. Newly captured Current View steps default to
+0.8 seconds, while legacy steps with an omitted duration retain the 1.2-second
+runtime fallback.
+
+The scrubber seeks the same deterministic timeline at millisecond precision and
+pauses playback before applying its absolute time. The preview-rate selector
+offers 0.5×, 1×, 2×, and 4× playback without changing timeline compilation or
+saved JSON. **2× preview does NOT shorten the Story**: it only advances Story
+time twice as quickly relative to real time, while `getDuration()` and exported
+authored durations remain unchanged.
+
 Drag a row by its handle to reorder it. The compact duplicate and delete actions operate only on that Story step. View fields and wait duration are editable in the details area beneath the list. **Preview selected** executes one logical action through the player; **Preview from here** uses the same baseline reconstruction path as Previous, then continues playback normally.
 
 **Download Story JSON** validates and downloads the current in-memory Story as `<story.id>.json`. Editing never mutates an imported JSON module or writes to `stories/` automatically. The authoring pane is entirely hidden in `capture=1` mode.

@@ -3,7 +3,7 @@ import type { ProjectData } from '../data/project'
 import { StoryPlayer, type StoryPlayerState } from './storyPlayer'
 import type { Story, StoryAppOperations } from './storyTypes'
 
-const IDLE_STATE: StoryPlayerState = { status: 'idle', currentStepIndex: 0, currentStep: null, elapsedSeconds: 0, totalWaitDuration: 0, error: null }
+const IDLE_STATE: StoryPlayerState = { status: 'idle', currentStepIndex: 0, currentStep: null, elapsedSeconds: 0, totalWaitDuration: 0, playbackRate: 1, error: null }
 
 export function useStoryPlayer(story: Story | null, project: ProjectData | null, operations: StoryAppOperations | null, ready: boolean, autoplay: boolean, initialTime?: number) {
   const operationsRef = useRef<StoryAppOperations | null>(operations)

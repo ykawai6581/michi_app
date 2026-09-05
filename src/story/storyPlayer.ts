@@ -3,7 +3,7 @@ import type { Story, StoryAppOperations, StoryStep } from './storyTypes'
 import { compileStoryTimeline, evaluateTimeline, type StoryTimeline } from './storyTimeline'
 
 export type StoryPlayerStatus = 'idle' | 'playing' | 'paused' | 'complete' | 'error'
-export interface StoryPlayerState { status: StoryPlayerStatus; currentStepIndex: number; currentStep: StoryStep | null; elapsedSeconds: number; totalWaitDuration: number; error: string | null }
+export interface StoryPlayerState { status: StoryPlayerStatus; currentStepIndex: number; currentStep: StoryStep | null; elapsedSeconds: number; totalWaitDuration: number; playbackRate: number; error: string | null }
 export interface StoryClock { now(): number; schedule(callback: () => void, delayMs: number): unknown; cancel(handle: unknown): void }
 const systemClock: StoryClock = { now: () => performance.now(), schedule: callback => requestAnimationFrame(callback), cancel: handle => cancelAnimationFrame(handle as number) }
 
@@ -14,24 +14,38 @@ export class StoryPlayer {
   private generation = 0
   private playStartedAt = 0
   private playStartedStoryMs = 0
+  private playbackRate = 1
   private state: StoryPlayerState
   private snapshot: StoryPlayerState
 
   constructor(private story: Story, project: ProjectData, private operations: StoryAppOperations, private clock: StoryClock = systemClock) {
     const baseline = operations.snapshot()
     this.timeline = compileStoryTimeline(story, project, baseline, operations.resolveFeatureCameraTarget ?? ((_feature, _visible, from) => from))
-    this.state = { status: 'paused', currentStepIndex: 0, currentStep: story.steps[0] ?? null, elapsedSeconds: 0, totalWaitDuration: this.timeline.durationMs / 1000, error: null }
+    this.state = { status: 'paused', currentStepIndex: 0, currentStep: story.steps[0] ?? null, elapsedSeconds: 0, totalWaitDuration: this.timeline.durationMs / 1000, playbackRate: this.playbackRate, error: null }
     this.snapshot = { ...this.state }
   }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   getState = () => this.snapshot
   getDuration = () => this.timeline.durationMs / 1000
   getTime = () => this.state.elapsedSeconds
+  getPlaybackRate = () => this.playbackRate
   waitForRender = () => this.operations.waitForRender?.() ?? Promise.resolve()
   private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.snapshot = { ...this.state }; this.listeners.forEach(listener => listener()) }
   private indexAt(timeMs: number) { let index = 0; this.timeline.events.forEach(event => { if (event.startMs <= timeMs) index = event.stepIndex }); return index }
   private stopClock() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.generation += 1 }
   private setError(error: unknown) { this.stopClock(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
+  setPlaybackRate(rate: number) {
+    if (!Number.isFinite(rate) || rate <= 0) throw new Error('Story playback rate must be a positive finite number')
+    if (this.state.status === 'playing') {
+      const now = this.clock.now()
+      this.playStartedStoryMs = Math.min(this.timeline.durationMs, this.playStartedStoryMs + (now - this.playStartedAt) * this.playbackRate)
+      this.playStartedAt = now
+      void this.seek(this.playStartedStoryMs / 1000)
+    }
+    this.playbackRate = rate
+    this.state.playbackRate = rate
+    this.emit()
+  }
 
   async seek(seconds: number) {
     if (!Number.isFinite(seconds)) throw new Error('Story seek time must be a finite number')
@@ -55,7 +69,7 @@ export class StoryPlayer {
     return new Promise<void>((resolve) => {
       const tick = async () => {
         if (generation !== this.generation || this.state.status !== 'playing') { resolve(); return }
-        const target = Math.min(this.timeline.durationMs, this.playStartedStoryMs + this.clock.now() - this.playStartedAt)
+        const target = Math.min(this.timeline.durationMs, this.playStartedStoryMs + (this.clock.now() - this.playStartedAt) * this.playbackRate)
         try { await this.seek(target / 1000) } catch (error) { this.setError(error); resolve(); return }
         if (target >= this.timeline.durationMs) { this.timer = undefined; this.state.status = 'complete'; this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-complete')); resolve(); return }
         this.state.status = 'playing'; this.timer = this.clock.schedule(() => { void tick() }, 16)
