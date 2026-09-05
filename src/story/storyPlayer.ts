@@ -6,6 +6,7 @@ export type StoryPlayerStatus = 'idle' | 'playing' | 'paused' | 'complete' | 'er
 export interface StoryPlayerState { status: StoryPlayerStatus; currentStepIndex: number; currentStep: StoryStep | null; elapsedSeconds: number; totalWaitDuration: number; playbackRate: number; error: string | null }
 export interface StoryClock { now(): number; schedule(callback: () => void, delayMs: number): unknown; cancel(handle: unknown): void }
 const systemClock: StoryClock = { now: () => performance.now(), schedule: callback => requestAnimationFrame(callback), cancel: handle => cancelAnimationFrame(handle as number) }
+const CUE_EPSILON_MS = 0.01
 
 export class StoryPlayer {
   readonly timeline: StoryTimeline
@@ -32,6 +33,9 @@ export class StoryPlayer {
   waitForRender = () => this.operations.waitForRender?.() ?? Promise.resolve()
   private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.snapshot = { ...this.state }; this.listeners.forEach(listener => listener()) }
   private indexAt(timeMs: number) { let index = 0; this.timeline.events.forEach(event => { if (event.startMs <= timeMs) index = event.stepIndex }); return index }
+  private cueTimes() { return [...new Set([...this.timeline.stepBoundariesMs, this.timeline.durationMs])].sort((a, b) => a - b) }
+  private nextCueTime(fromMs: number) { return this.cueTimes().find(time => time > fromMs + CUE_EPSILON_MS) ?? this.timeline.durationMs }
+  private previousCueTime(fromMs: number) { const times = this.cueTimes(); for (let index = times.length - 1; index >= 0; index -= 1) if (times[index] < fromMs - CUE_EPSILON_MS) return times[index]; return 0 }
   private stopClock() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.generation += 1 }
   private setError(error: unknown) { this.stopClock(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
   setPlaybackRate(rate: number) {
@@ -79,8 +83,8 @@ export class StoryPlayer {
   }
   pause() { if (this.state.status !== 'playing') return; this.stopClock(); this.state.status = 'paused'; this.emit() }
   async restart() { this.stopClock(); this.state.status = 'paused'; await this.seek(0) }
-  async next() { this.pause(); const index = Math.min(this.story.steps.length - 1, this.state.currentStepIndex + 1); await this.seek((this.timeline.stepBoundariesMs[index] ?? this.timeline.durationMs) / 1000); this.state.currentStepIndex = index; this.emit() }
-  async previous() { this.pause(); const index = Math.max(0, this.state.currentStepIndex - 1); await this.seek((this.timeline.stepBoundariesMs[index] ?? 0) / 1000); this.state.currentStepIndex = index; this.emit() }
+  async next() { this.pause(); await this.seek(this.nextCueTime(this.state.elapsedSeconds * 1000) / 1000) }
+  async previous() { this.pause(); await this.seek(this.previousCueTime(this.state.elapsedSeconds * 1000) / 1000) }
   async replayToStep(index: number) { this.pause(); await this.seek((this.timeline.stepBoundariesMs[Math.max(0, Math.min(index, this.story.steps.length - 1))] ?? 0) / 1000) }
   async previewStep(index: number) { await this.replayToStep(index) }
   async playFrom(index: number) { await this.replayToStep(index); await this.play() }
