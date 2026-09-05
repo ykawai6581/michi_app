@@ -4,421 +4,6 @@
   },
   "roads": [
     {
-      "id": "jp-national-246",
-      "displayName": "国道246号",
-      "roadClass": "national",
-      "routeNumber": "246",
-      "jurisdiction": "JP",
-      "aliases": [
-        "国道246",
-        "246号",
-        "246"
-      ],
-      "n13": {
-        "classifications": [
-          "1"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "entityType": "statutory-road",
-      "reference": {
-        "type": "osm-ref",
-        "ref": "246",
-        "network": "JP:national"
-      }
-    },
-    {
-      "id": "tokyo-prefectural-311",
-      "displayName": "東京都道311号環状八号線",
-      "roadClass": "prefectural",
-      "routeNumber": "311",
-      "jurisdiction": "Tokyo",
-      "aliases": [
-        "都道311号",
-        "東京都道311号",
-        "環状八号線",
-        "環八通り",
-        "環八",
-        "環8"
-      ],
-      "n13": {
-        "classifications": [
-          "2"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "entityType": "statutory-road",
-      "reference": {
-        "type": "osm-ref",
-        "ref": "311"
-      }
-    },
-    {
-      "id": "tokyo-named-koshu-kaido",
-      "entityType": "named-road",
-      "displayName": "甲州街道",
-      "aliases": [
-        "甲州街道"
-      ],
-      "jurisdiction": "Tokyo",
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "甲州街道"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "1",
-          "2"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-inokashira-dori",
-      "entityType": "named-road",
-      "displayName": "井の頭通り",
-      "aliases": [
-        "井ノ頭通り",
-        "井の頭通り"
-      ],
-      "jurisdiction": "Tokyo",
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "井ノ頭通り",
-          "井の頭通り"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "manualSelection": {
-        "include": [
-          "n13-c7695490e33ebe0bb10189ff:0",
-          "n13-7b3940c4a1175e1682af09d0:0",
-          "n13-a6f2f6e23cf9acce7465c030:0",
-          "n13-30d9a9e3088cf35a7d482cec:0",
-          "n13-ec597cf4556295e7e8ee63db:0",
-          "n13-40579a0091bf47798ef0e71e:0",
-          "n13-e1adbb688fccadf29ab44b49:0",
-          "n13-b0981715fa5724e9cb2bb92d:0",
-          "n13-fb469fb8c7f1598cc26d9c5b:0",
-          "n13-40c572b77cb8552c42436c2e:0",
-          "n13-3bfa09f0f0aa02ee43aef5b1:0",
-          "n13-b395629341261770c8e81e41:0",
-          "n13-f8c23870c2a4e2084068fe1a:0",
-          "n13-1cf7ae597d72089d27c9785b:0",
-          "n13-ade4b4d5052d4287ae494fd3:0",
-          "n13-b415a7852bd962bc3c2c2b4e:0",
-          "n13-2a4a4ba043e46913d31f9a24:0",
-          "n13-9ed91a40ae8dd07688124faa:0",
-          "n13-ffc233cd66ef47bba69d45af:0"
-        ],
-        "exclude": []
-      },
-      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
-    },
-    {
-      "id": "tokyo-prefectural-317",
-      "displayName": "東京都道317号環状六号線",
-      "roadClass": "prefectural",
-      "routeNumber": "317",
-      "jurisdiction": "Tokyo",
-      "aliases": [
-        "都道317号",
-        "東京都道317号",
-        "環状六号線",
-        "環六通り",
-        "環六",
-        "環6"
-      ],
-      "n13": {
-        "classification": "2"
-      },
-      "osm": {
-        "ref": "317"
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-waseda-dori",
-      "displayName": "早稲田通り",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "早稲田通り",
-          "神楽坂通り",
-          "Kagurazaka-dori",
-          "Waseda Street",
-          "Waseda-Dori",
-          "Waseda-dori"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-kagurazaka-dori",
-      "displayName": "神楽坂通り",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "神楽坂通り",
-          "Kagurazaka Street",
-          "Kagurazaka-dori"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-yamate-dori",
-      "displayName": "山手通り",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "山手通り",
-          "Yamate Dori",
-          "Yamate Street"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3",
-          "1",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-musashisakai-dori",
-      "displayName": "武蔵境通り",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "武蔵境通り"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "1",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-itsukaichi-kaido",
-      "displayName": "五日市街道",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "五日市街道"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-kamakura-kaido",
-      "displayName": "鎌倉街道",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "鎌倉街道",
-          "鎌倉通り"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "1",
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "tokyo-named-hitomi-kaido",
-      "displayName": "人見街道",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "人見街道"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "1",
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
       "id": "jp-national-20",
       "displayName": "甲州街道",
       "entityType": "statutory-road",
@@ -431,65 +16,6 @@
         "excludeNames": [
           "八王子南バイパス"
         ]
-      },
-      "n13": {
-        "classifications": [
-          "1",
-          "2",
-          "3"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      },
-      "roadClass": "national"
-    },
-    {
-      "id": "tokyo-named-gaien-higashi-dori",
-      "displayName": "外苑東通り",
-      "entityType": "named-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-name",
-        "names": [
-          "外苑東通り"
-        ],
-        "tags": [
-          "name",
-          "name:ja",
-          "name:en",
-          "alt_name"
-        ]
-      },
-      "n13": {
-        "classifications": [
-          "2",
-          "3",
-          "5"
-        ]
-      },
-      "matching": {
-        "sampleIntervalMeters": 5,
-        "maximumMedianResidualMeters": 20,
-        "maximumP90ResidualMeters": 25,
-        "coverageToleranceMeters": 25
-      }
-    },
-    {
-      "id": "jp-prefectural-1",
-      "displayName": "東海道",
-      "entityType": "statutory-road",
-      "jurisdiction": "Tokyo",
-      "aliases": [],
-      "reference": {
-        "type": "osm-ref",
-        "ref": "1",
-        "network": "JP:national",
-        "excludeNames": []
       },
       "n13": {
         "classifications": [
@@ -605,6 +131,572 @@
         "maximumP90ResidualMeters": 25,
         "coverageToleranceMeters": 25
       }
+    },
+    {
+      "id": "tokyo-named-ome-kaido",
+      "displayName": "青梅街道（成木往還）",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "青梅街道",
+          "新宿通り",
+          "旧青梅街道"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "manualSelection": {
+        "include": [
+          "n13-e931b0c2735591fe8c0950cd:0",
+          "n13-5e7ba0b321710d3f3bdc91fb:0",
+          "n13-a5f4b8ddd07317c58fd8a8fb:0",
+          "n13-21205c6336f7ccd3fa889e15:0",
+          "n13-e5f117d56523f5c1c7afc11e:0",
+          "n13-7cebb22fe19c8552d6530e6f:0",
+          "n13-e6be8e8ad8b9cee09936e485:0",
+          "n13-6c8074fec1f80bfdddd6e038:0",
+          "n13-488850cac19944ed87dc9317:0",
+          "n13-c86dc3404517fbc8433da5cc:0",
+          "n13-8285cb1c34f286f6bbb09a7a:0",
+          "n13-590232b37cf5476ab686c284:0",
+          "n13-14fc5cd072f10ad02b4033c2:0",
+          "n13-99f6a07e4efc4a60c0432b2c:0",
+          "n13-d016504b2a09143ab02fb12e:0",
+          "n13-05883851424b9ea9fefd042a:0",
+          "n13-47086a45720e8504c0270762:0",
+          "n13-e8ff6de0768e4fdfcdab7c20:0",
+          "n13-31fa8b38e491a2d1087449b6:0",
+          "n13-a3213cffd873a70bf0539d18:0",
+          "n13-7871247e88413d2e0128e1c4:0",
+          "n13-486b0b9477435abe32f79abf:0",
+          "n13-4379c685ee24906bb0ea2217:0",
+          "n13-ae6de23e6d26914204714136:0",
+          "n13-0c91e9e50a048d91b2c75580:0",
+          "n13-53dd1b6bced0c7065ce21438:0",
+          "n13-36ee85eb6d65d04380b0eb3e:0",
+          "n13-91c1464f21ffa0007b5904a1:0",
+          "n13-8de61d869fbd6b8f324ea308:0",
+          "n13-b4505b3f1f33b4c4c0702a86:0",
+          "n13-4e42639064fa15f62c0007ee:0",
+          "n13-9b91d7f4cf55c169f5066531:0",
+          "n13-327c99ca176f977136b42319:0",
+          "n13-e5344e0e5002ddf0072a4556:0",
+          "n13-2509dbca3c121174893425a3:0",
+          "n13-c70c82cf8b890347c6b239b6:0",
+          "n13-f4e7c7394031deaad1f00438:0",
+          "n13-b79a7cffbb930e64a18d226b:0",
+          "n13-7065b6e05a0419e11bf621ea:0",
+          "n13-7b14109ff2ee62dde67bdc61:0",
+          "n13-b772e1169ad4ab2a3b3c8bb7:0",
+          "n13-3c18def33860fdb60c3d6e99:0",
+          "n13-d49f3c1d1b4d74001971a6fa:0",
+          "n13-efc09fcc47c685a563e00d6b:0",
+          "n13-77224b52b090f5cfcd4993aa:0",
+          "n13-978133e5fc01c7c5c90079ef:0",
+          "n13-c39d390606718881347b0d9f:0",
+          "n13-f68568095313a25598011746:0",
+          "n13-ea0f0a43d5b29fb361d8408f:0",
+          "n13-b5ab000f7a63847c130c5901:0",
+          "n13-c53b14fc521a8fd92d2dce58:0",
+          "n13-aa09abe4c6d33f086e51cdbf:0",
+          "n13-2bf7c27e79e6da862aa4a870:0",
+          "n13-70e2dcdfd15022deba9a368c:0",
+          "n13-0c220b52cff5cd0976b162d9:0",
+          "n13-07fbfeead970c6c71eabc023:0",
+          "n13-a0a2a4d4095df3fed2abe490:0",
+          "n13-5aed060eb724d4d18f9f0eeb:0",
+          "n13-aab5524002b6b0435149f056:0",
+          "n13-87e52f46b227c95534c2479a:0",
+          "n13-7aed0e1a3ab6af50510adea2:0",
+          "n13-295d9ecce98092daa1090416:0",
+          "n13-588682d26b2d05887474eff1:0",
+          "n13-f6d267d7f34e46762fafe10f:0"
+        ],
+        "exclude": [
+          "n13-a73872e2cce4a056d4d51ce9:0",
+          "n13-43316e8244bc340128b699be:0",
+          "n13-1bdc93592275ad9983d2b253:0",
+          "n13-d918cb4675063f6e45e69538:0",
+          "n13-273d40a34855560e5e77b961:0",
+          "n13-d41fbfd35cfb119145802771:0",
+          "n13-ce46f93623b78e6f840f9e24:0",
+          "n13-c69b2745a19c2b3744751576:0",
+          "n13-ace37644eeede0d25afa9cd2:0",
+          "n13-83eddde039bc5903f88d9210:0",
+          "n13-69ed49d97f43743db8b8c3b9:0",
+          "n13-4a09235ffa1847335b643876:0",
+          "n13-14c21d9fa50d80f828617ff2:0",
+          "n13-3adb754cb2478fa9c3c9c0c5:0",
+          "n13-b889effc8e1df08bd5d39e76:0",
+          "n13-8f093029a5a3188670c36e72:0",
+          "n13-60ef8278903fb365cc3ffb7d:0",
+          "n13-dd67cf40b8476b6cdc41816e:0",
+          "n13-5074939c00f62fc82fcfd7f4:0",
+          "n13-775e6a7446292cdb5717cf4f:0",
+          "n13-282d30e52ec1c1d927bf83cc:0",
+          "n13-6dd006b1d7d00b2b10a133cc:0",
+          "n13-5d3a8bb08c5fe5afe4b0d03a:0",
+          "n13-cc552722c6588920f23a115a:0",
+          "n13-bf7750ab985135f1550f748b:0",
+          "n13-46392c90a03c652d61100487:0",
+          "n13-931daad0b25c1250ceda1354:0",
+          "n13-d83a2a19ff572cbe4c101a5a:0",
+          "n13-7e444a3ca3b16b7b195da640:0",
+          "n13-93624e8018c43da02bceb35a:0",
+          "n13-228dca663dcac4a12e3395b6:0",
+          "n13-3f984bb2f0249cc8806dd698:0",
+          "n13-b799fe8e38bb40f32265cf49:0",
+          "n13-6182af4232b2f11fac615894:0",
+          "n13-1ba7a47911e587a02c54abba:0",
+          "n13-97a93bc4c51b3a923af8ee03:0",
+          "n13-38994a285ed201fa0b8ef6ab:0",
+          "n13-ba53169b81b4971a5ae0321f:0",
+          "n13-40f4380b847bbad06dcfa4e6:0",
+          "n13-1b57b6907eb3b40df0ef2919:0",
+          "n13-605a62bd2cd3b1b54ad01eb6:0",
+          "n13-0ff17ad0d33bace06905e004:0",
+          "n13-cf725ca3e6cc6d2a5e6d7713:0",
+          "n13-82c736ccc90e0a43c6a78f67:0",
+          "n13-2712a50f9722e9ffc6737380:0",
+          "n13-f351125cfdad8f2dfcee7503:0",
+          "n13-f88df1c04a3012fdc9d35268:0",
+          "n13-8ce414590b1aa72fd13c555b:0",
+          "n13-20a4b35d021993acfa9d59af:0",
+          "n13-9c4d407f767f9182ab65bb2f:0",
+          "n13-c60bfaac91eeb9dbace95164:0",
+          "n13-974033a67d252e27cb667219:0",
+          "n13-8d5b330994cbdba437a7b561:0",
+          "n13-5e7b7d8307ed36909bf59d79:0",
+          "n13-45eaaff5c9b041c07ccfd8b8:0",
+          "n13-f3c3f5dd20eebb552a075057:0",
+          "n13-9529b8232c8b6235ce25d4b6:0",
+          "n13-ea6a22f1cd3d12e6427c40c2:0",
+          "n13-0e9df8821a18a8c2787ba802:0",
+          "n13-57eaebc0aef31bef8e13a909:0",
+          "n13-1426601a3f0eb4500cac9d7f:0",
+          "n13-5f6b030f9111417382a8f95c:0",
+          "n13-d579c7e1c61822f60e88c991:0",
+          "n13-c157a2e533212314c367fab7:0",
+          "n13-79c40bc6bf2f945a989b5c6a:0",
+          "n13-d285c70a54f05f7d47c413a5:0",
+          "n13-92b6566207499be115e72b6a:0",
+          "n13-fd1c133f2f4c532493967b5f:0",
+          "n13-3dd865f085bf789fbc520103:0",
+          "n13-84744c22827501f54223e419:0",
+          "n13-70685a48ecc41e40e4002478:0",
+          "n13-df1af61dd15f379a35428f2d:0",
+          "n13-939f4c0ec1cc770551c4b908:0",
+          "n13-a25145bca20669a97911a0a1:0",
+          "n13-4213c2fb66bbd138b11ce500:0",
+          "n13-25350209efeaa152eb84776f:0",
+          "n13-aaca1fafb822e1a5fec11ddb:0",
+          "n13-3ea25b55c8e86c42dcde091a:0",
+          "n13-2769fafbd93decb58335b7b3:0",
+          "n13-442fcc26dd4e46bcbd6fca41:0",
+          "n13-8f7480fe0beacc4633218f64:0",
+          "n13-80701069a9a520656d34985d:0",
+          "n13-5c010416ef4a56fc209d9b65:0",
+          "n13-3e34a9fe7e5b226d5cc24552:0",
+          "n13-bef81b40b66730e8888e37f0:0",
+          "n13-dc6e40a0dea9250f8dcfa8a7:0",
+          "n13-0ce2930d09d5325fd92054b4:0",
+          "n13-aedfaf3e9f00575e84adecd0:0",
+          "n13-b7e5d8ccc2fec19255260e22:0",
+          "n13-10c29757267ce41e36f21bf2:0",
+          "n13-2ebf1eee2f216938ba54acc9:0",
+          "n13-dfd0c4d32628ef19c000e07c:0",
+          "n13-e6dc22e9fc3c8df613ff0d97:0",
+          "n13-987aaef22590a13b8cae62b3:0",
+          "n13-f70695f781fdfaff31744671:0",
+          "n13-a26e0f603937accb6284c6c7:0",
+          "n13-5f522727f407d094fd9af2c5:0",
+          "n13-50ef32a413a67507dfda1f84:0",
+          "n13-87bde0ae369b795bf3d5d69c:0",
+          "n13-18a25e18e9c37e935db379cc:0",
+          "n13-7a625828d99c4c1f21b9d89d:0",
+          "n13-88c5d7d936a1d3d68675ef8a:0",
+          "n13-125dcfcbde1d587d356c1642:0",
+          "n13-ec5029342cb041ac263bb505:0",
+          "n13-6c883259a1c7298fcc3f18d5:0",
+          "n13-bae788fd1d6f3a0b409b0025:0",
+          "n13-3105be8b3e9c84c459b51326:0",
+          "n13-c4d455fb062e569217762755:0",
+          "n13-8b35c7de51bed92f36f1bffb:0",
+          "n13-ef8c7446e1c6805a7d4b0d72:0",
+          "n13-ec1a36f29ed7bd8058d0d98d:0",
+          "n13-82a8f7e6a44602d53a23ef4d:0",
+          "n13-6ea761c4b865fefc6a673770:0",
+          "n13-eb51be2d0905eb9ecb0887bd:0",
+          "n13-e2830a728100faa133167c54:0",
+          "n13-0ad79dba91f7c847a60bc2b3:0",
+          "n13-2f3675839556bde804a2e2dc:0",
+          "n13-ae28b2a2cd3c0bf044c1c118:0",
+          "n13-637d9e995f43ca8e62bbc4d7:0",
+          "n13-8ca00d00b0b558f867be3b98:0",
+          "n13-64e5a49fe27f0ea9bad90404:0",
+          "n13-20954b0ec4fb494c6a29bf91:0",
+          "n13-4944680086eac60284389de3:0",
+          "n13-e83d17cda51cc5703fd36db7:0",
+          "n13-87861a8f7c9876fbb4aa9966:0",
+          "n13-c1a34f41e97d716b24aebca0:0",
+          "n13-096876d936c1a7b725b1245d:0",
+          "n13-918a2cf5eff48513e8ab76d4:0",
+          "n13-9199711543cc7dcc2db7e3db:0",
+          "n13-24166ecbd2fe7a24aa3393dc:0",
+          "n13-98d769588840d62cdcb90dda:0",
+          "n13-5f4ba5a24b4061bb210713c7:0",
+          "n13-511bf37f501db56b29920cc6:0",
+          "n13-77d36124deeb770090aad280:0",
+          "n13-6198404fc92dbf4f662371b2:0",
+          "n13-9f51885b4e9eb5efbfc0136e:0",
+          "n13-a407a4003fca2f447b1080ad:0",
+          "n13-bf09a0470e862c76d23c89c5:0",
+          "n13-8d88ba8a46a4d013a35fd3d7:0",
+          "n13-88ce0c067337f952115979a5:0",
+          "n13-137a06bd4d7fecde07757f25:0",
+          "n13-55b0913bd82792d429fb40f9:0",
+          "n13-0b3000a090bd07ce4ae90deb:0",
+          "n13-d544f499c3eb68682dde4415:0",
+          "n13-68b42a9e57cbdb1859f6bfba:0",
+          "n13-5b72a0148a61b7099c4efca7:0",
+          "n13-c8be56f56a95d3d131e8ff85:0",
+          "n13-13c07916216f8cf6549f6911:0",
+          "n13-857b8be6b3dd0fc6b7e87f3b:0",
+          "n13-45d89a72c22ec83fb25e9206:0",
+          "n13-015d1ba83e2382160387d2e7:0",
+          "n13-df8299b8bac7641d8d4167ef:0",
+          "n13-cc6e5bef88811b30e7eb81c0:0",
+          "n13-d0a40cd4baef0387f67cbed7:0",
+          "n13-3931b4e5dcaeeb50a33e323e:0",
+          "n13-397f7fa302ae7e505d39de16:0"
+        ]
+      },
+      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
+    },
+    {
+      "id": "tokyo-named-ome-kaido-short",
+      "displayName": "青梅街道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "新宿通り",
+          "旧青梅街道",
+          "青梅街道"
+        ],
+        "tags": [
+          "name:ja",
+          "name:en",
+          "alt_name",
+          "name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "manualSelection": {
+        "include": [
+          "n13-e931b0c2735591fe8c0950cd:0",
+          "n13-5e7ba0b321710d3f3bdc91fb:0",
+          "n13-a5f4b8ddd07317c58fd8a8fb:0",
+          "n13-21205c6336f7ccd3fa889e15:0",
+          "n13-e5f117d56523f5c1c7afc11e:0",
+          "n13-7cebb22fe19c8552d6530e6f:0",
+          "n13-e6be8e8ad8b9cee09936e485:0",
+          "n13-6c8074fec1f80bfdddd6e038:0",
+          "n13-488850cac19944ed87dc9317:0",
+          "n13-c86dc3404517fbc8433da5cc:0",
+          "n13-8285cb1c34f286f6bbb09a7a:0",
+          "n13-590232b37cf5476ab686c284:0",
+          "n13-14fc5cd072f10ad02b4033c2:0",
+          "n13-99f6a07e4efc4a60c0432b2c:0",
+          "n13-d016504b2a09143ab02fb12e:0",
+          "n13-05883851424b9ea9fefd042a:0",
+          "n13-47086a45720e8504c0270762:0",
+          "n13-e8ff6de0768e4fdfcdab7c20:0",
+          "n13-31fa8b38e491a2d1087449b6:0",
+          "n13-a3213cffd873a70bf0539d18:0",
+          "n13-7871247e88413d2e0128e1c4:0",
+          "n13-486b0b9477435abe32f79abf:0",
+          "n13-4379c685ee24906bb0ea2217:0",
+          "n13-ae6de23e6d26914204714136:0",
+          "n13-0c91e9e50a048d91b2c75580:0",
+          "n13-53dd1b6bced0c7065ce21438:0",
+          "n13-36ee85eb6d65d04380b0eb3e:0",
+          "n13-91c1464f21ffa0007b5904a1:0",
+          "n13-8de61d869fbd6b8f324ea308:0",
+          "n13-b4505b3f1f33b4c4c0702a86:0",
+          "n13-4e42639064fa15f62c0007ee:0",
+          "n13-9b91d7f4cf55c169f5066531:0",
+          "n13-327c99ca176f977136b42319:0",
+          "n13-e5344e0e5002ddf0072a4556:0",
+          "n13-2509dbca3c121174893425a3:0",
+          "n13-c70c82cf8b890347c6b239b6:0",
+          "n13-f4e7c7394031deaad1f00438:0",
+          "n13-b79a7cffbb930e64a18d226b:0",
+          "n13-7065b6e05a0419e11bf621ea:0",
+          "n13-7b14109ff2ee62dde67bdc61:0",
+          "n13-b772e1169ad4ab2a3b3c8bb7:0",
+          "n13-3c18def33860fdb60c3d6e99:0",
+          "n13-d49f3c1d1b4d74001971a6fa:0",
+          "n13-efc09fcc47c685a563e00d6b:0",
+          "n13-77224b52b090f5cfcd4993aa:0",
+          "n13-978133e5fc01c7c5c90079ef:0",
+          "n13-c39d390606718881347b0d9f:0",
+          "n13-f68568095313a25598011746:0",
+          "n13-ea0f0a43d5b29fb361d8408f:0",
+          "n13-b5ab000f7a63847c130c5901:0",
+          "n13-c53b14fc521a8fd92d2dce58:0",
+          "n13-aa09abe4c6d33f086e51cdbf:0",
+          "n13-2bf7c27e79e6da862aa4a870:0",
+          "n13-70e2dcdfd15022deba9a368c:0",
+          "n13-0c220b52cff5cd0976b162d9:0",
+          "n13-07fbfeead970c6c71eabc023:0",
+          "n13-a0a2a4d4095df3fed2abe490:0",
+          "n13-5aed060eb724d4d18f9f0eeb:0",
+          "n13-aab5524002b6b0435149f056:0",
+          "n13-87e52f46b227c95534c2479a:0",
+          "n13-7aed0e1a3ab6af50510adea2:0",
+          "n13-295d9ecce98092daa1090416:0",
+          "n13-588682d26b2d05887474eff1:0",
+          "n13-f6d267d7f34e46762fafe10f:0"
+        ],
+        "exclude": [
+          "n13-a73872e2cce4a056d4d51ce9:0",
+          "n13-43316e8244bc340128b699be:0",
+          "n13-1bdc93592275ad9983d2b253:0",
+          "n13-d918cb4675063f6e45e69538:0",
+          "n13-273d40a34855560e5e77b961:0",
+          "n13-d41fbfd35cfb119145802771:0",
+          "n13-ce46f93623b78e6f840f9e24:0",
+          "n13-c69b2745a19c2b3744751576:0",
+          "n13-ace37644eeede0d25afa9cd2:0",
+          "n13-83eddde039bc5903f88d9210:0",
+          "n13-69ed49d97f43743db8b8c3b9:0",
+          "n13-4a09235ffa1847335b643876:0",
+          "n13-14c21d9fa50d80f828617ff2:0",
+          "n13-3adb754cb2478fa9c3c9c0c5:0",
+          "n13-b889effc8e1df08bd5d39e76:0",
+          "n13-8f093029a5a3188670c36e72:0",
+          "n13-60ef8278903fb365cc3ffb7d:0",
+          "n13-dd67cf40b8476b6cdc41816e:0",
+          "n13-5074939c00f62fc82fcfd7f4:0",
+          "n13-775e6a7446292cdb5717cf4f:0",
+          "n13-282d30e52ec1c1d927bf83cc:0",
+          "n13-6dd006b1d7d00b2b10a133cc:0",
+          "n13-5d3a8bb08c5fe5afe4b0d03a:0",
+          "n13-cc552722c6588920f23a115a:0",
+          "n13-bf7750ab985135f1550f748b:0",
+          "n13-46392c90a03c652d61100487:0",
+          "n13-931daad0b25c1250ceda1354:0",
+          "n13-d83a2a19ff572cbe4c101a5a:0",
+          "n13-7e444a3ca3b16b7b195da640:0",
+          "n13-93624e8018c43da02bceb35a:0",
+          "n13-228dca663dcac4a12e3395b6:0",
+          "n13-3f984bb2f0249cc8806dd698:0",
+          "n13-b799fe8e38bb40f32265cf49:0",
+          "n13-6182af4232b2f11fac615894:0",
+          "n13-1ba7a47911e587a02c54abba:0",
+          "n13-97a93bc4c51b3a923af8ee03:0",
+          "n13-38994a285ed201fa0b8ef6ab:0",
+          "n13-ba53169b81b4971a5ae0321f:0",
+          "n13-40f4380b847bbad06dcfa4e6:0",
+          "n13-1b57b6907eb3b40df0ef2919:0",
+          "n13-605a62bd2cd3b1b54ad01eb6:0",
+          "n13-0ff17ad0d33bace06905e004:0",
+          "n13-cf725ca3e6cc6d2a5e6d7713:0",
+          "n13-82c736ccc90e0a43c6a78f67:0",
+          "n13-2712a50f9722e9ffc6737380:0",
+          "n13-f351125cfdad8f2dfcee7503:0",
+          "n13-f88df1c04a3012fdc9d35268:0",
+          "n13-8ce414590b1aa72fd13c555b:0",
+          "n13-20a4b35d021993acfa9d59af:0",
+          "n13-9c4d407f767f9182ab65bb2f:0",
+          "n13-c60bfaac91eeb9dbace95164:0",
+          "n13-974033a67d252e27cb667219:0",
+          "n13-8d5b330994cbdba437a7b561:0",
+          "n13-5e7b7d8307ed36909bf59d79:0",
+          "n13-45eaaff5c9b041c07ccfd8b8:0",
+          "n13-f3c3f5dd20eebb552a075057:0",
+          "n13-9529b8232c8b6235ce25d4b6:0",
+          "n13-ea6a22f1cd3d12e6427c40c2:0",
+          "n13-0e9df8821a18a8c2787ba802:0",
+          "n13-57eaebc0aef31bef8e13a909:0",
+          "n13-1426601a3f0eb4500cac9d7f:0",
+          "n13-5f6b030f9111417382a8f95c:0",
+          "n13-d579c7e1c61822f60e88c991:0",
+          "n13-c157a2e533212314c367fab7:0",
+          "n13-79c40bc6bf2f945a989b5c6a:0",
+          "n13-d285c70a54f05f7d47c413a5:0",
+          "n13-92b6566207499be115e72b6a:0",
+          "n13-fd1c133f2f4c532493967b5f:0",
+          "n13-3dd865f085bf789fbc520103:0",
+          "n13-84744c22827501f54223e419:0",
+          "n13-70685a48ecc41e40e4002478:0",
+          "n13-df1af61dd15f379a35428f2d:0",
+          "n13-939f4c0ec1cc770551c4b908:0",
+          "n13-a25145bca20669a97911a0a1:0",
+          "n13-4213c2fb66bbd138b11ce500:0",
+          "n13-25350209efeaa152eb84776f:0",
+          "n13-aaca1fafb822e1a5fec11ddb:0",
+          "n13-3ea25b55c8e86c42dcde091a:0",
+          "n13-2769fafbd93decb58335b7b3:0",
+          "n13-442fcc26dd4e46bcbd6fca41:0",
+          "n13-8f7480fe0beacc4633218f64:0",
+          "n13-80701069a9a520656d34985d:0",
+          "n13-5c010416ef4a56fc209d9b65:0",
+          "n13-3e34a9fe7e5b226d5cc24552:0",
+          "n13-bef81b40b66730e8888e37f0:0",
+          "n13-dc6e40a0dea9250f8dcfa8a7:0",
+          "n13-0ce2930d09d5325fd92054b4:0",
+          "n13-aedfaf3e9f00575e84adecd0:0",
+          "n13-b7e5d8ccc2fec19255260e22:0",
+          "n13-10c29757267ce41e36f21bf2:0",
+          "n13-2ebf1eee2f216938ba54acc9:0",
+          "n13-dfd0c4d32628ef19c000e07c:0",
+          "n13-e6dc22e9fc3c8df613ff0d97:0",
+          "n13-987aaef22590a13b8cae62b3:0",
+          "n13-f70695f781fdfaff31744671:0",
+          "n13-a26e0f603937accb6284c6c7:0",
+          "n13-5f522727f407d094fd9af2c5:0",
+          "n13-50ef32a413a67507dfda1f84:0",
+          "n13-87bde0ae369b795bf3d5d69c:0",
+          "n13-18a25e18e9c37e935db379cc:0",
+          "n13-7a625828d99c4c1f21b9d89d:0",
+          "n13-88c5d7d936a1d3d68675ef8a:0",
+          "n13-125dcfcbde1d587d356c1642:0",
+          "n13-ec5029342cb041ac263bb505:0",
+          "n13-6c883259a1c7298fcc3f18d5:0",
+          "n13-bae788fd1d6f3a0b409b0025:0",
+          "n13-3105be8b3e9c84c459b51326:0",
+          "n13-c4d455fb062e569217762755:0",
+          "n13-8b35c7de51bed92f36f1bffb:0",
+          "n13-ef8c7446e1c6805a7d4b0d72:0",
+          "n13-ec1a36f29ed7bd8058d0d98d:0",
+          "n13-82a8f7e6a44602d53a23ef4d:0",
+          "n13-6ea761c4b865fefc6a673770:0",
+          "n13-eb51be2d0905eb9ecb0887bd:0",
+          "n13-e2830a728100faa133167c54:0",
+          "n13-0ad79dba91f7c847a60bc2b3:0",
+          "n13-2f3675839556bde804a2e2dc:0",
+          "n13-ae28b2a2cd3c0bf044c1c118:0",
+          "n13-637d9e995f43ca8e62bbc4d7:0",
+          "n13-8ca00d00b0b558f867be3b98:0",
+          "n13-64e5a49fe27f0ea9bad90404:0",
+          "n13-20954b0ec4fb494c6a29bf91:0",
+          "n13-4944680086eac60284389de3:0",
+          "n13-e83d17cda51cc5703fd36db7:0",
+          "n13-87861a8f7c9876fbb4aa9966:0",
+          "n13-c1a34f41e97d716b24aebca0:0",
+          "n13-096876d936c1a7b725b1245d:0",
+          "n13-918a2cf5eff48513e8ab76d4:0",
+          "n13-9199711543cc7dcc2db7e3db:0",
+          "n13-24166ecbd2fe7a24aa3393dc:0",
+          "n13-98d769588840d62cdcb90dda:0",
+          "n13-5f4ba5a24b4061bb210713c7:0",
+          "n13-511bf37f501db56b29920cc6:0",
+          "n13-77d36124deeb770090aad280:0",
+          "n13-6198404fc92dbf4f662371b2:0",
+          "n13-9f51885b4e9eb5efbfc0136e:0",
+          "n13-a407a4003fca2f447b1080ad:0",
+          "n13-bf09a0470e862c76d23c89c5:0",
+          "n13-8d88ba8a46a4d013a35fd3d7:0",
+          "n13-88ce0c067337f952115979a5:0",
+          "n13-137a06bd4d7fecde07757f25:0",
+          "n13-55b0913bd82792d429fb40f9:0",
+          "n13-0b3000a090bd07ce4ae90deb:0",
+          "n13-d544f499c3eb68682dde4415:0",
+          "n13-68b42a9e57cbdb1859f6bfba:0",
+          "n13-5b72a0148a61b7099c4efca7:0",
+          "n13-c8be56f56a95d3d131e8ff85:0",
+          "n13-13c07916216f8cf6549f6911:0",
+          "n13-857b8be6b3dd0fc6b7e87f3b:0",
+          "n13-45d89a72c22ec83fb25e9206:0",
+          "n13-015d1ba83e2382160387d2e7:0",
+          "n13-df8299b8bac7641d8d4167ef:0",
+          "n13-cc6e5bef88811b30e7eb81c0:0",
+          "n13-d0a40cd4baef0387f67cbed7:0",
+          "n13-3931b4e5dcaeeb50a33e323e:0",
+          "n13-397f7fa302ae7e505d39de16:0",
+          "n13-cb844c2117d3d2ab814a40a0:0",
+          "n13-b8399f85b546e47406280e84:0"
+        ]
+      },
+      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
+    },
+    {
+      "id": "tokyo-named-hitomi-kaido",
+      "displayName": "人見街道",
+      "entityType": "named-road",
+      "jurisdiction": "Tokyo",
+      "aliases": [],
+      "reference": {
+        "type": "osm-name",
+        "names": [
+          "人見街道"
+        ],
+        "tags": [
+          "name",
+          "name:ja",
+          "name:en",
+          "alt_name"
+        ]
+      },
+      "n13": {
+        "classifications": [
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "matching": {
+        "sampleIntervalMeters": 5,
+        "maximumMedianResidualMeters": 20,
+        "maximumP90ResidualMeters": 25,
+        "coverageToleranceMeters": 25
+      },
+      "manualSelection": {
+        "include": [],
+        "exclude": []
+      },
+      "manualSelectionN13Fingerprint": "a54d9987b20fa107d161dceca8822a64e57ab5b74d1e251dbc647bdd1907ca50"
     }
   ]
 }

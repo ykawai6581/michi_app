@@ -8,9 +8,16 @@
   },
   "layers": {
     "modernRoads": [
-      "tokyo-named-inokashira-dori"
+      "tokyo-named-hitomi-kaido"
     ],
     "historicalRoads": [],
-    "historicalPosts": []
+    "historicalPosts": [],
+    "railways": {
+      "mode": "near-modern-roads",
+      "distanceKm": 3
+    },
+    "stations": {
+      "mode": "bbox"
+    }
   }
 }

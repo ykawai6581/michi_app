@@ -8,10 +8,21 @@
   },
   "layers": {
     "modernRoads": [
-      "tokyo-named-ome-do",
-      "jp-national-20"
+      "jp-national-20",
+      "tokyo-named-ome-kaido-short"
     ],
-    "historicalRoads": [],
-    "historicalPosts": []
+    "historicalRoads": [
+      "R003"
+    ],
+    "historicalPosts": [
+      "R003"
+    ],
+    "railways": {
+      "mode": "near-modern-roads",
+      "distanceKm": 3
+    },
+    "stations": {
+      "mode": "bbox"
+    }
   }
 }
