@@ -160,9 +160,13 @@ def select_modern_roads(root: Path, ids: list[str]) -> list[dict]:
         document = json.loads(path.read_text(encoding="utf-8")); features = document.get("features", [])
         if not features or not any(feature.get("geometry") for feature in features):
             raise ProjectBuildError(f"Built modern road {road_id!r} contains no geometry: {path}. Run: python scripts/preprocess/build-road.py {road_id}")
+        presentation_type = entry.get("presentationType", "road")
+        if presentation_type not in {"road", "historical-road"}:
+            raise ProjectBuildError(f"Road {road_id!r} has invalid presentationType {presentation_type!r}")
         for index, feature in enumerate(features):
             feature["properties"].update(id=road_id if len(features) == 1 else f"{road_id}:{index}", roadId=road_id,
-                name=entry["displayName"], aliases=entry.get("aliases", []), entityType="modern-road", type="road", sourceType="canonical-road")
+                name=entry["displayName"], aliases=entry.get("aliases", []), entityType="modern-road",
+                type=presentation_type, sourceType="canonical-road")
         result.extend(features)
     return result
 
@@ -290,14 +294,17 @@ def build_search(features_by_family: dict[str, list[dict]]) -> list[dict]:
 def materialize_project(root: Path, project_id: str, output_root: Path | None = None) -> dict:
     config = load_project_config(root, project_id); layers = config["layers"]
     features: dict[str, list[dict]] = {}
-    if "modernRoads" in layers: features["modernRoads"] = select_modern_roads(root, layers["modernRoads"])
-    bounds, bounds_source = resolve_project_bounds(config, features.get("modernRoads", []))
+    builder_roads = select_modern_roads(root, layers.get("modernRoads", []))
+    custom_historical = [feature for feature in builder_roads if feature["properties"]["type"] == "historical-road"]
+    if "modernRoads" in layers:
+        features["modernRoads"] = [feature for feature in builder_roads if feature["properties"]["type"] == "road"]
+    bounds, bounds_source = resolve_project_bounds(config, builder_roads)
     if "railways" in layers:
         features["railways"] = select_bbox_features(_require_cache(root, "railways"), bounds)
         route_path, member_path = root / RAIL_ROUTES_CACHE, root / RAIL_MEMBERS_CACHE
         if not route_path.exists() or not member_path.exists(): raise ProjectBuildError(f"Required railway relation caches missing. Run: {PREPROCESS['railways']}")
         rail_config=layers["railways"]
-        features["railwayRoutes"] = (_read_parquet(route_path, bbox=tuple(bounds)) if rail_config["mode"] == "bbox" else select_near_road_routes(route_path, features.get("modernRoads",[]), rail_config["distanceKm"]))
+        features["railwayRoutes"] = (_read_parquet(route_path, bbox=tuple(bounds)) if rail_config["mode"] == "bbox" else select_near_road_routes(route_path, builder_roads, rail_config["distanceKm"]))
         selected_ids={route["properties"]["railRouteId"] for route in features["railwayRoutes"]}
         memberships=[m for m in _read_parquet(member_path) if m["properties"].get("railRouteId") in selected_ids]
         by_route={route_id:[] for route_id in selected_ids}; by_way={}
@@ -310,6 +317,8 @@ def materialize_project(root: Path, project_id: str, output_root: Path | None = 
         if family in layers: features[family] = select_routes(_require_cache(root, family), layers[family], family)
     rail_colors = load_rail_colors(root) if "railways" in layers else None
     for family, selected in features.items(): _browser_properties(selected, family, rail_colors)
+    if custom_historical:
+        features.setdefault("historicalRoads", []).extend(custom_historical)
     output = output_root or root / "public/projects" / project_id
     (output / "data").mkdir(parents=True, exist_ok=True); (output / "search").mkdir(parents=True, exist_ok=True)
     (output / "project.json").write_text(json.dumps(config, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")

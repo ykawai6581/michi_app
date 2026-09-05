@@ -2,6 +2,7 @@ import {describe,expect,it} from 'vitest'
 import {applyGapCandidateEdit,applyStatutoryNetworkChoice,atomIdsIntersectingBounds,canBuild,canConnect,candidatePathGeoJson,continuityInspection,continuitySummaryText,deletionApiPaths,deletionConfirmation,deriveAvailableAtomIds,deriveManualReviewLayers,emptyDiagnosticState,emptyManualSelection,emptyRoad,excludeManualAtom,excludeManualAtoms,findRegisteredRoad,gapReviewQueue,includeGapCandidate,includeManualAtom,initialLayerVisibility,isAddableCandidate,mapLayerVisibility,nextReviewGap,previewStageAfterManualEdit,removeAt,resolveDeletableRoad,restoreManualAtom,selectedContinuityCheck,statutoryNetworkChoice,toggle,toggleLayerVisibility,toggleManualAtom,uniqueAdd} from './model'
 
 describe('road form helpers',()=>{
+  it('defaults a new road to the modern map classification',()=>expect(emptyRoad().presentationType).toBe('road'))
   it('adds and removes exact OSM names',()=>expect(removeAt(uniqueAdd(['青梅街道'],'Ome Kaido'),0)).toEqual(['Ome Kaido']))
   it('toggles N13 classes without duplicates',()=>expect(toggle(toggle([], '5'),'5')).toEqual([]))
   it('presets statutory OSM network independently of N13 classification',()=>{

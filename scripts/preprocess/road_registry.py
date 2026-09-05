@@ -14,6 +14,7 @@ N13_CLASS_LABELS = {
     value: f"N13_003 class {value}" for value in SUPPORTED_N13_CLASSES
 }
 ENTITY_TYPES = {"statutory-road", "named-road"}
+PRESENTATION_TYPES = {"road", "historical-road"}
 NAMED_ROAD_PATTERN = re.compile(r"tokyo-named-[a-z0-9]+(?:-[a-z0-9]+)*")
 OSM_NAME_TAGS = ["name", "name:ja", "alt_name"]
 MATCHING_DEFAULTS = {
@@ -33,7 +34,10 @@ def load_registry(path: Path) -> dict:
 
 
 def list_roads(path: Path) -> list[dict]:
-    return load_registry(path).get("roads", [])
+    roads = copy.deepcopy(load_registry(path).get("roads", []))
+    for road in roads:
+        road.setdefault("presentationType", "road")
+    return roads
 
 
 def get_road(path: Path, road_id: str) -> dict:
@@ -50,10 +54,14 @@ def validate_road(value: dict) -> dict:
     road = copy.deepcopy(value)
     road_id = str(road.get("id", "")).strip()
     entity_type = road.get("entityType")
+    presentation_type = road.get("presentationType", "road")
     if not road_id or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", road_id):
         raise ValueError("id must contain lowercase letters, numbers, and hyphens")
     if entity_type not in ENTITY_TYPES:
         raise ValueError(f"entityType must be one of {sorted(ENTITY_TYPES)}")
+    if presentation_type not in PRESENTATION_TYPES:
+        raise ValueError(f"presentationType must be one of {sorted(PRESENTATION_TYPES)}")
+    road["presentationType"] = presentation_type
     if entity_type == "named-road" and not NAMED_ROAD_PATTERN.fullmatch(road_id):
         raise ValueError("Tokyo named-road ids must match tokyo-named-NAME")
     if not str(road.get("displayName", "")).strip():

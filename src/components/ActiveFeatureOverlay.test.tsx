@@ -29,7 +29,7 @@ describe('ActiveFeatureOverlay', () => {
     expect(markup).toContain('JR 中央線快速');expect(markup).toContain('--feature-label-color:#FF4500');expect(markup).not.toContain('（鉄道）')
   })
   it.each([
-    ['road', '現代道路'], ['historical-road', '江戸街道'], ['railway', '鉄道'],
+    ['road', '現代道路'], ['historical-road', '歴史街道'], ['railway', '鉄道'],
     ['station', '駅'], ['historical-place', '宿場'],
   ] as const)('maps %s to %s', (type, label) => {
     expect(formatEntityTypeLabel(feature(type))).toBe(label)
