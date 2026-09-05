@@ -96,7 +96,7 @@ export default function App() {
   const focusFeatureOnMap = useCallback((feature: EntityFeature, options?: FeatureFocusOptions) => {
     if (options?.animateCamera === false) return
     const map = mapRef.current?.getMap()
-    if (!map?.isStyleLoaded()) return
+    if (!map) return
     const selected = current.current.sceneItems.filter((item) => item.visible).map((item) => item.feature)
     const reveal = activeRevealCircle(feature, current.current.darkModeBehavior === 'auto')
     selectFeatures(map, selected, roadSources, feature, selectionMode, feature, style.animate, reveal, options?.durationMs)
