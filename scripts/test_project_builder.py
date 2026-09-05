@@ -88,6 +88,18 @@ class ProjectBuilderTest(unittest.TestCase):
         self.assertEqual(custom["properties"]["aliases"],["A"])
         self.assertNotIn("routeId",custom["properties"])
 
+    def test_builder_road_locations_are_materialized_and_empty_by_default(self):
+        empty_output=self.root/"locations-empty"; self.write_config({**self.config,"layers":{"modernRoads":["road-a"]}})
+        materialize_project(self.root,"demo",empty_output)
+        self.assertEqual(json.loads((empty_output/"data/locations.geojson").read_text())["features"],[])
+        registry=json.loads((self.root/"data/roads/registry.json").read_text())
+        registry["roads"][0]["locations"]=[{"id":"shinjuku-oiwake","name":"新宿追分","coordinates":[139.704,35.69],"presentationType":"reveal-area","revealRadiusPx":120}]
+        (self.root/"data/roads/registry.json").write_text(json.dumps(registry))
+        output=self.root/"locations"; manifest=materialize_project(self.root,"demo",output)
+        location=json.loads((output/"data/locations.geojson").read_text())["features"][0]
+        self.assertEqual(location["properties"],{"id":"location:road-a:shinjuku-oiwake","name":"新宿追分","type":"place","presentationType":"reveal-area","revealRadiusPx":120,"roadId":"road-a","sourceType":"canonical-road-location"})
+        self.assertEqual(manifest["featureCounts"]["locations"],1)
+
     def test_auto_bounds_use_historical_builder_road_geometry(self):
         registry=json.loads((self.root/"data/roads/registry.json").read_text())
         registry["roads"][0]["presentationType"]="historical-road"

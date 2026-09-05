@@ -4,7 +4,7 @@ import type { JurisdictionLayerConfig } from './jurisdictions'
 
 export const DEFAULT_PROJECT_ID = 'shinjuku'
 export const PROJECT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
-export const PROJECT_FILES = ['modern-roads', 'railways', 'railway-routes', 'stations', 'historical-roads', 'historical-posts'] as const
+export const PROJECT_FILES = ['modern-roads', 'railways', 'railway-routes', 'stations', 'historical-roads', 'historical-posts', 'locations'] as const
 export type ProjectFile = typeof PROJECT_FILES[number]
 export interface ProjectConfigMetadata { id: string; displayName: string; jurisdictionLayer?: Partial<JurisdictionLayerConfig> }
 export interface ProjectManifest { projectId: string; bounds: [number, number, number, number]; featureCounts: Record<string, number> }
@@ -83,6 +83,6 @@ export async function loadProject(projectId = resolveProjectId()): Promise<Proje
   const collections = Object.fromEntries(PROJECT_FILES.map((file, index) => [file, loaded[index]])) as Record<ProjectFile, FeatureCollection>
   const logicalRoutes = collections['railway-routes'].features as EntityFeature[]
   const searchableRoutes = canonicalRailwayRoutes(logicalRoutes)
-  const searchable = [...(['modern-roads', 'stations', 'historical-roads', 'historical-posts'].flatMap((file) => collections[file as ProjectFile].features) as EntityFeature[]), ...searchableRoutes, ...railwaySearchFeatures(collections.railways, logicalRoutes)]
+  const searchable = [...(['modern-roads', 'stations', 'historical-roads', 'historical-posts', 'locations'].flatMap((file) => collections[file as ProjectFile].features) as EntityFeature[]), ...searchableRoutes, ...railwaySearchFeatures(collections.railways, logicalRoutes)]
   return { config, manifest, collections, searchable }
 }

@@ -15,7 +15,7 @@ export const ACTIVE_LINE_SHADOW_BLUR = 4.5
 export const ACTIVE_LINE_SHADOW_OPACITY = 0
 export const POINT_LABEL_SIZE = 38
 export const pointLabelOffset = (radius: number, textSize = POINT_LABEL_SIZE, presentationScale = 1): [number, number] => [pointIconSize(radius) * presentationScale / 2 / textSize + 0.35, 0]
-const selectedStandalonePointFilter: maplibregl.ExpressionSpecification = ['all',['==',['geometry-type'],'Point'],['!',['any',['==',['get','type'],'station'],['has','postId']]]]
+export const selectedStandalonePointFilter: maplibregl.ExpressionSpecification = ['all',['==',['geometry-type'],'Point'],['!=',['get','presentationType'],'reveal-area'],['!',['any',['==',['get','type'],'station'],['has','postId']]]]
 export const selectedStationFilter: maplibregl.FilterSpecification = ['all',['==',['geometry-type'],'Point'],['==',['get','type'],'station']]
 export const selectedShukubaFilter: maplibregl.FilterSpecification = ['all',['==',['geometry-type'],'Point'],['has','postId']]
 const pointSymbolLayout = (iconImage: string, radius: number): maplibregl.SymbolLayerSpecification['layout'] => ({
@@ -39,6 +39,8 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>',
   })
   map.addLayer({ id: LAYER_IDS.gsiBase, type: 'raster', source: SOURCE_IDS.gsiBase, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.72, 'raster-saturation': -0.75, 'raster-contrast': -0.12, 'raster-brightness-max': 0.96 } })
+  map.addSource(SOURCE_IDS.revealMask,{type:'geojson',data:empty})
+  map.addLayer({id:LAYER_IDS.revealMask,type:'fill',source:SOURCE_IDS.revealMask,paint:{'fill-color':'#06151d','fill-opacity':0.68}})
   map.addSource(SOURCE_IDS.jurisdictions,{type:'geojson',data:empty})
   map.addSource(SOURCE_IDS.jurisdictionHighlight,{type:'geojson',data:empty})
   map.addSource(SOURCE_IDS.jurisdictionHighlightLabel,{type:'geojson',data:empty})

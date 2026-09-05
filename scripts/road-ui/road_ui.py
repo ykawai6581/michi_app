@@ -292,6 +292,7 @@ def draft_hash(draft: dict) -> str:
     normalized.pop("manualSelection", None)
     normalized.pop("manualSelectionN13Fingerprint", None)
     normalized.pop("presentationType", None)
+    normalized.pop("locations", None)
     payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()
 

@@ -56,6 +56,23 @@ class RoadBuilderTests(unittest.TestCase):
         road_ui.save_road(self.registry, historical)
         self.assertEqual(road_ui.get_road(self.registry, historical["id"])["presentationType"], "historical-road")
 
+    def test_reveal_locations_validate_default_and_persist(self):
+        self.assertEqual(road_ui.validate_road(ROAD)["locations"], [])
+        location={"id":"shinjuku-oiwake","name":"新宿追分","coordinates":[139.704,35.69],"presentationType":"reveal-area","revealRadiusPx":120}
+        saved=road_ui.save_road(self.registry,{**ROAD,"id":"tokyo-named-with-location","locations":[location]})
+        self.assertEqual(saved["locations"],[location]); self.assertEqual(road_ui.get_road(self.registry,saved["id"])["locations"],[location])
+        for coordinates in ([181,35],[139,91]):
+            with self.assertRaisesRegex(ValueError,"longitude|latitude"): road_ui.validate_road({**ROAD,"locations":[{**location,"coordinates":coordinates}]})
+        for radius in (39,301,float("inf")):
+            with self.assertRaisesRegex(ValueError,"revealRadiusPx"): road_ui.validate_road({**ROAD,"locations":[{**location,"revealRadiusPx":radius}]})
+        with self.assertRaisesRegex(ValueError,"name is required"): road_ui.validate_road({**ROAD,"locations":[{**location,"name":" "}]})
+
+    def test_locations_do_not_change_matcher_draft_hash(self):
+        location={"id":"shinjuku-oiwake","name":"新宿追分","coordinates":[139.704,35.69],"presentationType":"reveal-area","revealRadiusPx":120}
+        baseline=road_ui.draft_hash({**ROAD,"locations":[]})
+        self.assertEqual(baseline,road_ui.draft_hash({**ROAD,"locations":[location]}))
+        self.assertEqual(baseline,road_ui.draft_hash({**ROAD,"locations":[{**location,"name":"変更","coordinates":[140,36],"revealRadiusPx":200}]}))
+
     def test_statutory_network_is_preserved_on_save_and_load(self):
         road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "displayName": "国道20号",
                 "entityType": "statutory-road", "roadClass": "national",

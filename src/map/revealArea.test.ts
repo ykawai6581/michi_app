@@ -1,0 +1,13 @@
+import {describe,expect,it} from 'vitest'
+import {activeRevealCircle,buildRevealMask,clipFeaturesOutsideReveal,type ScreenProjection} from './revealArea'
+import type {EntityFeature} from '../types/geo'
+const map:ScreenProjection={project:coordinate=>({x:coordinate[0],y:coordinate[1]}),unproject:([x,y])=>({lng:x,lat:y}),getCanvas:()=>({clientWidth:200,clientHeight:100})}
+const feature=(geometry:EntityFeature['geometry'],properties:Partial<EntityFeature['properties']>={}):EntityFeature=>({type:'Feature',properties:{id:'x',name:'x',type:'road',...properties},geometry})
+describe('reveal area geometry',()=>{
+ it('builds an exterior and configured logical-radius hole',()=>{const mask=buildRevealMask(map,{coordinate:[50,50],radius:40});const rings=(mask.features[0].geometry as GeoJSON.Polygon).coordinates;expect(rings).toHaveLength(2);expect(Math.hypot(rings[1][0][0]-50,rings[1][0][1]-50)).toBeCloseTo(40)})
+ it('is empty without an active reveal feature',()=>expect(buildRevealMask(map).features).toEqual([]))
+ it('recognizes only enabled active reveal points',()=>{const reveal=feature({type:'Point',coordinates:[1,2]},{type:'place',presentationType:'reveal-area',revealRadiusPx:80});expect(activeRevealCircle(reveal,true)).toEqual({coordinate:[1,2],radius:80});expect(activeRevealCircle(reveal,false)).toBeUndefined()})
+ it('keeps outside lines, omits inside lines, and splits crossing lines',()=>{const circle={coordinate:[0,0] as [number,number],radius:10};expect(clipFeaturesOutsideReveal(map,[feature({type:'LineString',coordinates:[[20,0],[30,0]]})],circle)[0].geometry).toEqual({type:'LineString',coordinates:[[20,0],[30,0]]});expect(clipFeaturesOutsideReveal(map,[feature({type:'LineString',coordinates:[[-5,0],[5,0]]})],circle)).toEqual([]);const clipped=clipFeaturesOutsideReveal(map,[feature({type:'LineString',coordinates:[[-20,0],[20,0]]})],circle)[0];expect(clipped.geometry.type).toBe('MultiLineString')})
+ it('clips each multiline component and points by center',()=>{const circle={coordinate:[0,0] as [number,number],radius:10};const multi=feature({type:'MultiLineString',coordinates:[[[-20,0],[20,0]],[[20,20],[30,20]]]});expect(clipFeaturesOutsideReveal(map,[multi],circle)[0].geometry.type).toBe('MultiLineString');expect(clipFeaturesOutsideReveal(map,[feature({type:'Point',coordinates:[0,0]})],circle)).toEqual([]);expect(clipFeaturesOutsideReveal(map,[feature({type:'Point',coordinates:[20,0]})],circle)).toHaveLength(1)})
+ it('never renders a reveal point as an ordinary selection',()=>expect(clipFeaturesOutsideReveal(map,[feature({type:'Point',coordinates:[20,0]},{type:'place',presentationType:'reveal-area'})])).toEqual([]))
+})

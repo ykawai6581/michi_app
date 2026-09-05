@@ -7,6 +7,7 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 import railColors from '../../data/sources/railcolors.json'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { annotationTextSize } from './presentationScale'
+import { clipFeaturesOutsideReveal, type RevealCircle } from './revealArea'
 import { buildLineLabelAnchors, type LineLabelPresentation } from './lineLabelPlacement'
 
 export const FALLBACK_RAIL_COLOR = railColors.fallbackColor
@@ -168,10 +169,11 @@ export function markActiveLine(features: EntityFeature[], activeFeature: EntityF
   })
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', revealTarget?: EntityFeature, animate = false): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', revealTarget?: EntityFeature, animate = false, revealCircle?:RevealCircle): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
-  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
+  const rendered=clipFeaturesOutsideReveal(map,features,revealCircle)
+  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(rendered, activeFeature, selectionMode), roadSources)
   updateSelectedPointFilters(map, primary)
   const revealFocus = revealTarget && primary.find((feature) => feature.properties.id === revealTarget.properties.id)
   if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
@@ -185,8 +187,9 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
   else { const bounds = bbox(revealTarget); map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 100, maxZoom: 15, duration: 900 }) }
 }
 
-export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, style: HighlightStyle, presentationScale: number): void {
-  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
+export function updateLineLabelAnchors(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode, style: HighlightStyle, presentationScale: number, revealCircle?:RevealCircle): void {
+  const rendered=clipFeaturesOutsideReveal(map,features,revealCircle)
+  const { primary, osm } = splitRoadSourceFeatures(markActiveLine(rendered, activeFeature, selectionMode), roadSources)
   ;(map.getSource(SOURCE_IDS.highlightLineLabels) as GeoJSONSource).setData(buildSceneLineLabelAnchors(map, visibleSceneLabelFeatures(primary, osm), { fontSize: annotationTextSize(style.annotationSize, presentationScale), haloWidth: ROAD_LABEL_HALO_WIDTH * presentationScale, presentationScale, measureTextWidth: measureLineLabelText }))
 }
 

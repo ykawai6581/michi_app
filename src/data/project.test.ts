@@ -15,14 +15,14 @@ describe('project loading', () => {
     expect(project.manifest.projectId).toBe('shinjuku')
     expect(project.config).toEqual({ id: 'shinjuku', displayName: '新宿' })
     expect(Object.keys(project.collections)).toEqual([...PROJECT_FILES])
-    expect(fetchMock).toHaveBeenCalledTimes(8)
+    expect(fetchMock).toHaveBeenCalledTimes(9)
   })
   it('keeps mixed searchable entity types from project data', async () => {
-    const types = ['road','railway','railway','station','historical-road','historical-place']
+    const types = ['road','railway','railway','station','historical-road','historical-place','place']
     let index = 0
     vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith('project.json') ? { id:'shinjuku', displayName:'新宿' } : url.endsWith('manifest.json') ? { projectId:'shinjuku', bounds:[139,35,140,36], featureCounts:{} } : { type:'FeatureCollection', features:[{ type:'Feature', properties:{ id:String(index), name:String(index), type:types[index++] }, geometry:{ type:'Point', coordinates:[139,35] } }] } })))
     const project = await loadProject()
-    expect(project.searchable.map((feature) => feature.properties.type)).toEqual(['road','station','historical-road','historical-place','railway'])
+    expect(project.searchable.map((feature) => feature.properties.type)).toEqual(['road','station','historical-road','historical-place','place','railway'])
   })
   it('loads an explicit project ID consistently', async () => {
     const fetchMock = vi.fn(async (url: string) => ({ ok:true, json:async()=>url.endsWith('project.json') ? { id:'koshu-video', displayName:'甲州ビデオ' } : url.endsWith('manifest.json') ? { projectId:'koshu-video', bounds:[0,0,1,1], featureCounts:{} } : {type:'FeatureCollection',features:[]} }))
