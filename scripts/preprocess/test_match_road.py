@@ -577,6 +577,8 @@ class ReferenceOwnershipTests(unittest.TestCase):
             LineString([(45, 0), (50, 0)]), LineString([(50, 0), (55, 0)])], angle=67)
         self.assertEqual(report["continuityConnectors"][0]["decision"], "accepted-auto-connector")
         self.assertEqual(set(connected.n13AtomId), {"up:0", "down:0", "candidate-0:0", "candidate-1:0"})
+        candidate = report["continuityConnectors"][0]["candidatePaths"][0]
+        self.assertEqual(candidate["atomIds"], ["candidate-0:0", "candidate-1:0"])
 
     def test_manual_exclusion_keeps_topology_connector_unresolved(self):
         connected, report = self.topology_gap_fixture(
@@ -596,7 +598,12 @@ class ReferenceOwnershipTests(unittest.TestCase):
         self.assertEqual(len(ambiguous["continuityChecksFrame"]), 1)
         self.assertEqual(len(ambiguous["continuityGapsFrame"]), 1)
         _, missing = self.topology_gap_fixture([])
-        self.assertEqual(missing["continuityConnectors"][0]["decision"], "unresolved-no-path")
+        missing_gap = missing["continuityConnectors"][0]
+        self.assertEqual(missing_gap["decision"], "unresolved-no-path")
+        self.assertEqual(missing_gap["candidatePathCount"], 0)
+        self.assertEqual(missing_gap["candidatePaths"], [])
+        self.assertFalse(any(not path["atomIds"] for item in missing["continuityConnectors"]
+                             for path in item["candidatePaths"]))
 
     def test_straight_road_rejects_t_stem(self):
         accepted, diagnostic, _ = select([
@@ -883,6 +890,9 @@ class ReferenceOwnershipTests(unittest.TestCase):
             classPriority=["1"], progressSampleMeters=20, minimumOwnedReferenceSamples=2)
         self.assertEqual(report["directSourceJunctionCount"], 1)
         self.assertEqual(report["connectorGraphSearchCount"], 0)
+        self.assertEqual(report["continuityConnectors"][0]["decision"],
+                         "accepted-direct-source-junction")
+        self.assertEqual(report["continuityConnectors"][0]["candidatePaths"], [])
         self.assertAlmostEqual(connected.geometry.union_all().length, 100)
 
     def test_selected_run_exposes_required_provenance(self):

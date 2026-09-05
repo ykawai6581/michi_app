@@ -1724,6 +1724,11 @@ def connect_adjacent_selected_runs(selected: gpd.GeoDataFrame, stage1_candidates
             candidate_paths = []
             for graph_path in graph_paths:
                 path = graph_path[1:-1]
+                # A direct anchor-to-anchor graph edge has no intermediate N13
+                # atom for a reviewer to add. Direct source junctions are
+                # handled above; never serialize an empty actionable path.
+                if not path:
+                    continue
                 # An adjacency walk can enter and leave a junction stem at the
                 # same physical endpoint (or walk between parallel edges that
                 # share both endpoints).  It is graph-connected but is not a

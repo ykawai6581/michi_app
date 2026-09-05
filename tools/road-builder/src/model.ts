@@ -63,10 +63,17 @@ export const excludeManualAtoms=(selection:ManualSelection,atomIds:string[]):Man
 export type ContinuityCandidatePath={atomIds:string[];sourceFeatureIndices:number[];classes:string[];lengthMeters:number;detourRatio:number;progressRatio:number;autoEligible:boolean;rejectionReasons?:string[]}
 export type ContinuityGap={gapId:string;gapKind:string;referencePart:number;referenceGapMeters:number;geometryGapMeters:number;upstreamN13AtomId:string;downstreamN13AtomId:string;candidatePathCount:number;candidatePaths:ContinuityCandidatePath[];decision:string}
 export type ContinuitySummary={checkedCount:number;autoResolvedCount:number;unresolvedCount:number;topologyCheckedCount:number;referenceCheckedCount:number;autoResolvedTopologyCount:number}
-export const continuitySummaryText=(summary:ContinuitySummary,ignoredCount:number)=>
-  `${summary.checkedCount} transitions checked · ${summary.autoResolvedCount} connected / auto repaired · ${summary.unresolvedCount} unresolved · ${ignoredCount} reviewed/ignored`
+export const continuitySummaryText=(summary:ContinuitySummary)=>
+  `${summary.checkedCount} transitions checked · ${summary.autoResolvedCount} connected / auto repaired · ${summary.unresolvedCount} unresolved`
 export const isUnresolvedGap=(gap:ContinuityGap)=>gap.decision.startsWith('unresolved-')
-export const gapReviewQueue=(gaps:ContinuityGap[],ignored:Set<string>)=>gaps.filter(gap=>isUnresolvedGap(gap)&&!ignored.has(gap.gapId))
+export const gapReviewQueue=(gaps:ContinuityGap[],ignored:Set<string>,handled=new Set<string>())=>
+  gaps.filter(gap=>isUnresolvedGap(gap)&&!ignored.has(gap.gapId)&&!handled.has(gap.gapId))
+export const nextReviewGap=(gaps:ContinuityGap[],currentId:string,ignored:Set<string>,handled:Set<string>)=>{
+  const remaining=gapReviewQueue(gaps,ignored,handled)
+  const currentIndex=gaps.findIndex(gap=>gap.gapId===currentId)
+  return remaining.find(gap=>gaps.findIndex(item=>item.gapId===gap.gapId)>currentIndex)||remaining[0]
+}
+export const isAddableCandidate=(path:Pick<ContinuityCandidatePath,'atomIds'>)=>path.atomIds.length>0
 export const selectedContinuityCheck=(checks:ContinuityGap[],id?:string)=>checks.find(check=>check.gapId===id)
 export const continuityInspection=(checks:ContinuityGap[],gaps:ContinuityGap[],id:string|undefined,ignored:Set<string>)=>{
   const check=selectedContinuityCheck(checks,id)
@@ -75,7 +82,15 @@ export const continuityInspection=(checks:ContinuityGap[],gaps:ContinuityGap[],i
   return{check,unresolved,queue,showCandidateActions:Boolean(unresolved),queueIndex:unresolved?queue.findIndex(item=>item.gapId===unresolved.gapId):-1}
 }
 export const includeGapCandidate=(selection:ManualSelection,path:Pick<ContinuityCandidatePath,'atomIds'>):ManualSelection=>
-  path.atomIds.reduce(includeManualAtom,selection)
+  isAddableCandidate(path)?path.atomIds.reduce(includeManualAtom,selection):selection
+export const applyGapCandidateEdit=(selection:ManualSelection,path:Pick<ContinuityCandidatePath,'atomIds'>,
+  gaps:ContinuityGap[],currentId:string,ignored:Set<string>,handled:Set<string>)=>{
+  if(!isAddableCandidate(path))return undefined
+  const nextHandled=new Set([...handled,currentId])
+  return{manualSelection:includeGapCandidate(selection,path),handledGapIds:nextHandled,
+    nextGapId:nextReviewGap(gaps,currentId,ignored,nextHandled)?.gapId,
+    finalPreviewId:undefined,stage:'MATCH_EDITED' as const}
+}
 export const candidatePathGeoJson=(sourceAtoms:{features:{properties?:Record<string,unknown>|null}[]},path?:Pick<ContinuityCandidatePath,'atomIds'>)=>({
   type:'FeatureCollection' as const,features:path?sourceAtoms.features.filter(feature=>path.atomIds.includes(String(feature.properties?.n13AtomId||''))):[]})
 export const deriveAvailableAtomIds=(automaticIds:string[],adjacency:Record<string,string[]>,selection:ManualSelection):string[]=>{
