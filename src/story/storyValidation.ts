@@ -2,6 +2,7 @@ import { BASEMAP_MODES, DARK_MODE_BEHAVIORS, OVERLAY_KEYS, type Story, type Stor
 
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 const numberAtLeastZero = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
 export function validateStory(input: unknown): Story {
   if (!input || typeof input !== 'object') throw new Error('Story must be an object')
@@ -23,6 +24,17 @@ function validateStep(raw: unknown, index: number): asserts raw is StoryStep {
       if (step.action === 'activate' && step.cameraDuration !== undefined && !numberAtLeastZero(step.cameraDuration)) throw new Error('Invalid cameraDuration in story')
       break
     case 'wait': if (!numberAtLeastZero(step.duration)) throw new Error('Story wait duration must be at least 0'); break
+    case 'setView': {
+      if (!Array.isArray(step.center) || step.center.length !== 2 || !step.center.every(finite)) throw new Error('Story setView center must contain exactly two finite numbers')
+      const [longitude, latitude] = step.center
+      if (longitude < -180 || longitude > 180) throw new Error('Story setView longitude must be between -180 and 180')
+      if (latitude < -90 || latitude > 90) throw new Error('Story setView latitude must be between -90 and 90')
+      if (!finite(step.zoom) || step.zoom < 0 || step.zoom > 24) throw new Error('Story setView zoom must be finite and between 0 and 24')
+      if (step.bearing !== undefined && !finite(step.bearing)) throw new Error('Story setView bearing must be finite')
+      if (step.pitch !== undefined && (!finite(step.pitch) || step.pitch < 0 || step.pitch > 85)) throw new Error('Story setView pitch must be finite and between 0 and 85')
+      if (step.duration !== undefined && !numberAtLeastZero(step.duration)) throw new Error('Story setView duration must be at least 0')
+      break
+    }
     case 'setBasemap': if (!BASEMAP_MODES.includes(step.value as never)) throw new Error(`Invalid basemap in story: ${String(step.value)}`); break
     case 'setOverlay':
       if (!OVERLAY_KEYS.includes(step.layer as never)) throw new Error(`Invalid overlay in story: ${String(step.layer)}`)

@@ -1,0 +1,16 @@
+{
+  "id": "shinjuku-authoring-demo",
+  "displayName": "新宿 Story authoring demo",
+  "project": "shinjuku",
+  "steps": [
+    { "action": "setBasemap", "value": "rekichizu" },
+    { "action": "show", "id": "historical-road:R003:0" },
+    { "action": "activate", "id": "historical-road:R003:0", "cameraDuration": 1.2 },
+    { "action": "wait", "duration": 2 },
+    { "action": "show", "id": "location:shinjuku-oiwake" },
+    { "action": "activate", "id": "location:shinjuku-oiwake", "cameraDuration": 1.2 },
+    { "action": "setView", "center": [139.7007, 35.6903], "zoom": 15.2, "bearing": 0, "pitch": 0, "duration": 1.2, "label": "追分と両街道が見える構図" },
+    { "action": "show", "id": "tokyo-named-ome-kaido-short" },
+    { "action": "wait", "duration": 2 }
+  ]
+}

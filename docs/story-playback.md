@@ -59,3 +59,35 @@ For development and future capture automation, `window.__michiStory` exposes
 dispatches `michi:story-ready`, `michi:story-complete`, and
 `michi:story-error`. Phase 1 deliberately has no seek, arbitrary camera, audio,
 or deterministic frame-rendering commands.
+
+## Explicit camera composition (`setView`)
+
+Story actions deliberately keep visibility, narrative focus, and composition separate:
+
+- `show` changes visibility only and never moves the camera.
+- `activate` establishes narrative focus (including title, reveal, active styling, and the app-defined focus behavior).
+- `setView` changes only the authored camera composition; it does not change the active or visible features.
+
+A view step stores `[longitude, latitude]`, zoom, and optional bearing, pitch, duration (seconds), and label. Normal playback uses an awaited MapLibre camera transition. Reconstruction for Previous, Restart, and **Preview from here** applies the latest preceding view immediately, so the reconstructed composition is exact.
+
+```json
+{
+  "action": "setView",
+  "center": [139.7007, 35.6903],
+  "zoom": 15.2,
+  "bearing": 0,
+  "pitch": 0,
+  "duration": 1.2,
+  "label": "追分と両街道が見える構図"
+}
+```
+
+For example, `activate location:shinjuku-oiwake`, then `setView` to a slightly wider composition, then `show` the 甲州街道 and 青梅街道. 新宿追分 remains active and the later visibility actions do not steal its focus or camera composition.
+
+## Story authoring pane
+
+Opening a Story displays its editable ordered steps above the regular sidebar controls. Click a row to select it as the insertion point; **Current View** captures the actual MapLibre center, zoom, bearing, and pitch, while **Wait** adds a two-second hold. New steps are inserted after the selection (or appended when nothing is selected).
+
+Drag a row by its handle to reorder it. The compact duplicate and delete actions operate only on that Story step. View fields and wait duration are editable in the details area beneath the list. **Preview selected** executes one logical action through the player; **Preview from here** uses the same baseline reconstruction path as Previous, then continues playback normally.
+
+**Download Story JSON** validates and downloads the current in-memory Story as `<story.id>.json`. Editing never mutates an imported JSON module or writes to `stories/` automatically. The authoring pane is entirely hidden in `capture=1` mode.

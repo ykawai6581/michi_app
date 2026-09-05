@@ -8,7 +8,7 @@ export interface StoryClock { now(): number; schedule(callback: () => void, dela
 const systemClock: StoryClock = { now: () => performance.now(), schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) }
 
 export class StoryPlayer {
-  private readonly baseline; private listeners = new Set<() => void>(); private timer: unknown; private waitStarted = 0; private waitRemainingMs: number | null = null; private generation = 0
+  private readonly baseline; private listeners = new Set<() => void>(); private timer: unknown; private waitStarted = 0; private waitRemainingMs: number | null = null; private generation = 0; private cameraAbort?: AbortController
   private state: StoryPlayerState
   private snapshot: StoryPlayerState
   constructor(private story: Story, private project: ProjectData, private operations: StoryAppOperations, private clock: StoryClock = systemClock) {
@@ -20,7 +20,7 @@ export class StoryPlayer {
   getState = () => this.snapshot
   private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.snapshot = { ...this.state }; this.listeners.forEach((listener) => listener()) }
   private setError(error: unknown) { this.cancelWait(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
-  private cancelWait() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.generation++ }
+  private cancelWait() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.cameraAbort?.abort(); this.cameraAbort = undefined; this.generation++ }
   private completedWaitSeconds(index = this.state.currentStepIndex) { return this.story.steps.slice(0, index).reduce((sum, step) => sum + (step.action === 'wait' ? step.duration : 0), 0) }
   private async apply(step: StoryStep, options: { reconstruct?: boolean } = {}) {
     const quiet = options.reconstruct ? { animateCamera: false } : undefined
@@ -28,6 +28,11 @@ export class StoryPlayer {
       case 'show': return this.operations.showFeature(findProjectFeatureById(this.project, step.id))
       case 'hide': return this.operations.hideFeature(findProjectFeatureById(this.project, step.id))
       case 'activate': return this.operations.activateFeature(findProjectFeatureById(this.project, step.id), { ...quiet, durationMs: step.cameraDuration === undefined ? undefined : step.cameraDuration * 1000 })
+      case 'setView': {
+        const controller = new AbortController(); this.cameraAbort?.abort(); this.cameraAbort = controller
+        try { return await this.operations.setView({ center: step.center, zoom: step.zoom, bearing: step.bearing ?? 0, pitch: step.pitch ?? 0 }, { animateCamera: !options.reconstruct, durationMs: (step.duration ?? 1.2) * 1000, signal: controller.signal }) }
+        finally { if (this.cameraAbort === controller) this.cameraAbort = undefined }
+      }
       case 'deactivate': return this.operations.deactivateFeature()
       case 'setBasemap': return this.operations.setBasemap(step.value)
       case 'setOverlay': return this.operations.setOverlayVisibility(step.layer, step.visible)
@@ -45,7 +50,7 @@ export class StoryPlayer {
       while (this.state.status === 'playing' && this.state.currentStepIndex < this.story.steps.length) {
         const step = this.story.steps[this.state.currentStepIndex]
         if (step.action === 'wait') { await this.runWait(step.duration * 1000); if (this.state.status !== 'playing') return }
-        else await this.apply(step)
+        else { await this.apply(step); if (this.state.status !== 'playing') return }
         this.state.currentStepIndex++; this.waitRemainingMs = null; this.state.elapsedSeconds = this.completedWaitSeconds(); this.emit()
       }
       if (this.state.status === 'playing') { this.state.status = 'complete'; this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-complete')) }
@@ -70,5 +75,7 @@ export class StoryPlayer {
     this.cancelWait()
     try { await this.operations.restore(this.baseline, { animateCamera: false }); for (const step of this.story.steps.slice(0, target)) if (step.action !== 'wait') await this.apply(step, { reconstruct: true }); this.state.currentStepIndex = target; this.waitRemainingMs = null; this.state.elapsedSeconds = this.completedWaitSeconds(target); this.state.status = 'paused'; this.state.error = null; this.emit() } catch (error) { this.setError(error) }
   }
+  async previewStep(index: number) { this.pause(); const step = this.story.steps[index]; if (!step || step.action === 'wait') return; try { await this.apply(step) } catch (error) { this.setError(error) } }
+  async playFrom(index: number) { await this.replayToStep(index); await this.play() }
   dispose() { this.cancelWait(); this.listeners.clear() }
 }
