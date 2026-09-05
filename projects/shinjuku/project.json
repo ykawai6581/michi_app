@@ -17,6 +17,9 @@
     "historicalPosts": [
       "R003"
     ],
+    "locations": [
+      "shinjuku-oiwake"
+    ],
     "railways": {
       "mode": "near-modern-roads",
       "distanceKm": 3
