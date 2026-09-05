@@ -7,7 +7,10 @@ export const POINT_ICON_URLS = { stations: stationIconUrl, historicalPosts: shuk
 export const POINT_ICON_SIZE_PX = 60
 // Keep the optional legacy radius parameter temporarily so existing callers do not
 // need to change; point icons now intentionally share one fixed rendered size.
-export const pointIconSize = (_radius?: number): number => POINT_ICON_SIZE_PX
+export const pointIconSize = (radius?: number): number => {
+  void radius
+  return POINT_ICON_SIZE_PX
+}
 
 export async function registerPointIcons(map: maplibregl.Map): Promise<void> {
   await Promise.all(Object.entries(POINT_ICON_URLS).map(async ([kind, url]) => {

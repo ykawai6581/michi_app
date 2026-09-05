@@ -14,7 +14,7 @@ export const ACTIVE_LINE_SHADOW_COLOR = '#081218'
 export const ACTIVE_LINE_SHADOW_BLUR = 4.5
 export const ACTIVE_LINE_SHADOW_OPACITY = 0
 export const POINT_LABEL_SIZE = 38
-export const pointLabelOffset = (radius: number, textSize = POINT_LABEL_SIZE): [number, number] => [pointIconSize(radius) / 2 / textSize + 0.35, 0]
+export const pointLabelOffset = (radius: number, textSize = POINT_LABEL_SIZE, presentationScale = 1): [number, number] => [pointIconSize(radius) * presentationScale / 2 / textSize + 0.35, 0]
 const selectedStandalonePointFilter: maplibregl.ExpressionSpecification = ['all',['==',['geometry-type'],'Point'],['!',['any',['==',['get','type'],'station'],['has','postId']]]]
 export const selectedStationFilter: maplibregl.FilterSpecification = ['all',['==',['geometry-type'],'Point'],['==',['get','type'],'station']]
 export const selectedShukubaFilter: maplibregl.FilterSpecification = ['all',['==',['geometry-type'],'Point'],['has','postId']]
@@ -97,14 +97,15 @@ export function setProjectLayerVisibility(map: maplibregl.Map, visibility: Layer
 
 export function updatePointOverlayStyle(map: maplibregl.Map, style: PointOverlayStyle, annotationSize: 'normal' | 'large' = 'large', presentationScale = 1): void {
   const textSize = annotationTextSize(annotationSize, presentationScale)
+  const iconSize = pointIconSize() * presentationScale
   for (const id of [LAYER_IDS.stations,LAYER_IDS.selectedStationSymbol]) {
-    map.setLayoutProperty(id, 'icon-size', pointIconSize(style.stations.radius))
+    map.setLayoutProperty(id, 'icon-size', iconSize)
     map.setLayoutProperty(id, 'text-size', textSize)
-    map.setLayoutProperty(id, 'text-offset', pointLabelOffset(style.stations.radius,textSize))
+    map.setLayoutProperty(id, 'text-offset', pointLabelOffset(style.stations.radius,textSize,presentationScale))
   }
   for (const id of [LAYER_IDS.historicalPosts,LAYER_IDS.selectedShukubaSymbol]) {
-    map.setLayoutProperty(id, 'icon-size', pointIconSize(style.historicalPosts.radius))
+    map.setLayoutProperty(id, 'icon-size', iconSize)
     map.setLayoutProperty(id, 'text-size', textSize)
-    map.setLayoutProperty(id, 'text-offset', pointLabelOffset(style.historicalPosts.radius,textSize))
+    map.setLayoutProperty(id, 'text-offset', pointLabelOffset(style.historicalPosts.radius,textSize,presentationScale))
   }
 }
