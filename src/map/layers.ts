@@ -5,7 +5,7 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 import type { ProjectData } from '../data/project'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR, ROAD_LABEL_COLOR, ROAD_LABEL_HALO_COLOR, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { lineColorExpression, sceneLineColorExpression } from './highlight'
-import { BASE_LINE_LABEL_SIZE_LARGE } from './presentationScale'
+import { annotationTextSize, BASE_LINE_LABEL_SIZE_LARGE } from './presentationScale'
 import { POINT_ICON_IDS, pointIconSize } from './pointIcons'
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -14,8 +14,10 @@ export const ACTIVE_LINE_SHADOW_COLOR = '#081218'
 export const ACTIVE_LINE_SHADOW_BLUR = 4.5
 export const ACTIVE_LINE_SHADOW_OPACITY = 0
 export const POINT_LABEL_SIZE = 38
-export const pointLabelOffset = (radius: number): [number, number] => [pointIconSize(radius) / 2 / POINT_LABEL_SIZE + 0.35, 0]
+export const pointLabelOffset = (radius: number, textSize = POINT_LABEL_SIZE): [number, number] => [pointIconSize(radius) / 2 / textSize + 0.35, 0]
 const selectedStandalonePointFilter: maplibregl.ExpressionSpecification = ['all',['==',['geometry-type'],'Point'],['!',['any',['==',['get','type'],'station'],['has','postId']]]]
+export const selectedStationFilter: maplibregl.FilterSpecification = ['all',['==',['geometry-type'],'Point'],['==',['get','type'],'station']]
+export const selectedShukubaFilter: maplibregl.FilterSpecification = ['all',['==',['geometry-type'],'Point'],['has','postId']]
 const pointSymbolLayout = (iconImage: string, radius: number): maplibregl.SymbolLayerSpecification['layout'] => ({
   'icon-image':iconImage,'icon-size':pointIconSize(radius),'icon-allow-overlap':false,'icon-ignore-placement':false,'icon-optional':false,
   'text-field':['get','name'],'text-size':POINT_LABEL_SIZE,'text-font':['Noto Sans Regular'],'text-anchor':'left','text-justify':'left','text-offset':pointLabelOffset(radius),
@@ -71,6 +73,8 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.highlightLineLabels, type: 'symbol', source: SOURCE_IDS.highlightLineLabels, layout: { 'symbol-placement':'point','text-field':['get','name'],'text-allow-overlap':false,'text-ignore-placement':false,'text-size':BASE_LINE_LABEL_SIZE_LARGE,'text-font':['Noto Sans Regular'],'text-rotate':['get','bearing'],'text-rotation-alignment':'map' }, paint: { 'text-color':sceneLineColorExpression(ROAD_LABEL_COLOR),'text-halo-color':ROAD_LABEL_HALO_COLOR,'text-halo-width':ROAD_LABEL_HALO_WIDTH } })
   map.addLayer({ id: LAYER_IDS.highlightLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['any',['==',['geometry-type'],'Polygon'],selectedStandalonePointFilter], layout: { 'text-field':['get','name'],'text-size':BASE_LINE_LABEL_SIZE_LARGE,'text-font':['Noto Sans Regular'],'text-offset':['case',['==',['geometry-type'],'Point'],['literal',[0,1.5]],['literal',[0,0]]],'text-anchor':['case',['==',['geometry-type'],'Point'],'top','center'],'text-allow-overlap':false,'text-ignore-placement':false }, paint: { 'text-color':['match',['geometry-type'],'Polygon',REGION_HIGHLIGHT_COLOR,'#64c2f2'],'text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
   map.addLayer({id:LAYER_IDS.jurisdictionHighlightLabel,type:'symbol',source:SOURCE_IDS.jurisdictionHighlightLabel,layout:{'text-field':['format',['case',['has','parent'],['concat',['get','parent'],'\n'],''],{'font-scale':0.7},['get','primary'],{'font-scale':1}],'text-size':28,'text-font':['Noto Sans Regular'],'text-anchor':'center','text-variable-anchor':['center','top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'],'text-radial-offset':1.15,'text-padding':4,'text-allow-overlap':false,'text-ignore-placement':false},paint:{'text-color':'#000000','text-halo-color':'#FFFFFF','text-halo-width':2.5,'text-opacity':0,'text-opacity-transition':{'duration':0,'delay':0}}})
+  map.addLayer({ id: LAYER_IDS.selectedShukubaSymbol, type: 'symbol', source: SOURCE_IDS.highlight, filter: selectedShukubaFilter, layout: pointSymbolLayout(POINT_ICON_IDS.historicalPosts,2.5), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
+  map.addLayer({ id: LAYER_IDS.selectedStationSymbol, type: 'symbol', source: SOURCE_IDS.highlight, filter: selectedStationFilter, layout: pointSymbolLayout(POINT_ICON_IDS.stations,2), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
   // Point symbols follow active annotations in placement order, so collisions
   // hide the lower-priority station/shukuba rather than the annotation.
   map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'symbol', source: SOURCE_IDS.historicalPosts, layout: pointSymbolLayout(POINT_ICON_IDS.historicalPosts,2.5), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
@@ -91,9 +95,16 @@ export function setProjectLayerVisibility(map: maplibregl.Map, visibility: Layer
   groups.forEach(([id, enabled]) => map.setLayoutProperty(id, 'visibility', enabled ? 'visible' : 'none'))
 }
 
-export function updatePointOverlayStyle(map: maplibregl.Map, style: PointOverlayStyle): void {
-  map.setLayoutProperty(LAYER_IDS.stations, 'icon-size', pointIconSize(style.stations.radius))
-  map.setLayoutProperty(LAYER_IDS.stations, 'text-offset', pointLabelOffset(style.stations.radius))
-  map.setLayoutProperty(LAYER_IDS.historicalPosts, 'icon-size', pointIconSize(style.historicalPosts.radius))
-  map.setLayoutProperty(LAYER_IDS.historicalPosts, 'text-offset', pointLabelOffset(style.historicalPosts.radius))
+export function updatePointOverlayStyle(map: maplibregl.Map, style: PointOverlayStyle, annotationSize: 'normal' | 'large' = 'large', presentationScale = 1): void {
+  const textSize = annotationTextSize(annotationSize, presentationScale)
+  for (const id of [LAYER_IDS.stations,LAYER_IDS.selectedStationSymbol]) {
+    map.setLayoutProperty(id, 'icon-size', pointIconSize(style.stations.radius))
+    map.setLayoutProperty(id, 'text-size', textSize)
+    map.setLayoutProperty(id, 'text-offset', pointLabelOffset(style.stations.radius,textSize))
+  }
+  for (const id of [LAYER_IDS.historicalPosts,LAYER_IDS.selectedShukubaSymbol]) {
+    map.setLayoutProperty(id, 'icon-size', pointIconSize(style.historicalPosts.radius))
+    map.setLayoutProperty(id, 'text-size', textSize)
+    map.setLayoutProperty(id, 'text-offset', pointLabelOffset(style.historicalPosts.radius,textSize))
+  }
 }

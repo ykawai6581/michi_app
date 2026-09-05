@@ -100,6 +100,17 @@ function collection(features: EntityFeature[]): FeatureCollection<Geometry, Enti
   return { type: 'FeatureCollection', features }
 }
 
+export function updateSelectedPointFilters(map: maplibregl.Map, features: EntityFeature[]): void {
+  const ids = features
+    .filter((feature) => feature.geometry.type === 'Point' && (feature.properties.type === 'station' || feature.properties.postId !== undefined))
+    .map((feature) => feature.properties.id)
+  const filter: maplibregl.FilterSpecification = ids.length
+    ? ['!', ['in', ['get','id'], ['literal',ids]]]
+    : ['==', ['literal',true], true]
+  map.setFilter(LAYER_IDS.stations, filter)
+  map.setFilter(LAYER_IDS.historicalPosts, filter)
+}
+
 export function splitRoadSourceFeatures(features: EntityFeature[], roadSources: RoadSourceVisibility): { primary: EntityFeature[]; osm: EntityFeature[] } {
   return {
     primary: features.filter((feature) => feature.properties.type !== 'road' || roadSources.n13),
@@ -147,6 +158,7 @@ export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], r
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
   const { primary, osm } = splitRoadSourceFeatures(markActiveLine(features, activeFeature, selectionMode), roadSources)
+  updateSelectedPointFilters(map, primary)
   const revealFocus = focusFeature && primary.find((feature) => feature.properties.id === focusFeature.properties.id)
   if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
