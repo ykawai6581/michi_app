@@ -1,11 +1,11 @@
 :root{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#162b36;background:#dce1df;font-synthesis:none}*{box-sizing:border-box}html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{min-width:320px}button,input{font:inherit}.app{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;display:flex;flex-direction:column;overflow:hidden}header{height:72px;flex:0 0 72px;background:#142c38;color:white;display:flex;align-items:center;padding:0 22px;gap:14px;border-bottom:1px solid #31505d}.brand-mark{width:38px;height:38px;background:#e7b760;color:#142c38;display:grid;place-items:center;font-size:21px;font-weight:700;border-radius:2px}.brand{display:flex;flex-direction:column;line-height:1.1}.brand strong{font-family:monospace;font-size:14px;letter-spacing:.13em}.brand span{font-size:10px;color:#9fb1b9;margin-top:5px}.header-context{margin-left:42px;padding-left:25px;border-left:1px solid #46606a;display:flex;flex-direction:column}.header-context span,.eyebrow{font-family:monospace;font-size:9px;letter-spacing:.16em;color:#7e929b}.header-context b{font-size:13px;font-weight:500;margin-top:3px}.export{margin-left:auto;border:0;background:#e7b760;color:#182c35;padding:12px 17px;font-weight:700;border-radius:2px;cursor:pointer}.export span{margin-right:8px}.export:disabled{opacity:.45}.workspace{flex:1 1 auto;min-height:0;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 350px;align-items:center;background:#dce1df}.map-stage{position:relative;width:min(100%,calc((100dvh - 72px)*16/9));aspect-ratio:16/9;max-height:100%;min-height:0;min-width:0;overflow:hidden;background:#f4f2ec;justify-self:center;align-self:center}.scene-frame{position:absolute;left:0;top:0;transform-origin:top left}.map{position:absolute;inset:0}.map:after{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 80px rgba(20,44,56,.08)}.map-title{position:absolute;left:40px;top:35px;width:50%;max-width:calc(100% - 80px);pointer-events:none;color:var(--feature-label-color);animation:map-title-enter 240ms cubic-bezier(.2,.75,.3,1) both}.map-title h1{
   font-family:"Noto Sans","Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
-  font-size:calc(68px * var(--map-scale, 1));
+  font-size:min(calc(68px * var(--map-scale, 1)),80px);
   font-weight:700;
+  white-space:nowrap;
   line-height:1.2;
   margin:0;
   letter-spacing:0;
-  overflow-wrap:anywhere;
   -webkit-text-stroke:calc(5px * var(--map-scale, 1)) var(--road-label-halo-color);
   paint-order:stroke fill;
   text-shadow:none;

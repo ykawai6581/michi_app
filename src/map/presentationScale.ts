@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
-export const SCENE_REFERENCE_WIDTH = 960
-export const SCENE_REFERENCE_HEIGHT = 540
+export const SCENE_REFERENCE_WIDTH = 960*0.8
+export const SCENE_REFERENCE_HEIGHT = 540*0.8
 export const SCENE_ASPECT_RATIO = SCENE_REFERENCE_WIDTH / SCENE_REFERENCE_HEIGHT
 export const BASE_LINE_LABEL_SIZE_LARGE = 28
 export const BASE_LINE_LABEL_SIZE_SMALL = 14
