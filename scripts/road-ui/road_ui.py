@@ -85,7 +85,7 @@ def _validate_project(project: dict, expected_id: str | None = None) -> dict:
         raise ValueError("Project layers must be an object")
     # Reuse canonical validation after writing by using its public loader; the
     # structural checks below keep Save independent from materialization.
-    if set(layers) - {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}:
+    if set(layers) - {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts", "locations"}:
         raise ValueError("Project contains an unsupported layer")
     return project
 
@@ -167,7 +167,7 @@ def project_preview(project_id: str, root: Path = ROOT) -> dict:
     if not manifest_path.is_file():
         raise FileNotFoundError(f"Built project preview missing for {project_id!r}; use Save & Build")
     names = {"modernRoads":"modern-roads", "railways":"railways", "stations":"stations",
-             "historicalRoads":"historical-roads", "historicalPosts":"historical-posts"}
+             "historicalRoads":"historical-roads", "historicalPosts":"historical-posts", "locations":"locations"}
     return {"manifest": json.loads(manifest_path.read_text(encoding="utf-8")),
             "layers": {family: json.loads((output / "data" / f"{name}.geojson").read_text(encoding="utf-8"))
                        for family, name in names.items()}}
