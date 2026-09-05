@@ -1,6 +1,6 @@
 import type { ProjectData } from '../data/project'
 import type { Story, StoryAppOperations, StoryStep } from './storyTypes'
-import { compileStoryTimeline, evaluateTimeline, type StoryTimeline } from './storyTimeline'
+import { compileStoryTimeline, evaluateTimeline, type EvaluatedStoryState, type StoryTimeline } from './storyTimeline'
 
 export type StoryPlayerStatus = 'idle' | 'playing' | 'paused' | 'complete' | 'error'
 export interface StoryPlayerState { status: StoryPlayerStatus; currentStepIndex: number; currentStep: StoryStep | null; elapsedSeconds: number; totalWaitDuration: number; playbackRate: number; error: string | null }
@@ -38,13 +38,35 @@ export class StoryPlayer {
   private previousCueTime(fromMs: number) { const times = this.cueTimes(); for (let index = times.length - 1; index >= 0; index -= 1) if (times[index] < fromMs - CUE_EPSILON_MS) return times[index]; return 0 }
   private stopClock() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.generation += 1 }
   private setError(error: unknown) { this.stopClock(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
+  private evaluate(seconds: number): EvaluatedStoryState {
+    if (!Number.isFinite(seconds)) throw new Error('Story seek time must be a finite number')
+    return evaluateTimeline(this.timeline, seconds * 1000)
+  }
+  private publishFrame(frame: EvaluatedStoryState) {
+    this.state.elapsedSeconds = frame.timeMs / 1000
+    this.state.currentStepIndex = this.indexAt(frame.timeMs)
+    this.state.error = null
+    if (frame.timeMs >= this.timeline.durationMs && this.timeline.durationMs > 0) this.state.status = 'complete'
+    else if (this.state.status !== 'playing') this.state.status = 'paused'
+    this.emit()
+  }
+  private applyPreviewFrame(frame: EvaluatedStoryState, generation: number) {
+    if (!this.operations.applyStoryFrame) { this.setError(new Error('Deterministic Story frame application is unavailable')); return }
+    this.publishFrame(frame)
+    void Promise.resolve(this.operations.applyStoryFrame(frame)).catch(error => {
+      if (generation === this.generation && this.state.status === 'playing') this.setError(error)
+    })
+  }
+
   setPlaybackRate(rate: number) {
     if (!Number.isFinite(rate) || rate <= 0) throw new Error('Story playback rate must be a positive finite number')
     if (this.state.status === 'playing') {
       const now = this.clock.now()
       this.playStartedStoryMs = Math.min(this.timeline.durationMs, this.playStartedStoryMs + (now - this.playStartedAt) * this.playbackRate)
       this.playStartedAt = now
-      void this.seek(this.playStartedStoryMs / 1000)
+      const frame = this.evaluate(this.playStartedStoryMs / 1000)
+      this.publishFrame(frame)
+      if (this.operations.applyStoryFrame) void Promise.resolve(this.operations.applyStoryFrame(frame)).catch(error => this.setError(error))
     }
     this.playbackRate = rate
     this.state.playbackRate = rate
@@ -52,16 +74,10 @@ export class StoryPlayer {
   }
 
   async seek(seconds: number) {
-    if (!Number.isFinite(seconds)) throw new Error('Story seek time must be a finite number')
-    const frame = evaluateTimeline(this.timeline, seconds * 1000)
+    const frame = this.evaluate(seconds)
     if (!this.operations.applyStoryFrame) throw new Error('Deterministic Story frame application is unavailable')
+    this.publishFrame(frame)
     await this.operations.applyStoryFrame(frame)
-    this.state.elapsedSeconds = frame.timeMs / 1000
-    this.state.currentStepIndex = this.indexAt(frame.timeMs)
-    this.state.error = null
-    if (frame.timeMs >= this.timeline.durationMs && this.timeline.durationMs > 0) this.state.status = 'complete'
-    else if (this.state.status !== 'playing') this.state.status = 'paused'
-    this.emit()
   }
   async play() {
     if (this.state.status === 'playing') return
@@ -71,14 +87,24 @@ export class StoryPlayer {
     this.playStartedAt = this.clock.now(); this.playStartedStoryMs = this.state.elapsedSeconds * 1000
     const generation = ++this.generation
     return new Promise<void>((resolve) => {
-      const tick = async () => {
+      const tick = () => {
         if (generation !== this.generation || this.state.status !== 'playing') { resolve(); return }
         const target = Math.min(this.timeline.durationMs, this.playStartedStoryMs + (this.clock.now() - this.playStartedAt) * this.playbackRate)
-        try { await this.seek(target / 1000) } catch (error) { this.setError(error); resolve(); return }
-        if (target >= this.timeline.durationMs) { this.timer = undefined; this.state.status = 'complete'; this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-complete')); resolve(); return }
-        this.state.status = 'playing'; this.timer = this.clock.schedule(() => { void tick() }, 16)
+        let frame: EvaluatedStoryState
+        try { frame = this.evaluate(target / 1000) } catch (error) { this.setError(error); resolve(); return }
+        this.applyPreviewFrame(frame, generation)
+        if (target >= this.timeline.durationMs) {
+          this.timer = undefined
+          this.state.status = 'complete'
+          this.emit()
+          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-complete'))
+          resolve()
+          return
+        }
+        this.state.status = 'playing'
+        this.timer = this.clock.schedule(tick, 16)
       }
-      void tick()
+      tick()
     })
   }
   pause() { if (this.state.status !== 'playing') return; this.stopClock(); this.state.status = 'paused'; this.emit() }
