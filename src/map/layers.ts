@@ -13,7 +13,7 @@ export const SELECTED_POINT_RADIUS = 10
 export const ACTIVE_LINE_SHADOW_COLOR = '#081218'
 export const ACTIVE_LINE_SHADOW_BLUR = 4.5
 export const ACTIVE_LINE_SHADOW_OPACITY = 0
-export const POINT_LABEL_SIZE = 14
+export const POINT_LABEL_SIZE = 38
 export const pointLabelOffset = (radius: number): [number, number] => [pointIconSize(radius) / 2 / POINT_LABEL_SIZE + 0.35, 0]
 const selectedStandalonePointFilter: maplibregl.ExpressionSpecification = ['all',['==',['geometry-type'],'Point'],['!',['any',['==',['get','type'],'station'],['has','postId']]]]
 const pointSymbolLayout = (iconImage: string, radius: number): maplibregl.SymbolLayerSpecification['layout'] => ({

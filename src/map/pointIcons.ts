@@ -6,7 +6,7 @@ export const POINT_ICON_IDS = { stations: 'michi-station-icon', historicalPosts:
 export const POINT_ICON_URLS = { stations: stationIconUrl, historicalPosts: shukubaIconUrl } as const
 
 /** Render icons at twice the diameter of the radius-based dots they replace. */
-export const POINT_ICON_DIAMETER_MULTIPLIER = 2
+export const POINT_ICON_DIAMETER_MULTIPLIER = 10
 export const pointIconSize = (radius: number): number => radius * 2 * POINT_ICON_DIAMETER_MULTIPLIER
 
 export async function registerPointIcons(map: maplibregl.Map): Promise<void> {
