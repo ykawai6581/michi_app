@@ -29,7 +29,7 @@
     },
     {
       "action": "wait",
-      "duration": 2.0
+      "duration": 2
     },
     {
       "action": "show",
@@ -54,7 +54,7 @@
     },
     {
       "action": "wait",
-      "duration": 3.0
+      "duration": 3
     },
     {
       "action": "show",
@@ -98,7 +98,7 @@
     },
     {
       "action": "wait",
-      "duration": 3.0
+      "duration": 3
     },
     {
       "action": "show",
@@ -112,10 +112,17 @@
       "label": "新宿追分へパン"
     },
     {
-      "action": "wait",
-      "duration": 3.0
+      "action": "setView",
+      "center": [
+        139.6915533531735,
+        35.68840048121882
+      ],
+      "zoom": 13.753587286669624,
+      "bearing": 0,
+      "pitch": 0,
+      "duration": 1.2,
+      "label": "Saved view"
     },
-
     {
       "action": "show",
       "id": "historical-road:R003:0",
@@ -128,7 +135,7 @@
     },
     {
       "action": "wait",
-      "duration": 3.0
+      "duration": 3
     }
   ]
 }
