@@ -23,14 +23,14 @@ export interface StoryAppSnapshot { selected: EntityFeature[]; activeFeature: En
 export interface StoryAppOperations {
   snapshot(): StoryAppSnapshot
   restore(snapshot: StoryAppSnapshot, options?: FeatureFocusOptions): void | Promise<void>
-  showFeature(feature: EntityFeature): void
-  hideFeature(feature: EntityFeature): void
-  activateFeature(feature: EntityFeature, options?: FeatureFocusOptions): void
-  deactivateFeature(): void
+  showFeature(feature: EntityFeature): void | Promise<void>
+  hideFeature(feature: EntityFeature): void | Promise<void>
+  activateFeature(feature: EntityFeature, options?: FeatureFocusOptions): void | Promise<void>
+  deactivateFeature(): void | Promise<void>
   setBasemap(value: BasemapMode): void | Promise<void>
-  setOverlayVisibility(layer: OverlayKey, visible: boolean): void
-  setDarkMode(value: DarkModeBehavior): void
-  setManualDarkBasemap(value: boolean): void
+  setOverlayVisibility(layer: OverlayKey, visible: boolean): void | Promise<void>
+  setDarkMode(value: DarkModeBehavior): void | Promise<void>
+  setManualDarkBasemap(value: boolean): void | Promise<void>
   selectJurisdiction(id: string, options?: FeatureFocusOptions): void | Promise<void>
-  clearJurisdiction(): void
+  clearJurisdiction(): void | Promise<void>
 }
