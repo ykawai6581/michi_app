@@ -1,7 +1,8 @@
 import type { HighlightStyle } from '../types/geo'
 
-const colors: { key: 'roadColor' | 'locationColor' | 'stationColor' | 'shukubaColor' | 'regionColor'; label: string }[] = [
+const colors: { key: 'roadColor' | 'historicalRoadColor' | 'locationColor' | 'stationColor' | 'shukubaColor' | 'regionColor'; label: string }[] = [
   { key: 'roadColor', label: 'Road' },
+  { key: 'historicalRoadColor', label: 'Historical road / 歴史街道' },
   { key: 'locationColor', label: 'Location' },
   { key: 'stationColor', label: 'Station' },
   { key: 'shukubaColor', label: 'Shukuba' },

@@ -51,7 +51,7 @@ export interface EntityProperties {
 
 export type EntityFeature = Feature<Geometry, EntityProperties>
 export interface SceneItem { feature: EntityFeature; visible: boolean; projectBacked?: boolean }
-export interface HighlightStyle { roadColor: string; locationColor: string; stationColor: string; shukubaColor: string; regionColor: string; width: number; opacity: number; glow: boolean; animate: boolean; annotationSize: 'normal' | 'large' }
+export interface HighlightStyle { roadColor: string; historicalRoadColor: string; locationColor: string; stationColor: string; shukubaColor: string; regionColor: string; width: number; opacity: number; glow: boolean; animate: boolean; annotationSize: 'normal' | 'large' }
 export interface LayerVisibility { basemap: BasemapMode; darkBasemap: boolean; modernRoads: boolean; railways: boolean; stations: boolean; historicalRoads: boolean; historicalPosts: boolean; jurisdictions: boolean }
 export interface PointOverlayStyle { stations: { radius: number }; historicalPosts: { radius: number } }
 export interface RoadSourceVisibility { n13: boolean; osm: boolean }

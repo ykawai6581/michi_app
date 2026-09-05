@@ -57,22 +57,24 @@ describe('active road and railway emphasis', () => {
     expect(markActiveLine(roads,region).every(feature=>feature.properties.activeLine===false)).toBe(true)
   })
 
+  it('marks a historical road active through the shared line mechanism', () => { const historical={...roads[0],properties:{...roads[0].properties,type:'historical-road' as const}}; expect(markActiveLine([historical],historical)[0].properties).toMatchObject({activeLine:true,sceneLineState:'selected'}) })
+
   it('transfers the emphasis from a road to a railway',()=>{const rails=roads.map(feature=>({...feature,properties:{...feature.properties,type:'railway' as const,railColor:'#123456'}}));expect(markActiveLine(rails,rails[1]).map(feature=>feature.properties.activeLine)).toEqual([false,true,false]);expect(markActiveLine([...roads,...rails],rails[2]).filter(feature=>feature.properties.type==='road').every(feature=>!feature.properties.activeLine)).toBe(true)})
 
-  it('uses feature type and the catalog fallback in the shared line expression',()=>expect(lineColorExpression('#FF7B00')).toEqual(['case',['==',['get','type'],'railway'],['coalesce',['get','railColor'],FALLBACK_RAIL_COLOR],'#FF7B00']))
+  it('uses feature type and the catalog fallback in the shared line expression',()=>expect(lineColorExpression('#FF7B00','#5C3838')).toEqual(['case',['==',['get','type'],'railway'],['coalesce',['get','railColor'],FALLBACK_RAIL_COLOR],['==',['get','type'],'historical-road'],'#5C3838','#FF7B00']))
 
-  it('uses one state-aware expression for retained lines and their labels',()=>expect(sceneLineColorExpression('#FF7B00')).toEqual(['case',['==',['get','sceneLineState'],'retained'],RETAINED_LINE_COLOR,lineColorExpression('#FF7B00')]))
+  it('uses one state-aware expression for retained lines and their labels',()=>expect(sceneLineColorExpression('#FF7B00','#5C3838')).toEqual(['case',['==',['get','sceneLineState'],'retained'],RETAINED_LINE_COLOR,lineColorExpression('#FF7B00','#5C3838')]))
 })
 
 describe('highlight styling updates', () => {
-  const style = (regionColor: string, glow: boolean) => ({ roadColor:'#FF7B00', locationColor:'#64c2f2', stationColor:'#65668F', shukubaColor:'#7F612A', regionColor, width:7, opacity:1, glow, animate:true, annotationSize:'large' as const })
+  const style = (regionColor: string, glow: boolean) => ({ roadColor:'#FF7B00', historicalRoadColor:'#5C3838', locationColor:'#64c2f2', stationColor:'#65668F', shukubaColor:'#7F612A', regionColor, width:7, opacity:1, glow, animate:true, annotationSize:'large' as const })
   const mapMock = () => ({ setPaintProperty: vi.fn(), setLayoutProperty: vi.fn() })
 
   it('updates active core colors and all three active widths independently of glow', () => {
     const map = mapMock()
     updateHighlightStyle(map as never, style('#C84646', false))
     const coreWidth = ['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]]
-    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineActive, 'line-color', lineColorExpression('#FF7B00'))
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineActive, 'line-color', lineColorExpression('#FF7B00','#5C3838'))
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineActive, 'line-width', coreWidth)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineOutline, 'line-width', ['+', coreWidth, 6])
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineShadow, 'line-width', ['+', coreWidth, 14])
@@ -108,6 +110,6 @@ describe('highlight styling updates', () => {
     expect(map.setLayoutProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLabels, 'text-size', textSize)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-halo-width', haloWidth)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLabels, 'text-halo-width', haloWidth)
-    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-color', sceneLineColorExpression('#FF7B00'))
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightLineLabels, 'text-color', sceneLineColorExpression('#FF7B00','#5C3838'))
   })
 })
