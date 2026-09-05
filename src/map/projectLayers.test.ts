@@ -54,7 +54,7 @@ describe('project map layer contract', () => {
     expect(byId(LAYER_IDS.highlightLine).filter).toEqual(['any',['==',['geometry-type'],'Polygon'],['all',['==',['geometry-type'],'LineString'],['!=',['get','activeLine'],true]]])
     expect(byId(LAYER_IDS.highlightLineShadow).paint).toMatchObject({'line-color':ACTIVE_LINE_SHADOW_COLOR,'line-width':['+',coreWidth,ACTIVE_LINE_SHADOW_EXTRA_WIDTH],'line-blur':ACTIVE_LINE_SHADOW_BLUR,'line-opacity':ACTIVE_LINE_SHADOW_OPACITY})
     expect(byId(LAYER_IDS.highlightLineOutline).paint).toMatchObject({'line-color':'#FFFFFF','line-width':['+',coreWidth,ACTIVE_LINE_CASING_EXTRA_WIDTH]})
-    expect(byId(LAYER_IDS.highlightLineActive).paint).toMatchObject({'line-color':lineColorExpression('#FF7B00'),'line-width':coreWidth})
+    expect(byId(LAYER_IDS.highlightLineActive).paint).toMatchObject({'line-color':lineColorExpression('#FF7B00','#5C3838'),'line-width':coreWidth})
     expect(index(LAYER_IDS.highlightLine)).toBeLessThan(index(LAYER_IDS.highlightLineShadow))
     expect(index(LAYER_IDS.highlightLineShadow)).toBeLessThan(index(LAYER_IDS.highlightLineOutline))
     expect(index(LAYER_IDS.highlightLineOutline)).toBeLessThan(index(LAYER_IDS.highlightLineActive))

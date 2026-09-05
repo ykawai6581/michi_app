@@ -19,9 +19,10 @@ describe('ActiveFeatureOverlay', () => {
     expect(markup).toContain('--road-label-halo-color:#FFFFFF')
     expect(markup).toContain('--road-label-halo-width:3px')
   })
-  it.each(['jurisdiction', 'place', 'historical-place', 'station', 'historical-road'] as const)('does not render a large caption for %s', (type) => {
+  it.each(['jurisdiction', 'place', 'historical-place', 'station'] as const)('does not render a large caption for %s', (type) => {
     expect(renderToStaticMarkup(<ActiveFeatureOverlay feature={feature(type)} highlightStyle={DEFAULT_HIGHLIGHT_STYLE} />)).toBe('')
   })
+  it('renders a historical-road caption in its distinct color', () => { const markup=renderToStaticMarkup(<ActiveFeatureOverlay feature={feature('historical-road','甲州道中')} highlightStyle={DEFAULT_HIGHLIGHT_STYLE}/>); expect(markup).toContain('甲州道中'); expect(markup).toContain('--feature-label-color:#5C3838') })
   it('renders a railway name only in its resolved color', () => {
     const railway={...feature('railway','JR 中央線快速'),properties:{...feature('railway').properties,name:'JR 中央線快速',railColor:'#FF4500'}}
     const markup=renderToStaticMarkup(<ActiveFeatureOverlay feature={railway} highlightStyle={DEFAULT_HIGHLIGHT_STYLE}/>)
