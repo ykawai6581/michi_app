@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { POINT_ICON_IDS, POINT_ICON_URLS, pointIconSize, registerPointIcons } from './pointIcons'
+import { POINT_ICON_IDS, POINT_ICON_SIZE_PX, POINT_ICON_URLS, pointIconSize, registerPointIcons } from './pointIcons'
 
 describe('point icon registration', () => {
   it('imports and registers the authoritative PNG assets without deriving artwork', async () => {
@@ -12,8 +12,9 @@ describe('point icon registration', () => {
     expect(addImage).toHaveBeenCalledWith(POINT_ICON_IDS.historicalPosts,{width:1254},{pixelRatio:1254})
   })
 
-  it('renders at twice the former dot diameter',()=>{
-    expect(pointIconSize(2)).toBe(8)
-    expect(pointIconSize(2.5)).toBe(10)
+  it('uses one fixed rendered size for station and shukuba icons',()=>{
+    expect(POINT_ICON_SIZE_PX).toBe(60)
+    expect(pointIconSize(2)).toBe(60)
+    expect(pointIconSize(2.5)).toBe(60)
   })
 })

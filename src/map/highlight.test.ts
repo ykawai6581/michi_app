@@ -65,7 +65,7 @@ describe('active road and railway emphasis', () => {
 })
 
 describe('highlight styling updates', () => {
-  const style = (regionColor: string, glow: boolean) => ({ roadColor:'#FF7B00', locationColor:'#64c2f2', regionColor, width:7, opacity:1, glow, animate:true, annotationSize:'large' as const })
+  const style = (regionColor: string, glow: boolean) => ({ roadColor:'#FF7B00', locationColor:'#64c2f2', stationColor:'#65668F', shukubaColor:'#7F612A', regionColor, width:7, opacity:1, glow, animate:true, annotationSize:'large' as const })
   const mapMock = () => ({ setPaintProperty: vi.fn(), setLayoutProperty: vi.fn() })
 
   it('updates active core colors and all three active widths independently of glow', () => {
@@ -85,6 +85,15 @@ describe('highlight styling updates', () => {
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightRegionGlow, 'line-color', '#123456')
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightRegionGlow, 'line-opacity', 0.65)
     expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.highlightPointGlow, 'circle-opacity', 0.24)
+  })
+
+  it('uses separate station and shukuba colors for labels only', () => {
+    const map = mapMock()
+    updateHighlightStyle(map as never, style('#C84646', true))
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.stations, 'text-color', '#65668F')
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.selectedStationSymbol, 'text-color', '#65668F')
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.historicalPosts, 'text-color', '#7F612A')
+    expect(map.setPaintProperty).toHaveBeenCalledWith(LAYER_IDS.selectedShukubaSymbol, 'text-color', '#7F612A')
   })
 
   it.each([

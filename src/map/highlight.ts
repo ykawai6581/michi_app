@@ -199,4 +199,8 @@ export function updateHighlightStyle(map: maplibregl.Map, style: HighlightStyle,
   map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-halo-width', ROAD_LABEL_HALO_WIDTH * presentationScale)
   map.setPaintProperty(LAYER_IDS.highlightLineLabels, 'text-color', sceneLineColorExpression(style.roadColor))
   map.setPaintProperty(LAYER_IDS.highlightLabels, 'text-color', ['match', ['geometry-type'], 'Polygon', style.regionColor, style.locationColor])
+  map.setPaintProperty(LAYER_IDS.stations, 'text-color', style.stationColor)
+  map.setPaintProperty(LAYER_IDS.selectedStationSymbol, 'text-color', style.stationColor)
+  map.setPaintProperty(LAYER_IDS.historicalPosts, 'text-color', style.shukubaColor)
+  map.setPaintProperty(LAYER_IDS.selectedShukubaSymbol, 'text-color', style.shukubaColor)
 }
