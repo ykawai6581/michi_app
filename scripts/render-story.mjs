@@ -65,7 +65,7 @@ async function main() {
   try { ({ chromium } = await import('playwright')) } catch (error) {
     throw new Error(`Playwright is unavailable (${error.message}). Run npm install for this checkout, then run: npx playwright install chromium`)
   }
-  browser = await chromium.launch({ headless: true })
+  browser = await chromium.launch({ headless: true,  channel: 'chrome' })
   const context = await browser.newContext({ viewport: { width: options.width, height: options.height }, deviceScaleFactor: 1 })
   const page = await context.newPage()
   const consoleErrors = []
