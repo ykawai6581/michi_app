@@ -1,81 +1,74 @@
 import type { ProjectData } from '../data/project'
-import { findProjectFeatureById } from './storyFeatureResolver'
 import type { Story, StoryAppOperations, StoryStep } from './storyTypes'
+import { compileStoryTimeline, evaluateTimeline, type StoryTimeline } from './storyTimeline'
 
 export type StoryPlayerStatus = 'idle' | 'playing' | 'paused' | 'complete' | 'error'
 export interface StoryPlayerState { status: StoryPlayerStatus; currentStepIndex: number; currentStep: StoryStep | null; elapsedSeconds: number; totalWaitDuration: number; error: string | null }
 export interface StoryClock { now(): number; schedule(callback: () => void, delayMs: number): unknown; cancel(handle: unknown): void }
-const systemClock: StoryClock = { now: () => performance.now(), schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) }
+const systemClock: StoryClock = { now: () => performance.now(), schedule: callback => requestAnimationFrame(callback), cancel: handle => cancelAnimationFrame(handle as number) }
 
 export class StoryPlayer {
-  private readonly baseline; private listeners = new Set<() => void>(); private timer: unknown; private waitStarted = 0; private waitRemainingMs: number | null = null; private generation = 0; private cameraAbort?: AbortController
+  readonly timeline: StoryTimeline
+  private listeners = new Set<() => void>()
+  private timer: unknown
+  private generation = 0
+  private playStartedAt = 0
+  private playStartedStoryMs = 0
   private state: StoryPlayerState
   private snapshot: StoryPlayerState
-  constructor(private story: Story, private project: ProjectData, private operations: StoryAppOperations, private clock: StoryClock = systemClock) {
-    this.baseline = operations.snapshot()
-    this.state = { status: 'paused', currentStepIndex: 0, currentStep: story.steps[0] ?? null, elapsedSeconds: 0, totalWaitDuration: story.steps.reduce((sum, step) => sum + (step.action === 'wait' ? step.duration : 0), 0), error: null }
+
+  constructor(private story: Story, project: ProjectData, private operations: StoryAppOperations, private clock: StoryClock = systemClock) {
+    const baseline = operations.snapshot()
+    this.timeline = compileStoryTimeline(story, project, baseline, operations.resolveFeatureCameraTarget ?? ((_feature, _visible, from) => from))
+    this.state = { status: 'paused', currentStepIndex: 0, currentStep: story.steps[0] ?? null, elapsedSeconds: 0, totalWaitDuration: this.timeline.durationMs / 1000, error: null }
     this.snapshot = { ...this.state }
   }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   getState = () => this.snapshot
-  private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.snapshot = { ...this.state }; this.listeners.forEach((listener) => listener()) }
-  private setError(error: unknown) { this.cancelWait(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
-  private cancelWait() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.cameraAbort?.abort(); this.cameraAbort = undefined; this.generation++ }
-  private completedWaitSeconds(index = this.state.currentStepIndex) { return this.story.steps.slice(0, index).reduce((sum, step) => sum + (step.action === 'wait' ? step.duration : 0), 0) }
-  private async apply(step: StoryStep, options: { reconstruct?: boolean } = {}) {
-    const quiet = options.reconstruct ? { animateCamera: false } : undefined
-    switch (step.action) {
-      case 'show': return this.operations.showFeature(findProjectFeatureById(this.project, step.id))
-      case 'hide': return this.operations.hideFeature(findProjectFeatureById(this.project, step.id))
-      case 'activate': return this.operations.activateFeature(findProjectFeatureById(this.project, step.id), { ...quiet, durationMs: step.cameraDuration === undefined ? undefined : step.cameraDuration * 1000 })
-      case 'setView': {
-        const controller = new AbortController(); this.cameraAbort?.abort(); this.cameraAbort = controller
-        try { return await this.operations.setView({ center: step.center, zoom: step.zoom, bearing: step.bearing ?? 0, pitch: step.pitch ?? 0 }, { animateCamera: !options.reconstruct, durationMs: (step.duration ?? 1.2) * 1000, signal: controller.signal }) }
-        finally { if (this.cameraAbort === controller) this.cameraAbort = undefined }
-      }
-      case 'deactivate': return this.operations.deactivateFeature()
-      case 'setBasemap': return this.operations.setBasemap(step.value)
-      case 'setOverlay': return this.operations.setOverlayVisibility(step.layer, step.visible)
-      case 'setDarkMode': return this.operations.setDarkMode(step.value)
-      case 'setDarkBasemap': return this.operations.setManualDarkBasemap(step.value)
-      case 'selectJurisdiction': return this.operations.selectJurisdiction(step.id, quiet)
-      case 'clearJurisdiction': return this.operations.clearJurisdiction()
-      case 'wait': return
-    }
+  getDuration = () => this.timeline.durationMs / 1000
+  getTime = () => this.state.elapsedSeconds
+  waitForRender = () => this.operations.waitForRender?.() ?? Promise.resolve()
+  private emit() { this.state.currentStep = this.story.steps[this.state.currentStepIndex] ?? null; this.snapshot = { ...this.state }; this.listeners.forEach(listener => listener()) }
+  private indexAt(timeMs: number) { let index = 0; this.timeline.events.forEach(event => { if (event.startMs <= timeMs) index = event.stepIndex }); return index }
+  private stopClock() { if (this.timer !== undefined) this.clock.cancel(this.timer); this.timer = undefined; this.generation += 1 }
+  private setError(error: unknown) { this.stopClock(); this.state.status = 'error'; this.state.error = error instanceof Error ? error.message : String(error); this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-error', { detail: this.state.error })) }
+
+  async seek(seconds: number) {
+    if (!Number.isFinite(seconds)) throw new Error('Story seek time must be a finite number')
+    const frame = evaluateTimeline(this.timeline, seconds * 1000)
+    if (!this.operations.applyStoryFrame) throw new Error('Deterministic Story frame application is unavailable')
+    await this.operations.applyStoryFrame(frame)
+    this.state.elapsedSeconds = frame.timeMs / 1000
+    this.state.currentStepIndex = this.indexAt(frame.timeMs)
+    this.state.error = null
+    if (frame.timeMs >= this.timeline.durationMs && this.timeline.durationMs > 0) this.state.status = 'complete'
+    else if (this.state.status !== 'playing') this.state.status = 'paused'
+    this.emit()
   }
   async play() {
-    if (this.state.status === 'complete' || this.state.status === 'error' || this.state.status === 'playing') return
+    if (this.state.status === 'playing') return
+    if (this.state.status === 'error') return
+    if (this.state.elapsedSeconds * 1000 >= this.timeline.durationMs) await this.seek(0)
     this.state.status = 'playing'; this.emit()
-    try {
-      while (this.state.status === 'playing' && this.state.currentStepIndex < this.story.steps.length) {
-        const step = this.story.steps[this.state.currentStepIndex]
-        if (step.action === 'wait') { await this.runWait(step.duration * 1000); if (this.state.status !== 'playing') return }
-        else { await this.apply(step); if (this.state.status !== 'playing') return }
-        this.state.currentStepIndex++; this.waitRemainingMs = null; this.state.elapsedSeconds = this.completedWaitSeconds(); this.emit()
+    this.playStartedAt = this.clock.now(); this.playStartedStoryMs = this.state.elapsedSeconds * 1000
+    const generation = ++this.generation
+    return new Promise<void>((resolve) => {
+      const tick = async () => {
+        if (generation !== this.generation || this.state.status !== 'playing') { resolve(); return }
+        const target = Math.min(this.timeline.durationMs, this.playStartedStoryMs + this.clock.now() - this.playStartedAt)
+        try { await this.seek(target / 1000) } catch (error) { this.setError(error); resolve(); return }
+        if (target >= this.timeline.durationMs) { this.timer = undefined; this.state.status = 'complete'; this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-complete')); resolve(); return }
+        this.state.status = 'playing'; this.timer = this.clock.schedule(() => { void tick() }, 16)
       }
-      if (this.state.status === 'playing') { this.state.status = 'complete'; this.emit(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-complete')) }
-    } catch (error) { this.setError(error) }
+      void tick()
+    })
   }
-  private runWait(fullMs: number) {
-    const duration = this.waitRemainingMs ?? fullMs; const generation = ++this.generation; this.waitStarted = this.clock.now(); this.waitRemainingMs = duration
-    return new Promise<void>((resolve) => { this.timer = this.clock.schedule(() => { if (generation === this.generation) { this.timer = undefined; this.waitRemainingMs = 0; resolve() } }, duration) })
-  }
-  pause() {
-    if (this.state.status !== 'playing') return
-    if (this.timer !== undefined && this.waitRemainingMs !== null) { const spent = Math.max(0, this.clock.now() - this.waitStarted); this.waitRemainingMs = Math.max(0, this.waitRemainingMs - spent); this.state.elapsedSeconds = this.completedWaitSeconds() + (this.story.steps[this.state.currentStepIndex]?.action === 'wait' ? (this.story.steps[this.state.currentStepIndex] as {duration:number}).duration - this.waitRemainingMs / 1000 : 0) }
-    this.cancelWait(); this.state.status = 'paused'; this.emit()
-  }
-  async restart() { this.cancelWait(); await this.operations.restore(this.baseline, { animateCamera: false }); this.waitRemainingMs = null; this.state = { ...this.state, status: 'paused', currentStepIndex: 0, elapsedSeconds: 0, error: null }; this.emit() }
-  async next() {
-    this.pause(); if (this.state.status === 'error' || this.state.currentStepIndex >= this.story.steps.length) return
-    try { const step = this.story.steps[this.state.currentStepIndex]; if (step.action !== 'wait') await this.apply(step); this.state.currentStepIndex++; this.waitRemainingMs = null; this.state.elapsedSeconds = this.completedWaitSeconds(); this.state.status = this.state.currentStepIndex >= this.story.steps.length ? 'complete' : 'paused'; this.emit() } catch (error) { this.setError(error) }
-  }
-  async previous() { this.pause(); const target = Math.max(0, this.state.currentStepIndex - 1); await this.replayToStep(target) }
-  async replayToStep(target: number) {
-    this.cancelWait()
-    try { await this.operations.restore(this.baseline, { animateCamera: false }); for (const step of this.story.steps.slice(0, target)) if (step.action !== 'wait') await this.apply(step, { reconstruct: true }); this.state.currentStepIndex = target; this.waitRemainingMs = null; this.state.elapsedSeconds = this.completedWaitSeconds(target); this.state.status = 'paused'; this.state.error = null; this.emit() } catch (error) { this.setError(error) }
-  }
-  async previewStep(index: number) { this.pause(); const step = this.story.steps[index]; if (!step || step.action === 'wait') return; try { await this.apply(step) } catch (error) { this.setError(error) } }
+  pause() { if (this.state.status !== 'playing') return; this.stopClock(); this.state.status = 'paused'; this.emit() }
+  async restart() { this.stopClock(); this.state.status = 'paused'; await this.seek(0) }
+  async next() { this.pause(); const index = Math.min(this.story.steps.length - 1, this.state.currentStepIndex + 1); await this.seek((this.timeline.stepBoundariesMs[index] ?? this.timeline.durationMs) / 1000); this.state.currentStepIndex = index; this.emit() }
+  async previous() { this.pause(); const index = Math.max(0, this.state.currentStepIndex - 1); await this.seek((this.timeline.stepBoundariesMs[index] ?? 0) / 1000); this.state.currentStepIndex = index; this.emit() }
+  async replayToStep(index: number) { this.pause(); await this.seek((this.timeline.stepBoundariesMs[Math.max(0, Math.min(index, this.story.steps.length - 1))] ?? 0) / 1000) }
+  async previewStep(index: number) { await this.replayToStep(index) }
   async playFrom(index: number) { await this.replayToStep(index); await this.play() }
-  dispose() { this.cancelWait(); this.listeners.clear() }
+  dispose() { this.stopClock(); this.listeners.clear() }
 }

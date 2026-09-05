@@ -9,6 +9,8 @@ import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, ROAD_LA
 import { annotationTextSize } from './presentationScale'
 import { clipFeaturesOutsideReveal, type RevealCircle } from './revealArea'
 import { buildLineLabelAnchors, type LineLabelPresentation } from './lineLabelPlacement'
+import { easeOutCubic } from '../story/storyEasing'
+import { FEATURE_REVEAL_DURATION_MS } from '../story/storyTimeline'
 
 export const FALLBACK_RAIL_COLOR = railColors.fallbackColor
 export const RETAINED_LINE_COLOR = '#7B8589'
@@ -81,7 +83,7 @@ function clipRingAtLongitude(ring: Position[], limit: number): Position[] {
   return output
 }
 
-function partialFeature(feature: EntityFeature, progress: number): EntityFeature {
+export function partialFeature(feature: EntityFeature, progress: number): EntityFeature {
   if (feature.geometry.type === 'LineString') {
     return { ...feature, geometry: { ...feature.geometry, coordinates: linePrefix(feature.geometry.coordinates, progress) } }
   }
@@ -145,10 +147,9 @@ function revealFeature(map: maplibregl.Map, features: EntityFeature[], feature: 
   if (previous !== undefined) cancelAnimationFrame(previous)
   const source = map.getSource(SOURCE_IDS.highlight) as GeoJSONSource
   const started = performance.now()
-  const duration = 1250
   const frame = (now: number) => {
-    const linearProgress = Math.min((now - started) / duration, 1)
-    const easedProgress = 1 - Math.pow(1 - linearProgress, 3)
+    const linearProgress = Math.min((now - started) / FEATURE_REVEAL_DURATION_MS, 1)
+    const easedProgress = easeOutCubic(linearProgress)
     const frameFeatures = features.map((candidate) => candidate.properties.id === feature.properties.id ? partialFeature(candidate, Math.max(easedProgress, 0.002)) : candidate)
     source.setData(collection(frameFeatures))
     if (linearProgress < 1) activeAnimations.set(map, requestAnimationFrame(frame))
@@ -169,14 +170,15 @@ export function markActiveLine(features: EntityFeature[], activeFeature: EntityF
   })
 }
 
-export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', revealTarget?: EntityFeature, animate = false, revealCircle?:RevealCircle, cameraDuration = 900): void {
+export function selectFeatures(map: maplibregl.Map, features: EntityFeature[], roadSources: RoadSourceVisibility, activeFeature: EntityFeature | null, selectionMode: SelectionMode = 'multi', revealTarget?: EntityFeature, animate = false, revealCircle?:RevealCircle, cameraDuration = 900, explicitRevealProgress?: number): void {
   const previous = activeAnimations.get(map)
   if (previous !== undefined) cancelAnimationFrame(previous)
   const rendered=clipFeaturesOutsideReveal(map,features,revealCircle)
   const { primary, osm } = splitRoadSourceFeatures(markActiveLine(rendered, activeFeature, selectionMode), roadSources)
   updateSelectedPointFilters(map, primary)
   const revealFocus = revealTarget && primary.find((feature) => feature.properties.id === revealTarget.properties.id)
-  if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
+  if (revealFocus && explicitRevealProgress !== undefined) (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary.map(feature => feature.properties.id === revealFocus.properties.id ? partialFeature(feature, Math.max(explicitRevealProgress, 0.002)) : feature)))
+  else if (revealFocus && animate && (revealFocus.geometry.type === 'LineString' || revealFocus.geometry.type === 'MultiLineString' || revealFocus.geometry.type === 'Polygon')) revealFeature(map, primary, revealFocus)
   else (map.getSource(SOURCE_IDS.highlight) as GeoJSONSource).setData(collection(primary))
   ;(map.getSource(SOURCE_IDS.highlightOsm) as GeoJSONSource).setData(collection(osm))
 
