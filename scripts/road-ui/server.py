@@ -34,6 +34,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, road_ui.metadata())
             if route == ["api", "roads"]:
                 return self._send(200, {"roads": road_ui.list_roads(road_ui.REGISTRY)})
+            if route == ["api", "locations"]:
+                return self._send(200, {"locations": road_ui.list_locations(road_ui.LOCATION_REGISTRY)})
             if route == ["api", "projects"]:
                 return self._send(200, {"projects": road_ui.list_projects()})
             if route == ["api", "project-catalog"]:
@@ -48,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"referencedByProjects": road_ui.project_references(route[2])})
             if len(route) == 3 and route[:2] == ["api", "roads"]:
                 return self._send(200, {"road": road_ui.get_road(road_ui.REGISTRY, route[2])})
+            if len(route) == 3 and route[:2] == ["api", "locations"]:
+                return self._send(200, {"location": road_ui.get_location(road_ui.LOCATION_REGISTRY, route[2])})
             self._send(404, {"error": {"message": "Not found"}})
         except Exception as error:  # local developer boundary
             self._send(400, {"error": {"type": type(error).__name__, "message": str(error)}})
@@ -79,6 +83,12 @@ class Handler(BaseHTTPRequestHandler):
                 result = road_ui.start_connect_job(route[3], body.get("manualSelection", {}), body["road"])
             elif route == ["api", "roads"] and method == "POST":
                 result = {"road": road_ui.save_road(road_ui.REGISTRY, body["road"])}
+            elif route == ["api", "locations"] and method == "POST":
+                result = {"location": road_ui.save_location(road_ui.LOCATION_REGISTRY, body["location"])}
+            elif len(route) == 3 and route[:2] == ["api", "locations"] and method == "PUT":
+                result = {"location": road_ui.save_location(road_ui.LOCATION_REGISTRY, body["location"], route[2])}
+            elif len(route) == 3 and route[:2] == ["api", "locations"] and method == "DELETE":
+                result = {"location": road_ui.delete_location(road_ui.LOCATION_REGISTRY, route[2])}
             elif len(route) == 3 and route[:2] == ["api", "roads"] and method == "PUT":
                 result = {"road": road_ui.save_road(road_ui.REGISTRY, body["road"], route[2])}
             elif len(route) == 4 and route[:2] == ["api", "roads"] and route[3] == "build":

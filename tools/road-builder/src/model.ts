@@ -1,7 +1,6 @@
 export type ManualSelection={include:string[];exclude:string[]}
-export type RoadLocation={id:string;name:string;coordinates:[number,number];presentationType:'reveal-area';revealRadiusPx:number}
-export type Road={id:string;displayName:string;entityType:'named-road'|'statutory-road';presentationType:'road'|'historical-road';jurisdiction:string;aliases:string[];locations:RoadLocation[];reference:{type:string;names?:string[];tags?:string[];ref?:string;network?:string;excludeNames?:string[];excludeNameTags?:string[];[key:string]:unknown};n13:{classifications:string[]};matching:Record<string,number>;networkSelection?:Record<string,number>;manualSelection?:ManualSelection;manualSelectionN13Fingerprint?:string;[key:string]:unknown}
-export const emptyRoad=():Road=>({id:'',displayName:'',entityType:'named-road',presentationType:'road',jurisdiction:'Tokyo',aliases:[],locations:[],reference:{type:'osm-name',names:[],tags:['name','name:ja','name:en','alt_name']},n13:{classifications:[]},matching:{sampleIntervalMeters:5,maximumMedianResidualMeters:20,maximumP90ResidualMeters:25,coverageToleranceMeters:25}})
+export type Road={id:string;displayName:string;entityType:'named-road'|'statutory-road';presentationType:'road'|'historical-road';jurisdiction:string;aliases:string[];reference:{type:string;names?:string[];tags?:string[];ref?:string;network?:string;excludeNames?:string[];excludeNameTags?:string[];[key:string]:unknown};n13:{classifications:string[]};matching:Record<string,number>;networkSelection?:Record<string,number>;manualSelection?:ManualSelection;manualSelectionN13Fingerprint?:string;[key:string]:unknown}
+export const emptyRoad=():Road=>({id:'',displayName:'',entityType:'named-road',presentationType:'road',jurisdiction:'Tokyo',aliases:[],reference:{type:'osm-name',names:[],tags:['name','name:ja','name:en','alt_name']},n13:{classifications:[]},matching:{sampleIntervalMeters:5,maximumMedianResidualMeters:20,maximumP90ResidualMeters:25,coverageToleranceMeters:25}})
 export const uniqueAdd=(values:string[],value:string)=>value.trim()&&!values.includes(value.trim())?[...values,value.trim()]:values
 export const removeAt=(values:string[],index:number)=>values.filter((_,i)=>i!==index)
 export const toggle=(values:string[],value:string)=>values.includes(value)?values.filter(v=>v!==value):[...values,value]
@@ -192,3 +191,5 @@ export const deletionConfirmation=(road:Pick<Road,'id'|'displayName'>,references
   return `Delete ${road.displayName}?\n${road.id}\n\nThis will remove the registered road and its generated road-specific outputs. Shared N13/OSM source datasets will not be deleted.${used}`
 }
 export const deletionApiPaths=(registeredId:string)=>({references:`/api/roads/${registeredId}/references`,delete:`/api/roads/${registeredId}`})
+export type AuthoredLocation={id:string;displayName:string;coordinates:[number,number];presentationType:'reveal-area';revealRadiusPx:number}
+export const emptyLocation=():AuthoredLocation=>({id:'',displayName:'',coordinates:[139.7,35.69],presentationType:'reveal-area',revealRadiusPx:120})

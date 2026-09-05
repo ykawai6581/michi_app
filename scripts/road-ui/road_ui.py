@@ -24,6 +24,8 @@ PREPROCESS = ROOT / "scripts/preprocess"
 sys.path.insert(0, str(PREPROCESS))
 from road_registry import (N13_CLASS_LABELS, SUPPORTED_N13_CLASSES, get_road,  # noqa: E402
                            delete_road as delete_registry_road, list_roads, save_road, validate_road)
+from location_registry import (delete_location, get_location, list_locations,  # noqa: E402
+                               save_location, validate_location)
 
 
 def _module(name: str, filename: str):
@@ -37,6 +39,7 @@ def _module(name: str, filename: str):
 MATCHER = _module("road_builder_matcher", "match-road.py")
 PREPROCESSOR = _module("road_builder_preprocessor", "preprocess-n13.py")
 REGISTRY = ROOT / "data/roads/registry.json"
+LOCATION_REGISTRY = ROOT / "data/locations/registry.json"
 SOURCES = ROOT / "data/roads/sources.json"
 PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 PREVIEW_CACHE = ROOT / "data/cache/road-builder/previews"
@@ -142,7 +145,7 @@ def project_catalog(root: Path = ROOT) -> dict:
                           for item in json.loads(codh_index.read_text(encoding="utf-8"))]
         except (OSError, json.JSONDecodeError, TypeError):
             historical = []
-    return {"modernRoads": roads, "historicalRoutes": historical,
+    return {"modernRoads": roads, "locations": list_locations(root / "data/locations/registry.json"), "historicalRoutes": historical,
             "availability": {
                 "codh": {"ready": codh_index.is_file(), "command": "python scripts/preprocess/preprocess-codh.py"},
                 "rail": {"ready": all(path.is_file() for path in rail_paths), "command": "python scripts/preprocess/preprocess-rail.py"},
@@ -292,7 +295,6 @@ def draft_hash(draft: dict) -> str:
     normalized.pop("manualSelection", None)
     normalized.pop("manualSelectionN13Fingerprint", None)
     normalized.pop("presentationType", None)
-    normalized.pop("locations", None)
     payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()
 

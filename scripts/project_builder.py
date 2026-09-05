@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-SUPPORTED_LAYERS = {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}
+SUPPORTED_LAYERS = {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts", "locations"}
 OUTPUTS = {
     "modernRoads": "data/modern-roads.geojson", "railways": "data/railways.geojson",
     "railwayRoutes": "data/railway-routes.geojson",
@@ -171,11 +171,13 @@ def select_modern_roads(root: Path, ids: list[str]) -> list[dict]:
         result.extend(features)
     return result
 
-def select_road_locations(root: Path, ids: list[str]) -> list[dict]:
-    registry = json.loads((root / "data/roads/registry.json").read_text(encoding="utf-8"))
-    entries = {road["id"]: road for road in registry.get("roads", [])}
-    return [{"type":"Feature", "properties":{"id":f"location:{road_id}:{location['id']}", "name":location["name"], "type":"place", "presentationType":"reveal-area", "revealRadiusPx":location["revealRadiusPx"], "roadId":road_id, "sourceType":"canonical-road-location"}, "geometry":{"type":"Point", "coordinates":location["coordinates"]}}
-            for road_id in ids for location in entries.get(road_id, {}).get("locations", [])]
+def select_locations(root: Path, ids: list[str]) -> list[dict]:
+    path=root / "data/locations/registry.json"
+    entries={location["id"]:location for location in (json.loads(path.read_text(encoding="utf-8")).get("locations",[]) if path.exists() else [])}
+    missing=[location_id for location_id in ids if location_id not in entries]
+    if missing: raise ProjectBuildError(f"Unknown canonical location: {', '.join(missing)}")
+    return [{"type":"Feature", "properties":{"id":f"location:{location_id}", "name":location["displayName"], "type":"place", "presentationType":"reveal-area", "revealRadiusPx":location["revealRadiusPx"], "sourceType":"canonical-location"}, "geometry":{"type":"Point", "coordinates":location["coordinates"]}}
+            for location_id in ids for location in [entries[location_id]]]
 
 def select_bbox_features(path: Path, bounds: list[float]) -> list[dict]: return _read_parquet(path, bbox=tuple(bounds))
 
@@ -302,7 +304,7 @@ def materialize_project(root: Path, project_id: str, output_root: Path | None = 
     config = load_project_config(root, project_id); layers = config["layers"]
     features: dict[str, list[dict]] = {}
     builder_roads = select_modern_roads(root, layers.get("modernRoads", []))
-    features["locations"] = select_road_locations(root, layers.get("modernRoads", []))
+    features["locations"] = select_locations(root, layers.get("locations", []))
     custom_historical = [feature for feature in builder_roads if feature["properties"]["type"] == "historical-road"]
     if "modernRoads" in layers:
         features["modernRoads"] = [feature for feature in builder_roads if feature["properties"]["type"] == "road"]

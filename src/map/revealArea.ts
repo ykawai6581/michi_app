@@ -4,6 +4,10 @@ import type {EntityFeature} from '../types/geo'
 type Pixel={x:number;y:number}
 export type ScreenProjection={project:(coordinate:[number,number])=>Pixel;unproject:(pixel:[number,number])=>{lng:number;lat:number};getCanvas:()=>{clientWidth:number;clientHeight:number}}
 export type RevealCircle={coordinate:[number,number];radius:number}
+export const REVEAL_CLIP_SAFETY_MARGIN_PX=10
+export const REVEAL_RIM_WIDTH_PX=7
+export const REVEAL_RIM_COLOR='#737B7E'
+export const REVEAL_RIM_OPACITY=0.85
 const empty=():FeatureCollection=>({type:'FeatureCollection',features:[]})
 const position=(value:{lng:number;lat:number}):Position=>[value.lng,value.lat]
 const distance2=(a:Pixel,b:Pixel)=>(a.x-b.x)**2+(a.y-b.y)**2
@@ -20,6 +24,13 @@ export function buildRevealMask(map:ScreenProjection,reveal?:RevealCircle,steps=
   // Clockwise screen sampling becomes the opposite winding of the exterior in geographic space.
   const hole=Array.from({length:steps+1},(_,index)=>{const angle=-2*Math.PI*index/steps;return position(map.unproject([center.x+reveal.radius*Math.cos(angle),center.y+reveal.radius*Math.sin(angle)]))})
   return{type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[outer,hole]}}]}
+}
+
+export function buildRevealRim(map:ScreenProjection,reveal?:RevealCircle,steps=64):FeatureCollection{
+  if(!reveal)return empty()
+  const center=map.project(reveal.coordinate),radius=reveal.radius-REVEAL_RIM_WIDTH_PX/2
+  const coordinates=Array.from({length:steps+1},(_,index)=>{const angle=2*Math.PI*index/steps;return position(map.unproject([center.x+radius*Math.cos(angle),center.y+radius*Math.sin(angle)]))})
+  return{type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:{type:'LineString',coordinates}}]}
 }
 
 function clipLine(map:ScreenProjection,line:Position[],circle:RevealCircle):Position[][]{
@@ -47,7 +58,8 @@ export function clipFeaturesOutsideReveal(map:ScreenProjection,features:EntityFe
     if(feature.geometry.type==='Point')return distance2(map.project(feature.geometry.coordinates as [number,number]),center)<circle.radius**2?[]:[feature]
     const lines=feature.geometry.type==='LineString'?[feature.geometry.coordinates]:feature.geometry.type==='MultiLineString'?feature.geometry.coordinates:null
     if(!lines)return[feature]
-    const pieces=lines.flatMap(line=>clipLine(map,line,circle));if(!pieces.length)return[]
+    const lineCircle={...circle,radius:circle.radius+REVEAL_CLIP_SAFETY_MARGIN_PX}
+    const pieces=lines.flatMap(line=>clipLine(map,line,lineCircle));if(!pieces.length)return[]
     const geometry:Geometry=pieces.length===1?{type:'LineString',coordinates:pieces[0]}:{type:'MultiLineString',coordinates:pieces}
     return[{...feature,geometry}]
   })

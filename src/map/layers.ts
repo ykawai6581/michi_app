@@ -5,6 +5,7 @@ import { LAYER_IDS, SOURCE_IDS } from './config'
 import type { ProjectData } from '../data/project'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, HISTORICAL_ROAD_LABEL_COLOR, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR, ROAD_LABEL_COLOR, ROAD_LABEL_HALO_COLOR, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { lineColorExpression, sceneLineColorExpression } from './highlight'
+import { REVEAL_RIM_COLOR,REVEAL_RIM_OPACITY,REVEAL_RIM_WIDTH_PX } from './revealArea'
 import { annotationTextSize, BASE_LINE_LABEL_SIZE_LARGE } from './presentationScale'
 import { POINT_ICON_IDS, pointIconSize } from './pointIcons'
 
@@ -40,6 +41,7 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   })
   map.addLayer({ id: LAYER_IDS.gsiBase, type: 'raster', source: SOURCE_IDS.gsiBase, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.72, 'raster-saturation': -0.75, 'raster-contrast': -0.12, 'raster-brightness-max': 0.96 } })
   map.addSource(SOURCE_IDS.revealMask,{type:'geojson',data:empty})
+  map.addSource(SOURCE_IDS.revealRim,{type:'geojson',data:empty})
   map.addLayer({id:LAYER_IDS.revealMask,type:'fill',source:SOURCE_IDS.revealMask,paint:{'fill-color':'#06151d','fill-opacity':0.68}})
   map.addSource(SOURCE_IDS.jurisdictions,{type:'geojson',data:empty})
   map.addSource(SOURCE_IDS.jurisdictionHighlight,{type:'geojson',data:empty})
@@ -77,6 +79,7 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({id:LAYER_IDS.jurisdictionHighlightLabel,type:'symbol',source:SOURCE_IDS.jurisdictionHighlightLabel,layout:{'text-field':['format',['case',['has','parent'],['concat',['get','parent'],'\n'],''],{'font-scale':0.7},['get','primary'],{'font-scale':1}],'text-size':28,'text-font':['Noto Sans Regular'],'text-anchor':'center','text-variable-anchor':['center','top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'],'text-radial-offset':1.15,'text-padding':4,'text-allow-overlap':false,'text-ignore-placement':false},paint:{'text-color':'#000000','text-halo-color':'#FFFFFF','text-halo-width':2.5,'text-opacity':0,'text-opacity-transition':{'duration':0,'delay':0}}})
   map.addLayer({ id: LAYER_IDS.selectedShukubaSymbol, type: 'symbol', source: SOURCE_IDS.highlight, filter: selectedShukubaFilter, layout: pointSymbolLayout(POINT_ICON_IDS.historicalPosts,2.5), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
   map.addLayer({ id: LAYER_IDS.selectedStationSymbol, type: 'symbol', source: SOURCE_IDS.highlight, filter: selectedStationFilter, layout: pointSymbolLayout(POINT_ICON_IDS.stations,2), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
+  map.addLayer({id:LAYER_IDS.revealRim,type:'line',source:SOURCE_IDS.revealRim,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':REVEAL_RIM_COLOR,'line-width':REVEAL_RIM_WIDTH_PX,'line-opacity':REVEAL_RIM_OPACITY}})
   // Point symbols follow active annotations in placement order, so collisions
   // hide the lower-priority station/shukuba rather than the annotation.
   map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'symbol', source: SOURCE_IDS.historicalPosts, layout: pointSymbolLayout(POINT_ICON_IDS.historicalPosts,2.5), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })

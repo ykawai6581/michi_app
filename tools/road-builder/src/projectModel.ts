@@ -1,11 +1,11 @@
 export const projectIdPattern=/^[a-z0-9][a-z0-9-]*$/
 export type Bounds={mode:'auto';from:'modernRoads';paddingKm:number}|[number,number,number,number]
-export type ProjectConfig={id:string;displayName:string;bounds:Bounds;layers:{modernRoads?:string[];railways?:{mode:'bbox'}|{mode:'near-modern-roads';distanceKm:number};stations?:{mode:'bbox'};historicalRoads?:string[];historicalPosts?:string[]}}
-export type ProjectLayer='modernRoads'|'railways'|'stations'|'historicalRoads'|'historicalPosts'
+export type ProjectConfig={id:string;displayName:string;bounds:Bounds;layers:{modernRoads?:string[];locations?:string[];railways?:{mode:'bbox'}|{mode:'near-modern-roads';distanceKm:number};stations?:{mode:'bbox'};historicalRoads?:string[];historicalPosts?:string[]}}
+export type ProjectLayer='modernRoads'|'railways'|'stations'|'historicalRoads'|'historicalPosts'|'locations'
 export type ProjectVisibility=Record<ProjectLayer,boolean>
 
-export const emptyProject=():ProjectConfig=>({id:'',displayName:'',bounds:{mode:'auto',from:'modernRoads',paddingKm:3},layers:{modernRoads:[],historicalRoads:[],historicalPosts:[]}})
-export const initialProjectVisibility=():ProjectVisibility=>({modernRoads:true,railways:true,stations:true,historicalRoads:true,historicalPosts:true})
+export const emptyProject=():ProjectConfig=>({id:'',displayName:'',bounds:{mode:'auto',from:'modernRoads',paddingKm:3},layers:{modernRoads:[],locations:[],historicalRoads:[],historicalPosts:[]}})
+export const initialProjectVisibility=():ProjectVisibility=>({modernRoads:true,railways:true,stations:true,historicalRoads:true,historicalPosts:true,locations:true})
 export function toggleProjectLayer(project:ProjectConfig,family:ProjectLayer,value?:string):ProjectConfig{
   const layers={...project.layers}
   if(family==='railways')layers[family]=layers[family]?undefined:{mode:'near-modern-roads',distanceKm:3}

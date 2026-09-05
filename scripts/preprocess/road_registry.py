@@ -7,7 +7,6 @@ import json
 import os
 import re
 import tempfile
-import math
 from pathlib import Path
 
 SUPPORTED_N13_CLASSES = {"1", "2", "3", "4", "5", "6"}
@@ -38,7 +37,6 @@ def list_roads(path: Path) -> list[dict]:
     roads = copy.deepcopy(load_registry(path).get("roads", []))
     for road in roads:
         road.setdefault("presentationType", "road")
-        road.setdefault("locations", [])
     return roads
 
 
@@ -54,6 +52,7 @@ def validate_road(value: dict) -> dict:
     if not isinstance(value, dict):
         raise ValueError("Road must be a JSON object")
     road = copy.deepcopy(value)
+    road.pop("locations", None)  # obsolete road-owned presentation metadata
     road_id = str(road.get("id", "")).strip()
     entity_type = road.get("entityType")
     presentation_type = road.get("presentationType", "road")
@@ -72,26 +71,6 @@ def validate_road(value: dict) -> dict:
     road["displayName"] = str(road["displayName"]).strip()
     road["jurisdiction"] = str(road.get("jurisdiction", "")).strip()
     road["aliases"] = _unique(road.get("aliases", []))
-    locations = road.get("locations", [])
-    if not isinstance(locations, list):
-        raise ValueError("locations must be an array")
-    normalized_locations = []
-    seen_location_ids = set()
-    for location in locations:
-        if not isinstance(location, dict): raise ValueError("each location must be an object")
-        location_id, name = str(location.get("id", "")).strip(), str(location.get("name", "")).strip()
-        coordinates, radius = location.get("coordinates"), location.get("revealRadiusPx")
-        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", location_id): raise ValueError("location id must contain lowercase letters, numbers, and hyphens")
-        if location_id in seen_location_ids: raise ValueError(f"duplicate location id {location_id!r}")
-        if not name: raise ValueError("location name is required")
-        if location.get("presentationType") != "reveal-area": raise ValueError("location presentationType must be reveal-area")
-        if not isinstance(coordinates, list) or len(coordinates) != 2 or any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) for value in coordinates): raise ValueError("location coordinates must be finite [longitude, latitude]")
-        if not -180 <= coordinates[0] <= 180: raise ValueError("location longitude must be between -180 and 180")
-        if not -90 <= coordinates[1] <= 90: raise ValueError("location latitude must be between -90 and 90")
-        if isinstance(radius, bool) or not isinstance(radius, (int, float)) or not math.isfinite(radius) or not 40 <= radius <= 300: raise ValueError("location revealRadiusPx must be between 40 and 300")
-        seen_location_ids.add(location_id)
-        normalized_locations.append({**location, "id": location_id, "name": name, "coordinates": [float(coordinates[0]), float(coordinates[1])], "presentationType": "reveal-area", "revealRadiusPx": radius})
-    road["locations"] = normalized_locations
     n13 = road.setdefault("n13", {})
     classes = _unique(n13.get("classifications", []))
     unsupported = set(classes) - SUPPORTED_N13_CLASSES

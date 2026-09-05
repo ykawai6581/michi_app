@@ -1,10 +1,5 @@
-import type {Road,RoadLocation} from './model'
+import type {Road} from './model'
 
 export function MapClassificationField({value,onChange}:{value:Road['presentationType'];onChange:(value:Road['presentationType'])=>void}){
   return <fieldset><legend>Map classification</legend><label className="inline"><input type="radio" checked={value==='road'} onChange={()=>onChange('road')}/>Modern road</label><label className="inline"><input type="radio" checked={value==='historical-road'} onChange={()=>onChange('historical-road')}/>歴史街道</label></fieldset>
-}
-
-export function LocationsField({locations,pickingId,onChange,onPick}:{locations:RoadLocation[];pickingId?:string;onChange:(value:RoadLocation[])=>void;onPick:(id:string)=>void}){
-  const update=(index:number,patch:Partial<RoadLocation>)=>onChange(locations.map((location,i)=>i===index?{...location,...patch}:location))
-  return <fieldset className="locations"><legend>Locations</legend>{locations.map((location,index)=><article key={`${location.id}-${index}`}><b>Reveal area</b><label>ID<input value={location.id} onChange={event=>update(index,{id:event.target.value})}/></label><label>Name<input value={location.name} onChange={event=>update(index,{name:event.target.value})}/></label><label>Longitude<input type="number" step="any" value={location.coordinates[0]} onChange={event=>update(index,{coordinates:[Number(event.target.value),location.coordinates[1]]})}/></label><label>Latitude<input type="number" step="any" value={location.coordinates[1]} onChange={event=>update(index,{coordinates:[location.coordinates[0],Number(event.target.value)]})}/></label><label>Reveal radius (px)<input type="number" min="40" max="300" value={location.revealRadiusPx} onChange={event=>update(index,{revealRadiusPx:Number(event.target.value)})}/></label><button type="button" className={pickingId===location.id?'active':''} onClick={()=>onPick(location.id)}>{pickingId===location.id?'Click map…':'Pick on map'}</button><button type="button" className="destructive" onClick={()=>onChange(locations.filter((_,i)=>i!==index))}>Delete</button></article>)}<button type="button" onClick={()=>onChange([...locations,{id:`location-${locations.length+1}`,name:'',coordinates:[139.7,35.69],presentationType:'reveal-area',revealRadiusPx:120}])}>+ Add location</button></fieldset>
 }
