@@ -6,12 +6,21 @@ import type { ProjectData } from '../data/project'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR, ROAD_LABEL_COLOR, ROAD_LABEL_HALO_COLOR, ROAD_LABEL_HALO_WIDTH } from './highlightDefaults'
 import { lineColorExpression, sceneLineColorExpression } from './highlight'
 import { BASE_LINE_LABEL_SIZE_LARGE } from './presentationScale'
+import { POINT_ICON_IDS, pointIconSize } from './pointIcons'
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export const SELECTED_POINT_RADIUS = 10
 export const ACTIVE_LINE_SHADOW_COLOR = '#081218'
 export const ACTIVE_LINE_SHADOW_BLUR = 4.5
 export const ACTIVE_LINE_SHADOW_OPACITY = 0
+export const POINT_LABEL_SIZE = 14
+export const pointLabelOffset = (radius: number): [number, number] => [pointIconSize(radius) / 2 / POINT_LABEL_SIZE + 0.35, 0]
+const selectedStandalonePointFilter: maplibregl.ExpressionSpecification = ['all',['==',['geometry-type'],'Point'],['!',['any',['==',['get','type'],'station'],['has','postId']]]]
+const pointSymbolLayout = (iconImage: string, radius: number): maplibregl.SymbolLayerSpecification['layout'] => ({
+  'icon-image':iconImage,'icon-size':pointIconSize(radius),'icon-allow-overlap':false,'icon-ignore-placement':false,'icon-optional':false,
+  'text-field':['get','name'],'text-size':POINT_LABEL_SIZE,'text-font':['Noto Sans Regular'],'text-anchor':'left','text-justify':'left','text-offset':pointLabelOffset(radius),
+  'text-allow-overlap':false,'text-ignore-placement':false,'text-optional':false,
+})
 export function getPresentationLayerIds(map: maplibregl.Map): string[] {
   return map.getStyle().layers.map((layer) => layer.id)
 }
@@ -47,8 +56,6 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.historicalRoads, type: 'line', source: SOURCE_IDS.historicalRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#a06d31','line-width':4,'line-opacity':0.9,'line-dasharray':[2,1] } })
   map.addLayer({ id: LAYER_IDS.railways, type: 'line', source: SOURCE_IDS.railways, paint: { 'line-color':'#31383c','line-width':2,'line-opacity':0.8 } })
   map.addLayer({ id: LAYER_IDS.modernRoads, type: 'line', source: SOURCE_IDS.modernRoads, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#8b9498','line-width':5,'line-opacity':0.8 } })
-  map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'circle', source: SOURCE_IDS.historicalPosts, paint: { 'circle-color':'#b06e3b','circle-radius':2.5,'circle-stroke-color':'#fff','circle-stroke-width':0.5 } })
-  map.addLayer({ id: LAYER_IDS.stations, type: 'circle', source: SOURCE_IDS.stations, paint: { 'circle-color':'#42697b','circle-radius':2,'circle-stroke-color':'#fff','circle-stroke-width':0.5 } })
   map.addLayer({id:LAYER_IDS.jurisdictionDim,type:'fill',source:SOURCE_IDS.jurisdictions,paint:{'fill-color':'#06151d','fill-opacity':0},filter:['==',['literal',false],true]})
   map.addLayer({ id: LAYER_IDS.highlightFill, type: 'fill', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Polygon'], paint: { 'fill-color':REGION_HIGHLIGHT_COLOR,'fill-opacity':0.35 } })
   map.addLayer({ id: LAYER_IDS.highlightRegionGlow, type: 'line', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Polygon'], layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':REGION_HIGHLIGHT_COLOR,'line-width':['+', ['*', 7, ['coalesce', ['get', 'illustrationWidthScale'], 1]], 7],'line-opacity':0.65,'line-blur':4 } })
@@ -60,10 +67,14 @@ export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
   map.addLayer({ id: LAYER_IDS.highlightLineOutline, type: 'line', source: SOURCE_IDS.highlight, filter: activeLineFilter, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':'#FFFFFF','line-width':['+',activeCoreWidth,ACTIVE_LINE_CASING_EXTRA_WIDTH],'line-opacity':1 } })
   map.addLayer({ id: LAYER_IDS.highlightLineActive, type: 'line', source: SOURCE_IDS.highlight, filter: activeLineFilter, layout: { 'line-cap':'round','line-join':'round' }, paint: { 'line-color':lineColorExpression(ROAD_LABEL_COLOR),'line-width':activeCoreWidth,'line-opacity':1 } })
   map.addLayer({ id: LAYER_IDS.highlightPointGlow, type: 'circle', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Point'], paint: { 'circle-color':'#64c2f2','circle-radius':18,'circle-opacity':0.2 } })
-  map.addLayer({ id: LAYER_IDS.highlightPoint, type: 'circle', source: SOURCE_IDS.highlight, filter: ['==',['geometry-type'],'Point'], paint: { 'circle-color':'#64c2f2','circle-radius':SELECTED_POINT_RADIUS,'circle-opacity':1,'circle-stroke-color':'#fff','circle-stroke-width':3 } })
-  map.addLayer({ id: LAYER_IDS.highlightLineLabels, type: 'symbol', source: SOURCE_IDS.highlightLineLabels, layout: { 'symbol-placement':'point','text-field':['get','name'],'text-allow-overlap':true,'text-ignore-placement':false,'text-size':BASE_LINE_LABEL_SIZE_LARGE,'text-font':['Noto Sans Regular'],'text-rotate':['get','bearing'],'text-rotation-alignment':'map' }, paint: { 'text-color':sceneLineColorExpression(ROAD_LABEL_COLOR),'text-halo-color':ROAD_LABEL_HALO_COLOR,'text-halo-width':ROAD_LABEL_HALO_WIDTH } })
-  map.addLayer({ id: LAYER_IDS.highlightLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['in',['geometry-type'],['literal',['Point','Polygon']]], layout: { 'text-field':['get','name'],'text-size':BASE_LINE_LABEL_SIZE_LARGE,'text-font':['Noto Sans Regular'],'text-offset':['case',['==',['geometry-type'],'Point'],['literal',[0,1.5]],['literal',[0,0]]],'text-anchor':['case',['==',['geometry-type'],'Point'],'top','center'] }, paint: { 'text-color':['match',['geometry-type'],'Polygon',REGION_HIGHLIGHT_COLOR,'#64c2f2'],'text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
+  map.addLayer({ id: LAYER_IDS.highlightPoint, type: 'circle', source: SOURCE_IDS.highlight, filter: selectedStandalonePointFilter, paint: { 'circle-color':'#64c2f2','circle-radius':SELECTED_POINT_RADIUS,'circle-opacity':1,'circle-stroke-color':'#fff','circle-stroke-width':3 } })
+  map.addLayer({ id: LAYER_IDS.highlightLineLabels, type: 'symbol', source: SOURCE_IDS.highlightLineLabels, layout: { 'symbol-placement':'point','text-field':['get','name'],'text-allow-overlap':false,'text-ignore-placement':false,'text-size':BASE_LINE_LABEL_SIZE_LARGE,'text-font':['Noto Sans Regular'],'text-rotate':['get','bearing'],'text-rotation-alignment':'map' }, paint: { 'text-color':sceneLineColorExpression(ROAD_LABEL_COLOR),'text-halo-color':ROAD_LABEL_HALO_COLOR,'text-halo-width':ROAD_LABEL_HALO_WIDTH } })
+  map.addLayer({ id: LAYER_IDS.highlightLabels, type: 'symbol', source: SOURCE_IDS.highlight, filter: ['any',['==',['geometry-type'],'Polygon'],selectedStandalonePointFilter], layout: { 'text-field':['get','name'],'text-size':BASE_LINE_LABEL_SIZE_LARGE,'text-font':['Noto Sans Regular'],'text-offset':['case',['==',['geometry-type'],'Point'],['literal',[0,1.5]],['literal',[0,0]]],'text-anchor':['case',['==',['geometry-type'],'Point'],'top','center'],'text-allow-overlap':false,'text-ignore-placement':false }, paint: { 'text-color':['match',['geometry-type'],'Polygon',REGION_HIGHLIGHT_COLOR,'#64c2f2'],'text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
   map.addLayer({id:LAYER_IDS.jurisdictionHighlightLabel,type:'symbol',source:SOURCE_IDS.jurisdictionHighlightLabel,layout:{'text-field':['format',['case',['has','parent'],['concat',['get','parent'],'\n'],''],{'font-scale':0.7},['get','primary'],{'font-scale':1}],'text-size':28,'text-font':['Noto Sans Regular'],'text-anchor':'center','text-variable-anchor':['center','top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'],'text-radial-offset':1.15,'text-padding':4,'text-allow-overlap':false,'text-ignore-placement':false},paint:{'text-color':'#000000','text-halo-color':'#FFFFFF','text-halo-width':2.5,'text-opacity':0,'text-opacity-transition':{'duration':0,'delay':0}}})
+  // Point symbols follow active annotations in placement order, so collisions
+  // hide the lower-priority station/shukuba rather than the annotation.
+  map.addLayer({ id: LAYER_IDS.historicalPosts, type: 'symbol', source: SOURCE_IDS.historicalPosts, layout: pointSymbolLayout(POINT_ICON_IDS.historicalPosts,2.5), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
+  map.addLayer({ id: LAYER_IDS.stations, type: 'symbol', source: SOURCE_IDS.stations, layout: pointSymbolLayout(POINT_ICON_IDS.stations,2), paint: { 'text-color':'#405963','text-halo-color':'#fff','text-halo-width':ROAD_LABEL_HALO_WIDTH } })
 }
 
 export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentationLayerIds: string[], rekichizuLayerIds: string[] = [], dark = false): void {
@@ -81,8 +92,8 @@ export function setProjectLayerVisibility(map: maplibregl.Map, visibility: Layer
 }
 
 export function updatePointOverlayStyle(map: maplibregl.Map, style: PointOverlayStyle): void {
-  map.setPaintProperty(LAYER_IDS.stations, 'circle-radius', style.stations.radius)
-  map.setPaintProperty(LAYER_IDS.stations, 'circle-color', style.stations.color)
-  map.setPaintProperty(LAYER_IDS.historicalPosts, 'circle-radius', style.historicalPosts.radius)
-  map.setPaintProperty(LAYER_IDS.historicalPosts, 'circle-color', style.historicalPosts.color)
+  map.setLayoutProperty(LAYER_IDS.stations, 'icon-size', pointIconSize(style.stations.radius))
+  map.setLayoutProperty(LAYER_IDS.stations, 'text-offset', pointLabelOffset(style.stations.radius))
+  map.setLayoutProperty(LAYER_IDS.historicalPosts, 'icon-size', pointIconSize(style.historicalPosts.radius))
+  map.setLayoutProperty(LAYER_IDS.historicalPosts, 'text-offset', pointLabelOffset(style.historicalPosts.radius))
 }

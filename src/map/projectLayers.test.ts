@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { LAYER_IDS, SOURCE_IDS } from './config'
-import { ACTIVE_LINE_SHADOW_BLUR, ACTIVE_LINE_SHADOW_COLOR, ACTIVE_LINE_SHADOW_OPACITY, addDataLayers, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
+import { ACTIVE_LINE_SHADOW_BLUR, ACTIVE_LINE_SHADOW_COLOR, ACTIVE_LINE_SHADOW_OPACITY, addDataLayers, pointLabelOffset, SELECTED_POINT_RADIUS, setBasemapMode, setProjectLayerVisibility, updatePointOverlayStyle } from './layers'
 import { initialLayerVisibility, initialPointOverlayStyle } from './overlayState'
 import { lineColorExpression } from './highlight'
 import { ACTIVE_LINE_CASING_EXTRA_WIDTH, ACTIVE_LINE_SHADOW_EXTRA_WIDTH, JURISDICTION_HIGHLIGHT_COLOR, REGION_HIGHLIGHT_COLOR } from './highlightDefaults'
+import { POINT_ICON_IDS, pointIconSize } from './pointIcons'
 
 describe('project map layer contract', () => {
   it('defines independent sources for all project layers', () => {
@@ -16,7 +17,7 @@ describe('project map layer contract', () => {
     addDataLayers(map as never,{collections} as never)
     const layer=layers.find(candidate=>candidate.id===LAYER_IDS.highlightLineLabels) as {source:string;layout:Record<string,unknown>}
     expect(layer.source).toBe(SOURCE_IDS.highlightLineLabels)
-    expect(layer.layout).toMatchObject({'symbol-placement':'point','text-rotate':['get','bearing'],'text-rotation-alignment':'map','text-allow-overlap':true,'text-ignore-placement':true})
+    expect(layer.layout).toMatchObject({'symbol-placement':'point','text-rotate':['get','bearing'],'text-rotation-alignment':'map','text-allow-overlap':false,'text-ignore-placement':false})
     expect(layer.layout).not.toHaveProperty('symbol-spacing')
   })
   it('keeps jurisdiction polygons below roads and its Point label above every road layer',()=>{
@@ -63,6 +64,32 @@ describe('project map layer contract', () => {
   it('defines independently toggleable rendering layers', () => {
     expect([LAYER_IDS.modernRoads,LAYER_IDS.railways,LAYER_IDS.stations,LAYER_IDS.historicalRoads,LAYER_IDS.historicalPosts]).toEqual(['modern-roads','railway-tracks','railway-stations','historical-roads','historical-posts'])
   })
+  it('renders station and shukuba artwork with its right-hand label as one collision-safe symbol',()=>{
+    const layers:Record<string,unknown>[]=[]
+    const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    for(const [id,image] of [[LAYER_IDS.stations,POINT_ICON_IDS.stations],[LAYER_IDS.historicalPosts,POINT_ICON_IDS.historicalPosts]]){
+      const layer=layers.find(candidate=>candidate.id===id) as {type:string;layout:Record<string,unknown>;paint:Record<string,unknown>}
+      expect(layer.type).toBe('symbol')
+      expect(layer.layout).toMatchObject({'icon-image':image,'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-anchor':'left','text-justify':'left','icon-allow-overlap':false,'icon-ignore-placement':false,'text-allow-overlap':false,'text-ignore-placement':false,'icon-optional':false,'text-optional':false})
+      expect((layer.layout['text-offset'] as number[])[0]).toBeGreaterThan(0)
+      expect(layer.paint).not.toHaveProperty('icon-color')
+    }
+    const index=(id:string)=>layers.findIndex(layer=>layer.id===id)
+    expect(index(LAYER_IDS.stations)).toBeGreaterThan(index(LAYER_IDS.highlightLineLabels))
+    expect(index(LAYER_IDS.historicalPosts)).toBeGreaterThan(index(LAYER_IDS.jurisdictionHighlightLabel))
+  })
+  it('suppresses opaque selected dots and duplicate labels for stations and postId features',()=>{
+    const layers:Record<string,unknown>[]=[]
+    const map={addLayer:(layer:Record<string,unknown>)=>layers.push(layer),addSource:()=>undefined}
+    const collections=new Proxy({}, {get:()=>({type:'FeatureCollection',features:[]})})
+    addDataLayers(map as never,{collections} as never)
+    const pointFilter=layers.find(layer=>layer.id===LAYER_IDS.highlightPoint)?.filter
+    const labelFilter=layers.find(layer=>layer.id===LAYER_IDS.highlightLabels)?.filter
+    expect(pointFilter).toContainEqual(['!',['any',['==',['get','type'],'station'],['has','postId']]])
+    expect(labelFilter).toContainEqual(pointFilter)
+  })
   it('updates visibility on layers that are already added', () => {
     const calls: unknown[][] = []; const map = { setLayoutProperty: (...args: unknown[]) => calls.push(args) }
     setProjectLayerVisibility(map as never, { basemap:'presentation', darkBasemap:false, modernRoads:true, railways:false, stations:true, historicalRoads:false, historicalPosts:true, jurisdictions:false })
@@ -91,12 +118,11 @@ describe('project map layer contract', () => {
   it('keeps selected points substantially larger than both base point defaults',()=>{
     const style=initialPointOverlayStyle();expect(SELECTED_POINT_RADIUS).toBeGreaterThan(style.stations.radius*3);expect(SELECTED_POINT_RADIUS).toBeGreaterThan(style.historicalPosts.radius*3)
   })
-  it('updates point radius and color without replacing source data',()=>{
-    const calls:unknown[][]=[];const map={setPaintProperty:(...args:unknown[])=>calls.push(args)}
-    const style=initialPointOverlayStyle();style.stations={radius:3,color:'#112233'};style.historicalPosts={radius:4,color:'#445566'}
+  it('updates icon size and label separation without tinting artwork',()=>{
+    const calls:unknown[][]=[];const map={setLayoutProperty:(...args:unknown[])=>calls.push(args)}
+    const style=initialPointOverlayStyle();style.stations={radius:3};style.historicalPosts={radius:4}
     updatePointOverlayStyle(map as never,style)
-    expect(calls).toContainEqual(['railway-stations','circle-radius',3]);expect(calls).toContainEqual(['railway-stations','circle-color','#112233'])
-    expect(calls).toContainEqual(['historical-posts','circle-radius',4]);expect(calls).toContainEqual(['historical-posts','circle-color','#445566'])
-    expect(Object.keys(map)).not.toContain('getSource')
+    expect(calls).toContainEqual(['railway-stations','icon-size',pointIconSize(3)]);expect(calls).toContainEqual(['railway-stations','text-offset',pointLabelOffset(3)])
+    expect(calls).toContainEqual(['historical-posts','icon-size',pointIconSize(4)]);expect(calls).not.toEqual(expect.arrayContaining([expect.arrayContaining(['icon-color'])]))
   })
 })

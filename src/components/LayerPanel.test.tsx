@@ -28,4 +28,13 @@ describe('LayerPanel', () => {
     expect(markup).not.toContain('aria-label="Dark overlay" type="checkbox" disabled=""')
     expect(markup).toContain('手動で背景を暗く表示')
   })
+
+  it('offers icon sizing without dot wording or PNG color controls', () => {
+    const markup = renderPanel('auto')
+    expect(markup).toContain('Show all')
+    expect(markup).toContain('Icon size')
+    expect(markup).toContain('aria-label="駅 icon size"')
+    expect(markup).not.toContain('dots')
+    expect(markup).not.toContain('type="color"')
+  })
 })

@@ -53,7 +53,7 @@ export type EntityFeature = Feature<Geometry, EntityProperties>
 export interface SceneItem { feature: EntityFeature; visible: boolean; projectBacked?: boolean }
 export interface HighlightStyle { roadColor: string; locationColor: string; regionColor: string; width: number; opacity: number; glow: boolean; animate: boolean; annotationSize: 'normal' | 'large' }
 export interface LayerVisibility { basemap: BasemapMode; darkBasemap: boolean; modernRoads: boolean; railways: boolean; stations: boolean; historicalRoads: boolean; historicalPosts: boolean; jurisdictions: boolean }
-export interface PointOverlayStyle { stations: { radius: number; color: string }; historicalPosts: { radius: number; color: string } }
+export interface PointOverlayStyle { stations: { radius: number }; historicalPosts: { radius: number } }
 export interface RoadSourceVisibility { n13: boolean; osm: boolean }
 export interface CameraState { center: [number, number]; zoom: number; bearing: number; pitch: number }
 export interface SavedView { id: string; name: string; camera: CameraState }
