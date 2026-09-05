@@ -62,23 +62,21 @@
       "label": "日本橋を表示"
     },
     {
-      "action": "activate",
-      "id": "historical-post:R003-001",
-      "label": "日本橋を表示"
-    },
-    {
       "action": "show",
       "id": "historical-post:R003-003",
       "label": "日本橋を表示"
     },
     {
-      "action": "activate",
-      "id": "historical-post:R003-003",
-      "label": "下高井戸を表示"
-    },
-    {
-      "action": "wait",
-      "duration": 2.5
+      "action": "setView",
+      "center": [
+        139.7118840154085,
+        35.67981459218866
+      ],
+      "zoom": 11.207451134760312,
+      "bearing": 0,
+      "pitch": 0,
+      "duration": 3,
+      "label": "Saved view"
     },
     {
       "action": "show",
@@ -86,15 +84,14 @@
       "label": "内藤新宿を表示"
     },
     {
+      "action": "wait",
+      "duration": 3
+    },
+    {
       "action": "activate",
       "id": "historical-post:R003-002",
       "cameraDuration": 1.5,
       "label": "内藤新宿へパン"
-    },
-    {
-      "action": "hide",
-      "id": "historical-road:R003:0",
-      "label": "Hide 甲州道中 again"
     },
     {
       "action": "wait",
@@ -120,7 +117,7 @@
       "zoom": 13.753587286669624,
       "bearing": 0,
       "pitch": 0,
-      "duration": 1.2,
+      "duration": 2.5,
       "label": "Saved view"
     },
     {
@@ -132,10 +129,6 @@
       "action": "show",
       "id": "tokyo-named-ome-kaido-short",
       "label": "青梅街道を表示（カメラ維持）"
-    },
-    {
-      "action": "wait",
-      "duration": 3
     }
   ]
 }

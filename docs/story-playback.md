@@ -52,13 +52,40 @@ shows a compact controller with Play, Pause, Restart, Previous, and Next.
 
 Add `autoplay=1` to play after project, map, layers, and icons are ready. Add
 `capture=1` for the unchanged 16:9 scene without sidebar, controls, or chrome;
-capture implies autoplay.
+capture implies autoplay for backward compatibility. Use `capture=1&autoplay=0`
+when an external caller controls time, or add `t=12.4` to open at one frame.
 
 For development and future capture automation, `window.__michiStory` exposes
-`play`, `pause`, `restart`, `next`, `previous`, and `getState`. The browser also
-dispatches `michi:story-ready`, `michi:story-complete`, and
-`michi:story-error`. Phase 1 deliberately has no seek, arbitrary camera, audio,
-or deterministic frame-rendering commands.
+`play`, `pause`, `restart`, `next`, `previous`, `seek`, `waitForRender`,
+`getDuration`, `getTime`, and `getState`. The browser also dispatches
+`michi:story-ready`, `michi:story-complete`, and `michi:story-error`.
+
+## Deterministic timeline and seeking
+
+Playback has three separate layers: ordered authored JSON is compiled into an
+immutable millisecond timeline, the timeline is evaluated at an absolute Story
+time, and that frame is applied through React and MapLibre. Evaluation neither
+replays earlier actions nor starts browser camera animations. Play and external
+seeking use the same timeline clock and explicit easing functions.
+
+```js
+await window.__michiStory.seek(12.4)
+await window.__michiStory.waitForRender()
+
+window.__michiStory.getDuration() // seconds
+window.__michiStory.getTime()     // seconds
+```
+
+`seek()` clamps negative and out-of-range values and applies the evaluated
+camera with `jumpTo`. `waitForRender()` is a bounded barrier for React/source
+updates, asynchronous basemaps, and a subsequent MapLibre frame. Repeated seeks
+to one timestamp are independent of previous seek order.
+
+Total duration now includes `wait`, `setView.duration`, and
+`activate.cameraDuration`. Activation changes narrative focus at the start and
+its camera transition consumes Story time; the fixed 1.25-second line reveal
+runs concurrently. This intentionally replaces the earlier Phase-1 behavior in
+which activation camera movement was only a wall-clock side effect.
 
 ## Explicit camera composition (`setView`)
 
@@ -68,7 +95,7 @@ Story actions deliberately keep visibility, narrative focus, and composition sep
 - `activate` establishes narrative focus (including title, reveal, active styling, and the app-defined focus behavior).
 - `setView` changes only the authored camera composition; it does not change the active or visible features.
 
-A view step stores `[longitude, latitude]`, zoom, and optional bearing, pitch, duration (seconds), and label. Normal playback uses an awaited MapLibre camera transition. Reconstruction for Previous, Restart, and **Preview from here** applies the latest preceding view immediately, so the reconstructed composition is exact.
+A view step stores `[longitude, latitude]`, zoom, and optional bearing, pitch, duration (seconds), and label. Its authored transition is evaluated deterministically; Previous, Restart, and **Preview from here** seek to authored boundaries using the same engine.
 
 ```json
 {
@@ -87,6 +114,20 @@ For example, `activate location:shinjuku-oiwake`, then `setView` to a slightly w
 ## Story authoring pane
 
 Opening a Story displays its editable ordered steps above the regular sidebar controls. Click a row to select it as the insertion point; **Current View** captures the actual MapLibre center, zoom, bearing, and pitch, while **Wait** adds a two-second hold. New steps are inserted after the selection (or appended when nothing is selected).
+
+Each row shows its compiled Story start time. `activate`, `setView`, and `wait`
+rows also show their authored duration. Selecting an activation exposes its
+`cameraDuration` alongside the existing View and Wait timing fields; zero is a
+valid instantaneous camera change. Newly captured Current View steps default to
+0.8 seconds, while legacy steps with an omitted duration retain the 1.2-second
+runtime fallback.
+
+The scrubber seeks the same deterministic timeline at millisecond precision and
+pauses playback before applying its absolute time. The preview-rate selector
+offers 0.5×, 1×, 2×, and 4× playback without changing timeline compilation or
+saved JSON. **2× preview does NOT shorten the Story**: it only advances Story
+time twice as quickly relative to real time, while `getDuration()` and exported
+authored durations remain unchanged.
 
 Drag a row by its handle to reorder it. The compact duplicate and delete actions operate only on that Story step. View fields and wait duration are editable in the details area beneath the list. **Preview selected** executes one logical action through the player; **Preview from here** uses the same baseline reconstruction path as Previous, then continues playback normally.
 

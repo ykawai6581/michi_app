@@ -23,6 +23,8 @@ import { StoryEditor } from './story/StoryEditor'
 import { selectFeatures } from './map/highlight'
 import { fitVisibleScene, shouldFitVisibleScene } from './map/sceneFit'
 import { activeRevealCircle } from './map/revealArea'
+import { resolveFeatureCameraTarget } from './map/featureCamera'
+import type { EvaluatedStoryState } from './story/storyTimeline'
 
 const roadSources: RoadSourceVisibility = { n13: true, osm: false }
 
@@ -50,7 +52,9 @@ export default function App() {
   const [jurisdictionLoading, setJurisdictionLoading] = useState(false)
   const [jurisdictionError, setJurisdictionError] = useState<string | null>(null)
   const [storyCommitTick, setStoryCommitTick] = useState(0)
+  const [storyRevealProgress, setStoryRevealProgress] = useState<number | undefined>()
   const storyCommitWaiters = useRef(new Set<() => void>())
+  const lastStoryStructure = useRef<string | null>(null)
 
   const current = useRef({ sceneItems, activeFeature, layers, darkModeBehavior, jurisdiction, jurisdictionData })
   current.current = { sceneItems, activeFeature, layers, darkModeBehavior, jurisdiction, jurisdictionData }
@@ -66,6 +70,21 @@ export default function App() {
     waiters.forEach((resolve) => resolve())
   }, [storyCommitTick])
   const waitForMapPaint = useCallback(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())), [])
+  const waitForRender = useCallback(async () => {
+    await waitForAppCommit()
+    const map = mapRef.current?.getMap()
+    if (!map) throw new Error('Map render barrier is unavailable')
+    await mapRef.current?.waitForBasemap(current.current.layers.basemap)
+    await new Promise<void>((resolve, reject) => {
+      let rendered = false
+      const timeout = window.setTimeout(() => { cleanup(); reject(new Error('Map did not become render-ready within 10 seconds')) }, 10_000)
+      const cleanup = () => { window.clearTimeout(timeout); map.off('render', onRender); map.off('idle', onIdle); map.off('error', onError) }
+      const onRender = () => { rendered = true; if (map.areTilesLoaded()) { cleanup(); resolve() } }
+      const onIdle = () => { if (rendered) { cleanup(); resolve() } }
+      const onError = (event: { error?: Error }) => { cleanup(); reject(event.error ?? new Error('Map resource failed while waiting for render')) }
+      map.on('render', onRender); map.on('idle', onIdle); map.on('error', onError); map.triggerRepaint()
+    })
+  }, [waitForAppCommit])
 
   useEffect(() => {
     let active = true
@@ -128,8 +147,26 @@ export default function App() {
     clearJurisdiction: async () => { setJurisdiction((value) => ({ ...value, selection: null })); await waitForAppCommit() },
     getCurrentView: () => { const map = mapRef.current?.getMap(); if (!map) throw new Error('Map camera is unavailable'); const center = map.getCenter(); return { center: [center.lng, center.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() } },
     setView: (view: CameraView, options) => { const map = mapRef.current?.getMap(); if (!map) throw new Error('Map camera is unavailable'); if (options?.animateCamera === false || options?.durationMs === 0) { map.jumpTo(view); return } return new Promise<void>((resolve) => { let settled = false; const finish = () => { if (settled) return; settled = true; map.off('moveend', finish); options?.signal?.removeEventListener('abort', cancel); resolve() }; const cancel = () => { map.stop(); finish() }; if (options?.signal?.aborted) { finish(); return } map.stop(); map.on('moveend', finish); options?.signal?.addEventListener('abort', cancel, { once: true }); map.easeTo({ ...view, duration: options?.durationMs }) }) },
-  }), [activateFeature, hideFeature, selectJurisdictionFeature, showFeature, waitForAppCommit])
-  const { player, state: storyState } = useStoryPlayer(story, project, operations, ready && !jurisdictionLoading, query.autoplay)
+    resolveFeatureCameraTarget: (feature, visible, from) => { const map = mapRef.current?.getMap(); if (!map) throw new Error('Map camera is unavailable'); return resolveFeatureCameraTarget(map, feature, visible, from, style, presentationScale, sceneSize) },
+    applyStoryFrame: async (frame: EvaluatedStoryState) => {
+      const structure = JSON.stringify({ visibleIds: frame.visibleIds, activeFeatureId: frame.activeFeatureId, layers: frame.layers, darkMode: frame.darkMode, jurisdiction: frame.jurisdiction })
+      if (structure !== lastStoryStructure.current) {
+        lastStoryStructure.current = structure
+        const visibleIds = new Set(frame.visibleIds)
+        setSceneItems(items => { const byId = new Map(items.map(item => [item.feature.properties.id, item])); frame.visibleIds.forEach(id => { const feature = project?.searchable.find(candidate => candidate.properties.id === id); if (feature && !byId.has(id)) byId.set(id, { feature, visible: true }) }); return [...byId.values()].map(item => ({ ...item, visible: visibleIds.has(item.feature.properties.id) })) })
+        setActiveFeature(frame.activeFeatureId ? project?.searchable.find(feature => feature.properties.id === frame.activeFeatureId) ?? null : null)
+        setLayers({ ...frame.layers, basemap: frame.basemap })
+        setDarkModeBehavior(frame.darkMode)
+        setJurisdiction(value => { const requested = frame.jurisdiction; if (!requested) return { ...value, selection: null }; const feature = current.current.jurisdictionData?.features.find(candidate => candidate.properties.jurisdictionId === requested.value); return { ...value, selection: feature ? { level: feature.properties.jurisdictionLevel === 'parent' ? 'parent' : 'municipality', value: feature.properties.municipalityName } : requested } })
+      }
+      setStoryRevealProgress(frame.lineReveal?.progress)
+      const map = mapRef.current?.getMap(); if (!map) throw new Error('Map camera is unavailable'); map.stop(); map.jumpTo(frame.camera)
+      await waitForAppCommit()
+      await mapRef.current?.waitForBasemap(frame.basemap)
+    },
+    waitForRender,
+  }), [activateFeature, hideFeature, presentationScale, project, sceneSize, selectJurisdictionFeature, showFeature, style, waitForAppCommit, waitForRender])
+  const { player, state: storyState } = useStoryPlayer(story, project, operations, ready && !jurisdictionLoading, query.autoplay, query.time)
 
   const visibleFeatures = useMemo(() => sceneItems.filter((item) => item.visible).map((item) => item.feature), [sceneItems])
   const jurisdictionHighlight = useMemo(() => jurisdictionData ? selectedJurisdictions(jurisdictionData, jurisdiction.selection) : [], [jurisdictionData, jurisdiction.selection])
@@ -137,7 +174,7 @@ export default function App() {
   if (storyLoadError) return <main className="app-load-error" role="alert">{storyLoadError}</main>
   return <main className={`app ${query.capture ? 'capture-mode' : ''}`}>
     <header><div className="brand-mark">道</div><div className="brand"><strong>MICHI MAP</strong><span>Historical scene editor</span></div><div className="header-context"><span>PROJECT</span><b>{project?.config.displayName ?? '読み込み中…'}</b></div><button className="mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)}>編集パネル</button><button className="export" disabled={!ready} onClick={() => { const map = mapRef.current?.getMap(); if (map) exportPNG(map) }}><span>↓</span> PNGを書き出す</button></header>
-    <div className="workspace"><div ref={mapStageRef} className={`map-stage ${darkBasemap ? 'dark-map' : ''}`}><div className="scene-frame" style={{ width: sceneSize.width, height: sceneSize.height, transform: `scale(${visualScale})`, '--map-scale': presentationScale } as CSSProperties}><MapView ref={mapRef} project={project} selected={visibleFeatures} activeFeature={activeFeature} selectionMode={selectionMode} jurisdictionData={jurisdictionData} jurisdictionHighlight={jurisdictionHighlight} jurisdictionSelection={jurisdiction.selection} highlightStyle={style} presentationScale={presentationScale} sceneSize={sceneSize} renderPixelRatio={renderPixelRatio} visibility={layers} darkBasemap={darkBasemap} revealAreaEnabled={darkModeBehavior === 'auto'} pointStyle={pointStyle} roadSources={roadSources} onSelectFeature={selectFeature} onSelectJurisdiction={selectJurisdictionFeature} onReady={onReady} /><ActiveFeatureOverlay feature={activeFeature} highlightStyle={style} /></div></div>
+    <div className="workspace"><div ref={mapStageRef} className={`map-stage ${darkBasemap ? 'dark-map' : ''}`}><div className="scene-frame" style={{ width: sceneSize.width, height: sceneSize.height, transform: `scale(${visualScale})`, '--map-scale': presentationScale } as CSSProperties}><MapView ref={mapRef} project={project} selected={visibleFeatures} activeFeature={activeFeature} deterministicRevealProgress={storyRevealProgress} selectionMode={selectionMode} jurisdictionData={jurisdictionData} jurisdictionHighlight={jurisdictionHighlight} jurisdictionSelection={jurisdiction.selection} highlightStyle={style} presentationScale={presentationScale} sceneSize={sceneSize} renderPixelRatio={renderPixelRatio} visibility={layers} darkBasemap={darkBasemap} revealAreaEnabled={darkModeBehavior === 'auto'} pointStyle={pointStyle} roadSources={roadSources} onSelectFeature={selectFeature} onSelectJurisdiction={selectJurisdictionFeature} onReady={onReady} /><ActiveFeatureOverlay feature={activeFeature} highlightStyle={style} /></div></div>
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>{story && project && player && <StoryEditor key={story.id} story={story} project={project} operations={operations} player={player} state={storyState} onChange={setStory} />}<SearchPanel entities={project?.searchable ?? []} loading={dataLoading} loadError={dataLoadError} items={sceneItems} selectionMode={selectionMode} onSelectionMode={setSelectionMode} onSelect={selectFeature} onToggle={toggleFeature} onDelete={deleteFeature} onClear={() => { setSceneItems(clearTemporarySceneItems); setActiveFeature(null) }} /><LayerPanel value={layers} onChange={setLayers} darkModeBehavior={darkModeBehavior} onDarkModeBehaviorChange={setDarkModeBehavior} pointStyle={pointStyle} onPointStyleChange={setPointStyle} /><JurisdictionPanel manifest={jurisdictionManifest} collection={jurisdictionData} value={jurisdiction} loading={jurisdictionLoading} error={jurisdictionError} onChange={changeJurisdiction} /><StylePanel value={style} onChange={setStyle} /><CameraPanel getMap={() => mapRef.current?.getMap() ?? null} /><DataPanel /><footer>地図: {layers.basemap === 'rekichizu' ? 'れきちず / Rekichizu (CC BY-NC-ND 4.0)' : 'OpenFreeMap / OSM'} · Project bundle: {project?.config.id ?? '…'} <span>v0.3-alpha</span></footer></aside>
     </div>
   </main>

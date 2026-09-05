@@ -3,11 +3,12 @@ import type { ProjectData } from '../data/project'
 import { StoryPlayer, type StoryPlayerState } from './storyPlayer'
 import type { Story, StoryAppOperations } from './storyTypes'
 
-const IDLE_STATE: StoryPlayerState = { status: 'idle', currentStepIndex: 0, currentStep: null, elapsedSeconds: 0, totalWaitDuration: 0, error: null }
+const IDLE_STATE: StoryPlayerState = { status: 'idle', currentStepIndex: 0, currentStep: null, elapsedSeconds: 0, totalWaitDuration: 0, playbackRate: 1, error: null }
 
-export function useStoryPlayer(story: Story | null, project: ProjectData | null, operations: StoryAppOperations | null, ready: boolean, autoplay: boolean) {
+export function useStoryPlayer(story: Story | null, project: ProjectData | null, operations: StoryAppOperations | null, ready: boolean, autoplay: boolean, initialTime?: number) {
   const operationsRef = useRef<StoryAppOperations | null>(operations)
   const autoplayedStoryId = useRef<string | null>(null)
+  const previousPlayer = useRef<{ id: string; player: StoryPlayer } | null>(null)
   operationsRef.current = operations
 
   const stableOperations = useMemo<StoryAppOperations>(() => {
@@ -31,6 +32,9 @@ export function useStoryPlayer(story: Story | null, project: ProjectData | null,
       clearJurisdiction: () => current().clearJurisdiction(),
       getCurrentView: () => current().getCurrentView(),
       setView: (view, options) => current().setView(view, options),
+      resolveFeatureCameraTarget: (feature, visible, from) => current().resolveFeatureCameraTarget!(feature, visible, from),
+      applyStoryFrame: (state) => current().applyStoryFrame!(state),
+      waitForRender: () => current().waitForRender!(),
     }
   }, [])
 
@@ -39,13 +43,21 @@ export function useStoryPlayer(story: Story | null, project: ProjectData | null,
     [project, ready, stableOperations, story],
   )
   const state = useSyncExternalStore(player?.subscribe ?? (() => () => undefined), player?.getState ?? (() => IDLE_STATE), player?.getState ?? (() => IDLE_STATE))
+  useEffect(() => {
+    const previous = previousPlayer.current
+    if (player && story && previous && previous.id === story.id && previous.player !== player) {
+      previous.player.pause()
+      void player.seek(Math.min(previous.player.getTime(), player.getDuration()))
+    }
+    previousPlayer.current = player && story ? { id: story.id, player } : null
+  }, [player, story])
   useEffect(() => () => player?.dispose(), [player])
   useEffect(() => {
     if (!player || !ready) return
-    window.__michiStory = { play: () => player.play(), pause: () => player.pause(), restart: () => player.restart(), next: () => player.next(), previous: () => player.previous(), getState: player.getState }
+    window.__michiStory = { play: () => player.play(), pause: () => player.pause(), restart: () => player.restart(), next: () => player.next(), previous: () => player.previous(), seek: seconds => player.seek(seconds), getDuration: player.getDuration, getTime: player.getTime, waitForRender: player.waitForRender, getState: player.getState }
     window.dispatchEvent(new CustomEvent('michi:story-ready'))
-    if (autoplay && story && autoplayedStoryId.current !== story.id) { autoplayedStoryId.current = story.id; void player.play() }
+    if (story && autoplayedStoryId.current !== story.id) { autoplayedStoryId.current = story.id; if (initialTime !== undefined) void player.seek(initialTime); else if (autoplay) void player.play() }
     return () => { delete window.__michiStory }
-  }, [autoplay, player, ready, story])
+  }, [autoplay, initialTime, player, ready, story])
   return { player, state }
 }

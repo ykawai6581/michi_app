@@ -38,4 +38,7 @@ export interface StoryAppOperations {
   clearJurisdiction(): void | Promise<void>
   getCurrentView(): CameraView
   setView(view: CameraView, options?: SetViewOptions): void | Promise<void>
+  resolveFeatureCameraTarget?(feature: EntityFeature, visible: EntityFeature[], from: CameraView): CameraView
+  applyStoryFrame?(state: import('./storyTimeline').EvaluatedStoryState): void | Promise<void>
+  waitForRender?(): Promise<void>
 }
