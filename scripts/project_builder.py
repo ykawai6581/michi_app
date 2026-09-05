@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-SUPPORTED_LAYERS = {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}
+SUPPORTED_LAYERS = {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts", "locations"}
 OUTPUTS = {
     "modernRoads": "data/modern-roads.geojson", "railways": "data/railways.geojson",
     "railwayRoutes": "data/railway-routes.geojson",
     "stations": "data/stations.geojson", "historicalRoads": "data/historical-roads.geojson",
     "historicalPosts": "data/historical-posts.geojson",
+    "locations": "data/locations.geojson",
 }
 CACHES = {
     "railways": Path("data/cache/osm/rail/tracks.parquet"),
@@ -170,6 +171,14 @@ def select_modern_roads(root: Path, ids: list[str]) -> list[dict]:
         result.extend(features)
     return result
 
+def select_locations(root: Path, ids: list[str]) -> list[dict]:
+    path=root / "data/locations/registry.json"
+    entries={location["id"]:location for location in (json.loads(path.read_text(encoding="utf-8")).get("locations",[]) if path.exists() else [])}
+    missing=[location_id for location_id in ids if location_id not in entries]
+    if missing: raise ProjectBuildError(f"Unknown canonical location: {', '.join(missing)}")
+    return [{"type":"Feature", "properties":{"id":f"location:{location_id}", "name":location["displayName"], "type":"place", "presentationType":"reveal-area", "revealRadiusPx":location["revealRadiusPx"], "sourceType":"canonical-location"}, "geometry":{"type":"Point", "coordinates":location["coordinates"]}}
+            for location_id in ids for location in [entries[location_id]]]
+
 def select_bbox_features(path: Path, bounds: list[float]) -> list[dict]: return _read_parquet(path, bbox=tuple(bounds))
 
 def select_near_road_routes(path: Path, roads: list[dict], distance_km: float) -> list[dict]:
@@ -284,17 +293,18 @@ def _rail_search(features: list[dict], routes: list[dict] | None = None) -> list
 
 def build_search(features_by_family: dict[str, list[dict]]) -> list[dict]:
     entries = []
-    for family in ("modernRoads", "stations", "historicalRoads", "historicalPosts"):
+    for family in ("modernRoads", "stations", "historicalRoads", "historicalPosts", "locations"):
         for feature in features_by_family.get(family, []):
             p, geometry = feature["properties"], feature["geometry"]
             aliases = [v for v in [*(p.get("aliases") or []), p.get("name:ja"), p.get("altName"), p.get("historicalLabel"), p.get("routeId"), p.get("postId")] if v and v != p.get("name")]
-            entries.append({"id": p["id"], "entityType": {"modernRoads":"modern-road", "stations":"railway-station", "historicalRoads":"historical-road", "historicalPosts":"historical-post"}[family], "displayName": p["name"], "aliases": list(dict.fromkeys(aliases)), "searchTerms": list(dict.fromkeys([p["name"], *aliases])), **({"routeId": p["routeId"]} if p.get("routeId") else {}), "source": p.get("sourceType"), "geometryHint": geometry["type"]})
+            entries.append({"id": p["id"], "entityType": {"modernRoads":"modern-road", "stations":"railway-station", "historicalRoads":"historical-road", "historicalPosts":"historical-post", "locations":"place"}[family], "displayName": p["name"], "aliases": list(dict.fromkeys(aliases)), "searchTerms": list(dict.fromkeys([p["name"], *aliases])), **({"routeId": p["routeId"]} if p.get("routeId") else {}), "source": p.get("sourceType"), "geometryHint": geometry["type"]})
     return entries + _rail_search(features_by_family.get("railways", []), features_by_family.get("railwayRoutes", []))
 
 def materialize_project(root: Path, project_id: str, output_root: Path | None = None) -> dict:
     config = load_project_config(root, project_id); layers = config["layers"]
     features: dict[str, list[dict]] = {}
     builder_roads = select_modern_roads(root, layers.get("modernRoads", []))
+    features["locations"] = select_locations(root, layers.get("locations", []))
     custom_historical = [feature for feature in builder_roads if feature["properties"]["type"] == "historical-road"]
     if "modernRoads" in layers:
         features["modernRoads"] = [feature for feature in builder_roads if feature["properties"]["type"] == "road"]
@@ -325,7 +335,7 @@ def materialize_project(root: Path, project_id: str, output_root: Path | None = 
     for family, relative in OUTPUTS.items():
         (output / relative).write_text(json.dumps(_collection(features.get(family, [])), ensure_ascii=False, separators=(",", ":"))+"\n", encoding="utf-8")
     search = build_search(features); (output / "search/entities.json").write_text(json.dumps(search, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
-    counts = {"modernRoads": len(features.get("modernRoads", [])), "railwayTracks": len(features.get("railways", [])), "railwayRoutes":len(features.get("railwayRoutes",[])), "stations": len(features.get("stations", [])), "historicalRoadFeatures": len(features.get("historicalRoads", [])), "historicalPosts": len(features.get("historicalPosts", []))}
+    counts = {"modernRoads": len(features.get("modernRoads", [])), "locations": len(features.get("locations", [])), "railwayTracks": len(features.get("railways", [])), "railwayRoutes":len(features.get("railwayRoutes",[])), "stations": len(features.get("stations", [])), "historicalRoadFeatures": len(features.get("historicalRoads", [])), "historicalPosts": len(features.get("historicalPosts", []))}
     manifest = {"projectId": project_id, "builtAt": datetime.now(timezone.utc).isoformat(), "bounds": bounds, "boundsSource": bounds_source, "railwaySelection":layers.get("railways"), "sourceLayerFamilies": list(layers), "featureCounts": counts, "inputs": {family: str(path) for family, path in CACHES.items() if family in layers}, "outputs": {**OUTPUTS, "search": "search/entities.json"}}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     return manifest

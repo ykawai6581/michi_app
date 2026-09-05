@@ -47,6 +47,10 @@ export interface EntityProperties {
   wikidata?: string
   'name:ja'?: string
   'name:en'?: string
+  presentationType?: 'reveal-area'
+  revealRadiusPx?: number
+  roadId?: string
+  sourceType?: string
 }
 
 export type EntityFeature = Feature<Geometry, EntityProperties>

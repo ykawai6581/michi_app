@@ -24,6 +24,8 @@ PREPROCESS = ROOT / "scripts/preprocess"
 sys.path.insert(0, str(PREPROCESS))
 from road_registry import (N13_CLASS_LABELS, SUPPORTED_N13_CLASSES, get_road,  # noqa: E402
                            delete_road as delete_registry_road, list_roads, save_road, validate_road)
+from location_registry import (delete_location, get_location, list_locations,  # noqa: E402
+                               save_location, validate_location)
 
 
 def _module(name: str, filename: str):
@@ -37,6 +39,7 @@ def _module(name: str, filename: str):
 MATCHER = _module("road_builder_matcher", "match-road.py")
 PREPROCESSOR = _module("road_builder_preprocessor", "preprocess-n13.py")
 REGISTRY = ROOT / "data/roads/registry.json"
+LOCATION_REGISTRY = ROOT / "data/locations/registry.json"
 SOURCES = ROOT / "data/roads/sources.json"
 PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 PREVIEW_CACHE = ROOT / "data/cache/road-builder/previews"
@@ -82,7 +85,7 @@ def _validate_project(project: dict, expected_id: str | None = None) -> dict:
         raise ValueError("Project layers must be an object")
     # Reuse canonical validation after writing by using its public loader; the
     # structural checks below keep Save independent from materialization.
-    if set(layers) - {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts"}:
+    if set(layers) - {"modernRoads", "railways", "stations", "historicalRoads", "historicalPosts", "locations"}:
         raise ValueError("Project contains an unsupported layer")
     return project
 
@@ -142,7 +145,7 @@ def project_catalog(root: Path = ROOT) -> dict:
                           for item in json.loads(codh_index.read_text(encoding="utf-8"))]
         except (OSError, json.JSONDecodeError, TypeError):
             historical = []
-    return {"modernRoads": roads, "historicalRoutes": historical,
+    return {"modernRoads": roads, "locations": list_locations(root / "data/locations/registry.json"), "historicalRoutes": historical,
             "availability": {
                 "codh": {"ready": codh_index.is_file(), "command": "python scripts/preprocess/preprocess-codh.py"},
                 "rail": {"ready": all(path.is_file() for path in rail_paths), "command": "python scripts/preprocess/preprocess-rail.py"},
@@ -164,7 +167,7 @@ def project_preview(project_id: str, root: Path = ROOT) -> dict:
     if not manifest_path.is_file():
         raise FileNotFoundError(f"Built project preview missing for {project_id!r}; use Save & Build")
     names = {"modernRoads":"modern-roads", "railways":"railways", "stations":"stations",
-             "historicalRoads":"historical-roads", "historicalPosts":"historical-posts"}
+             "historicalRoads":"historical-roads", "historicalPosts":"historical-posts", "locations":"locations"}
     return {"manifest": json.loads(manifest_path.read_text(encoding="utf-8")),
             "layers": {family: json.loads((output / "data" / f"{name}.geojson").read_text(encoding="utf-8"))
                        for family, name in names.items()}}

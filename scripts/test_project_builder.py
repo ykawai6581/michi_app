@@ -11,7 +11,7 @@ from project_builder import ProjectBuildError, load_project_config, load_rail_co
 class ProjectBuilderTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.root = Path(self.temp.name)
-        (self.root / "projects/demo").mkdir(parents=True); (self.root / "data/roads").mkdir(parents=True); (self.root / "public/data/roads").mkdir(parents=True)
+        (self.root / "projects/demo").mkdir(parents=True); (self.root / "data/roads").mkdir(parents=True); (self.root / "data/locations").mkdir(parents=True); (self.root / "data/locations/registry.json").write_text(json.dumps({"locations":[]})); (self.root / "public/data/roads").mkdir(parents=True)
         (self.root / "data/sources").mkdir(parents=True); (self.root / "data/sources/railcolors.json").write_text((Path(__file__).parents[1]/"data/sources/railcolors.json").read_text(encoding="utf-8"),encoding="utf-8")
         self.config = {"id":"demo","displayName":"Demo","bounds":[139.0,35.0,140.0,36.0],"layers":{"modernRoads":["road-a"],"railways":{"mode":"bbox"},"stations":{"mode":"bbox"},"historicalRoads":["R003"],"historicalPosts":["R003"]}}
         self.write_config(self.config)
@@ -87,6 +87,18 @@ class ProjectBuilderTest(unittest.TestCase):
         self.assertEqual(custom["properties"]["name"],"Road A")
         self.assertEqual(custom["properties"]["aliases"],["A"])
         self.assertNotIn("routeId",custom["properties"])
+
+    def test_locations_are_explicitly_selected_and_independent_of_roads(self):
+        empty_output=self.root/"locations-empty"; self.write_config({**self.config,"layers":{"modernRoads":["road-a"]}})
+        materialize_project(self.root,"demo",empty_output)
+        self.assertEqual(json.loads((empty_output/"data/locations.geojson").read_text())["features"],[])
+        authored={"id":"shinjuku-oiwake","displayName":"新宿追分","coordinates":[139.704,35.69],"presentationType":"reveal-area","revealRadiusPx":120}
+        (self.root/"data/locations/registry.json").write_text(json.dumps({"locations":[authored]}))
+        self.write_config({"id":"demo","displayName":"Demo","bounds":[139,35,140,36],"layers":{"locations":["shinjuku-oiwake"]}})
+        output=self.root/"locations"; manifest=materialize_project(self.root,"demo",output)
+        location=json.loads((output/"data/locations.geojson").read_text())["features"][0]
+        self.assertEqual(location["properties"],{"id":"location:shinjuku-oiwake","name":"新宿追分","type":"place","presentationType":"reveal-area","revealRadiusPx":120,"sourceType":"canonical-location"})
+        self.assertEqual(manifest["featureCounts"]["locations"],1)
 
     def test_auto_bounds_use_historical_builder_road_geometry(self):
         registry=json.loads((self.root/"data/roads/registry.json").read_text())

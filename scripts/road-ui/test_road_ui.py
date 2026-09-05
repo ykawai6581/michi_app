@@ -56,6 +56,20 @@ class RoadBuilderTests(unittest.TestCase):
         road_ui.save_road(self.registry, historical)
         self.assertEqual(road_ui.get_road(self.registry, historical["id"])["presentationType"], "historical-road")
 
+    def test_independent_location_registry_validation_and_crud(self):
+        registry=Path(self.temp.name)/"locations.json"; registry.write_text('{"locations":[]}')
+        location={"id":"shinjuku-oiwake","displayName":"新宿追分","coordinates":[139.704,35.69],"presentationType":"reveal-area","revealRadiusPx":120}
+        self.assertEqual(road_ui.save_location(registry,location),location)
+        self.assertEqual(road_ui.get_location(registry,location["id"]),location)
+        updated={**location,"displayName":"新宿追分交差点"};road_ui.save_location(registry,updated,location["id"])
+        self.assertEqual(road_ui.list_locations(registry),[updated]);self.assertEqual(road_ui.delete_location(registry,location["id"]),updated);self.assertEqual(road_ui.list_locations(registry),[])
+        for invalid in ({**location,"id":"Bad ID"},{**location,"displayName":" "},{**location,"coordinates":[181,35]},{**location,"coordinates":[139,91]},{**location,"revealRadiusPx":39},{**location,"revealRadiusPx":float("inf")}):
+            with self.assertRaises(ValueError): road_ui.validate_location(invalid)
+
+    def test_road_validation_and_hash_ignore_unknown_location_metadata(self):
+        self.assertNotIn("locations",road_ui.validate_road(ROAD))
+        self.assertEqual(road_ui.draft_hash(ROAD),road_ui.draft_hash({**ROAD,"locations":[]}))
+
     def test_statutory_network_is_preserved_on_save_and_load(self):
         road = {**copy.deepcopy(ROAD), "id": "jp-national-20", "displayName": "国道20号",
                 "entityType": "statutory-road", "roadClass": "national",

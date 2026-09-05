@@ -2,12 +2,13 @@ import{useEffect,useRef}from'react'
 import maplibregl,{GeoJSONSource,Map as MlMap}from'maplibre-gl'
 import type{ProjectLayer,ProjectVisibility}from'./projectModel'
 type FC=GeoJSON.FeatureCollection
-const ids:ProjectLayer[]=['modernRoads','railways','stations','historicalRoads','historicalPosts']
+const ids:ProjectLayer[]=['modernRoads','railways','stations','historicalRoads','historicalPosts','locations']
 const definitions:Record<ProjectLayer,{type:'line'|'circle';paint:object}>={
   modernRoads:{type:'line',paint:{'line-color':'#d92727','line-width':5}},
   railways:{type:'line',paint:{'line-color':'#44515a','line-width':1.5}},
   stations:{type:'circle',paint:{'circle-color':'#1769aa','circle-radius':2,'circle-stroke-color':'white','circle-stroke-width':1}},
   historicalRoads:{type:'line',paint:{'line-color':'#8b5a2b','line-width':3,'line-dasharray':[3,2]}},
+  locations:{type:'circle',paint:{'circle-color':'#00a7c4','circle-radius':7,'circle-stroke-color':'white','circle-stroke-width':2}},
   historicalPosts:{type:'circle',paint:{'circle-color':'#d18b00','circle-radius':2.5,'circle-stroke-color':'#5d3b00','circle-stroke-width':1}},
 }
 export default function BuilderMap({layers,visibility,bounds,onFeature}:{layers:Partial<Record<ProjectLayer,FC>>;visibility:ProjectVisibility;bounds?:[number,number,number,number];onFeature:(properties:object)=>void}){

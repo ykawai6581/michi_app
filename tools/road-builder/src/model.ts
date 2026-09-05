@@ -191,3 +191,5 @@ export const deletionConfirmation=(road:Pick<Road,'id'|'displayName'>,references
   return `Delete ${road.displayName}?\n${road.id}\n\nThis will remove the registered road and its generated road-specific outputs. Shared N13/OSM source datasets will not be deleted.${used}`
 }
 export const deletionApiPaths=(registeredId:string)=>({references:`/api/roads/${registeredId}/references`,delete:`/api/roads/${registeredId}`})
+export type AuthoredLocation={id:string;displayName:string;coordinates:[number,number];presentationType:'reveal-area';revealRadiusPx:number}
+export const emptyLocation=():AuthoredLocation=>({id:'',displayName:'',coordinates:[139.7,35.69],presentationType:'reveal-area',revealRadiusPx:120})

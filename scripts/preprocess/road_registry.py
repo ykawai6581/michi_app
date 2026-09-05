@@ -52,6 +52,7 @@ def validate_road(value: dict) -> dict:
     if not isinstance(value, dict):
         raise ValueError("Road must be a JSON object")
     road = copy.deepcopy(value)
+    road.pop("locations", None)  # obsolete road-owned presentation metadata
     road_id = str(road.get("id", "")).strip()
     entity_type = road.get("entityType")
     presentation_type = road.get("presentationType", "road")
