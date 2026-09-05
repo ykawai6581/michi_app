@@ -5,7 +5,9 @@ import shukubaIconUrl from '../icons/shukuba.png'
 export const POINT_ICON_IDS = { stations: 'michi-station-icon', historicalPosts: 'michi-shukuba-icon' } as const
 export const POINT_ICON_URLS = { stations: stationIconUrl, historicalPosts: shukubaIconUrl } as const
 export const POINT_ICON_SIZE_PX = 60
-export const pointIconSize = (): number => POINT_ICON_SIZE_PX
+// Keep the optional legacy radius parameter temporarily so existing callers do not
+// need to change; point icons now intentionally share one fixed rendered size.
+export const pointIconSize = (_radius?: number): number => POINT_ICON_SIZE_PX
 
 export async function registerPointIcons(map: maplibregl.Map): Promise<void> {
   await Promise.all(Object.entries(POINT_ICON_URLS).map(async ([kind, url]) => {
