@@ -19,21 +19,8 @@
       "label": "Hide 甲州道中 initially"
     },
     {
-      "action": "wait",
-      "duration": 3
-    },
-    {
       "action": "deactivate",
       "label": "Clear initial focus"
-    },
-    {
-      "action": "setBasemap",
-      "value": "rekichizu",
-      "label": "れきちずへ切替"
-    },
-    {
-      "action": "wait",
-      "duration": 3
     },
     {
       "action": "show",
@@ -115,13 +102,13 @@
     {
       "action": "setView",
       "center": [
-        139.6915533531735,
-        35.68840048121882
+        139.69938052835573,
+        35.68918597201066
       ],
-      "zoom": 13.753587286669624,
+      "zoom": 15.21743098691033,
       "bearing": 0,
       "pitch": 0,
-      "duration": 2.5,
+      "duration": 0.8,
       "label": "Saved view"
     },
     {
