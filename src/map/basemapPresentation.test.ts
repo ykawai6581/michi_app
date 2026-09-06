@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyBasemapAlpha, captureBasemapLayerGroup, waitForBasemapSources } from './basemapPresentation'
+import { applyBasemapAlpha, captureBasemapLayerGroup, scaleOpacityValue, waitForBasemapSources } from './basemapPresentation'
 
 const layers = [
   { id: 'background', type: 'background', paint: {} },
@@ -23,6 +23,18 @@ describe('basemap presentation', () => {
     expect(changes).toContainEqual(['symbol', 'icon-opacity', ['*', ['get', 'opacity'], 0.125]])
     expect(changes).toContainEqual(['raster', 'raster-opacity', 0.36])
     expect(changes.some(change => change[0] === 'michi-station')).toBe(false)
+  })
+
+  it('preserves top-level interpolate zoom expressions while scaling stop outputs', () => {
+    expect(scaleOpacityValue(['interpolate', ['linear'], ['zoom'], 5, 0.2, 10, 0.8], 0.5)).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 0.1, 10, 0.4,
+    ])
+  })
+
+  it('preserves top-level step zoom expressions while scaling default and stop outputs', () => {
+    expect(scaleOpacityValue(['step', ['zoom'], 0.2, 8, 0.5, 12, 1], 0.25)).toEqual([
+      'step', ['zoom'], 0.05, 8, 0.125, 12, 0.25,
+    ])
   })
 
   it('settles readiness at a bounded timeout instead of waiting forever', async () => {
