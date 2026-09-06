@@ -31,7 +31,7 @@ export type JurisdictionCameraResolver = (target: JurisdictionStoryTarget, from:
 
 const cloneCamera = (camera: CameraView): CameraView => ({ ...camera, center: [...camera.center] as [number, number] })
 const structural = (snapshot: StoryAppSnapshot): StoryStructuralState => ({ visibleIds: snapshot.selected.map(feature => feature.properties.id), activeFeatureId: snapshot.activeFeature?.properties.id ?? null, basemap: snapshot.basemap, layers: { ...snapshot.layers }, darkMode: snapshot.darkMode, jurisdiction: snapshot.jurisdiction ? { ...snapshot.jurisdiction } : null })
-const durationMs = (step: StoryStep): number => step.action === 'wait' ? step.duration * 1000 : step.action === 'setView' ? (step.duration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.duration * 1000) : step.action === 'activate' || step.action === 'activateJurisdiction' ? (step.cameraDuration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.cameraDuration * 1000) : 0
+export const storyStepDurationMs = (step: StoryStep): number => step.action === 'wait' ? step.duration * 1000 : step.action === 'setView' ? (step.duration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.duration * 1000) : step.action === 'activate' || step.action === 'activateJurisdiction' ? (step.cameraDuration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.cameraDuration * 1000) : 0
 
 export function compileStoryTimeline(story: Story, project: ProjectData, baseline: StoryAppSnapshot, resolveCamera: FeatureCameraResolver, resolveJurisdictionCamera?: JurisdictionCameraResolver): StoryTimeline {
   let cursor = 0
@@ -53,7 +53,7 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
         const feature = findProjectFeatureById(project, step.id)
         state = { ...state, activeFeatureId: step.id }
         const to = resolveCamera(feature, visible(), camera)
-        const endMs = startMs + durationMs(step)
+        const endMs = startMs + storyStepDurationMs(step)
         cameraSegments.push({ startMs, endMs, from: cloneCamera(camera), to: cloneCamera(to), stepIndex })
         camera = cloneCamera(to)
         if (['LineString', 'MultiLineString', 'Polygon'].includes(feature.geometry.type)) revealSegments.push({ startMs, endMs: startMs + FEATURE_REVEAL_DURATION_MS, featureId: step.id })
@@ -62,7 +62,7 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
       case 'deactivate': state = { ...state, activeFeatureId: null }; break
       case 'setView': {
         const to: CameraView = { center: [...step.center], zoom: step.zoom, bearing: step.bearing ?? 0, pitch: step.pitch ?? 0 }
-        const endMs = startMs + durationMs(step)
+        const endMs = startMs + storyStepDurationMs(step)
         cameraSegments.push({ startMs, endMs, from: cloneCamera(camera), to, stepIndex })
         camera = cloneCamera(to); break
       }
@@ -85,13 +85,13 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
       case 'activateJurisdiction': {
         if(!resolveJurisdictionCamera)throw new Error('Jurisdiction camera resolver is unavailable')
         state={...state,jurisdiction:{...step},layers:{...state.layers,jurisdictions:true}}
-        const to=resolveJurisdictionCamera(step,camera); const endMs=startMs+durationMs(step)
+        const to=resolveJurisdictionCamera(step,camera); const endMs=startMs+storyStepDurationMs(step)
         cameraSegments.push({startMs,endMs,from:cloneCamera(camera),to:cloneCamera(to),stepIndex}); camera=cloneCamera(to); break
       }
       case 'clearJurisdiction': state = { ...state, jurisdiction: null }; break
       case 'wait': break
     }
-    cursor += durationMs(step)
+    cursor += storyStepDurationMs(step)
     events.push({ stepIndex, startMs, endMs: cursor, step, state: { ...state, visibleIds: [...state.visibleIds], layers: { ...state.layers }, jurisdiction: state.jurisdiction ? { ...state.jurisdiction } : null } })
   })
   return { durationMs: cursor, baseline: structuredClone(baseline), events, cameraSegments, revealSegments, basemapTransitions, stepBoundariesMs }

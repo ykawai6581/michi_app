@@ -5,6 +5,7 @@ describe('Story timing editor helpers',()=>{
   it('shows authored timing and the legacy fallback only for timed rows',()=>{
     expect(authoredStepDuration({action:'activate',id:'a',cameraDuration:.8})).toBe(.8)
     expect(authoredStepDuration({action:'activate',id:'a'})).toBe(1.2)
+    expect(authoredStepDuration({action:'activateJurisdiction',provider:'geoshape',prefecture:'tokyo',resolution:'low',snapshotDate:'2020-01-01',level:'municipality',name:'X',cameraDuration:.7})).toBe(.7)
     expect(authoredStepDuration({action:'wait',duration:1.5})).toBe(1.5)
     expect(authoredStepDuration({action:'show',id:'a'})).toBeNull()
   })
