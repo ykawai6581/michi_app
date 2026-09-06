@@ -17,6 +17,8 @@ public/data/roads/
 # committed to Git.
 public/projects/
 
+stories/
+
 # Source caches are local build inputs. Keep only small reproducibility manifests;
 # generated indexes and binary/cache payloads stay ignored.
 !data/cache/
