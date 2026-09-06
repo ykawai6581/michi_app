@@ -1,4 +1,6 @@
-export const CLOUD_TRANSITION_DURATION_MS = 1100
+export const CLOUD_SLIDE_DURATION_MS = 550
+export const CLOUD_HOLD_DURATION_MS = 500
+export const CLOUD_TRANSITION_DURATION_MS = CLOUD_SLIDE_DURATION_MS * 2 + CLOUD_HOLD_DURATION_MS
 export const CLOUD_VIEWBOX_WIDTH = 1920
 export const CLOUD_VIEWBOX_HEIGHT = 1080
 export const CLOUD_BANK_TRAVEL_PX = 1360
@@ -20,11 +22,22 @@ const mulberry32 = (seed: number) => {
   }
 }
 
-/** Symmetric Story-time mask: offscreen at 0/1 and fully closed at 0.5. */
+/**
+ * Story-time mask with a deliberate fully-covered hold:
+ * 550 ms slide in -> 500 ms hold -> 550 ms slide out.
+ */
 export const cloudCoverProgress = (rawProgress: number): number => {
   const raw = clamp01(rawProgress)
-  const half = raw <= 0.5 ? raw * 2 : (1 - raw) * 2
-  return half * half * (3 - 2 * half)
+  const slideFraction = CLOUD_SLIDE_DURATION_MS / CLOUD_TRANSITION_DURATION_MS
+  const holdEnd = 1 - slideFraction
+  if (raw < slideFraction) {
+    const progress = raw / slideFraction
+    return progress * progress * (3 - 2 * progress)
+  }
+  if (raw <= holdEnd) return 1
+  const progress = (raw - holdEnd) / slideFraction
+  const eased = progress * progress * (3 - 2 * progress)
+  return 1 - eased
 }
 
 /** Deterministically generate a non-repeating stepped cloud bank from a seed. */
