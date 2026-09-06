@@ -1,4 +1,4 @@
-import type { JurisdictionSelection } from '../data/jurisdictions'
+import type { JurisdictionSelection, JurisdictionStoryTarget } from '../data/jurisdictions'
 import type { BasemapMode, DarkModeBehavior, EntityFeature, LayerVisibility } from '../types/geo'
 import { easeOutCubic, clamp01 } from './storyEasing'
 import { CLOUD_TRANSITION_DURATION_MS, cloudCoverProgress } from './cloudTransition'
@@ -18,7 +18,7 @@ export interface StoryStructuralState {
   basemap: BasemapMode
   layers: LayerVisibility
   darkMode: DarkModeBehavior
-  jurisdiction: JurisdictionSelection
+  jurisdiction: JurisdictionSelection | JurisdictionStoryTarget
 }
 export interface StoryTimelineEvent { stepIndex: number; startMs: number; endMs: number; step: StoryStep; state: StoryStructuralState }
 export interface CameraSegment { startMs: number; endMs: number; from: CameraView; to: CameraView; stepIndex: number }
@@ -27,12 +27,13 @@ export interface BasemapTransitionSegment { startMs: number; endMs: number; from
 export interface StoryTimeline { durationMs: number; baseline: StoryAppSnapshot; events: StoryTimelineEvent[]; cameraSegments: CameraSegment[]; revealSegments: RevealSegment[]; basemapTransitions: BasemapTransitionSegment[]; stepBoundariesMs: number[] }
 export interface EvaluatedStoryState extends StoryStructuralState { timeMs: number; camera: CameraView; cameraMoving: boolean; basemapLabelOpacity: number; cloudCoverProgress: number; basemapTransition?: { from: BasemapMode; to: BasemapMode; progress: number }; lineReveal?: { featureId: string; progress: number } }
 export type FeatureCameraResolver = (feature: EntityFeature, visibleFeatures: EntityFeature[], from: CameraView) => CameraView
+export type JurisdictionCameraResolver = (target: JurisdictionStoryTarget, from: CameraView) => CameraView
 
 const cloneCamera = (camera: CameraView): CameraView => ({ ...camera, center: [...camera.center] as [number, number] })
 const structural = (snapshot: StoryAppSnapshot): StoryStructuralState => ({ visibleIds: snapshot.selected.map(feature => feature.properties.id), activeFeatureId: snapshot.activeFeature?.properties.id ?? null, basemap: snapshot.basemap, layers: { ...snapshot.layers }, darkMode: snapshot.darkMode, jurisdiction: snapshot.jurisdiction ? { ...snapshot.jurisdiction } : null })
-const durationMs = (step: StoryStep): number => step.action === 'wait' ? step.duration * 1000 : step.action === 'setView' ? (step.duration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.duration * 1000) : step.action === 'activate' ? (step.cameraDuration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.cameraDuration * 1000) : 0
+const durationMs = (step: StoryStep): number => step.action === 'wait' ? step.duration * 1000 : step.action === 'setView' ? (step.duration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.duration * 1000) : step.action === 'activate' || step.action === 'activateJurisdiction' ? (step.cameraDuration === undefined ? DEFAULT_CAMERA_DURATION_MS : step.cameraDuration * 1000) : 0
 
-export function compileStoryTimeline(story: Story, project: ProjectData, baseline: StoryAppSnapshot, resolveCamera: FeatureCameraResolver): StoryTimeline {
+export function compileStoryTimeline(story: Story, project: ProjectData, baseline: StoryAppSnapshot, resolveCamera: FeatureCameraResolver, resolveJurisdictionCamera?: JurisdictionCameraResolver): StoryTimeline {
   let cursor = 0
   let camera = cloneCamera(baseline.camera)
   let state = structural(baseline)
@@ -75,6 +76,18 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
       case 'setDarkMode': state = { ...state, darkMode: step.value }; break
       case 'setDarkBasemap': state = { ...state, layers: { ...state.layers, darkBasemap: step.value } }; break
       case 'selectJurisdiction': state = { ...state, jurisdiction: { level: 'municipality', value: step.id } }; break
+      case 'showJurisdiction': state = { ...state, jurisdiction: { ...step }, layers: { ...state.layers, jurisdictions: true } }; break
+      case 'hideJurisdiction': {
+        const selected=state.jurisdiction
+        if(selected&&'snapshotDate' in selected&&selected.name===step.name&&selected.level===step.level&&selected.snapshotDate===step.snapshotDate)state={...state,jurisdiction:null}
+        break
+      }
+      case 'activateJurisdiction': {
+        if(!resolveJurisdictionCamera)throw new Error('Jurisdiction camera resolver is unavailable')
+        state={...state,jurisdiction:{...step},layers:{...state.layers,jurisdictions:true}}
+        const to=resolveJurisdictionCamera(step,camera); const endMs=startMs+durationMs(step)
+        cameraSegments.push({startMs,endMs,from:cloneCamera(camera),to:cloneCamera(to),stepIndex}); camera=cloneCamera(to); break
+      }
       case 'clearJurisdiction': state = { ...state, jurisdiction: null }; break
       case 'wait': break
     }

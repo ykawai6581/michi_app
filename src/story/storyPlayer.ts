@@ -21,7 +21,7 @@ export class StoryPlayer {
 
   constructor(private story: Story, project: ProjectData, private operations: StoryAppOperations, private clock: StoryClock = systemClock) {
     const baseline = operations.snapshot()
-    this.timeline = compileStoryTimeline(story, project, baseline, operations.resolveFeatureCameraTarget ?? ((_feature, _visible, from) => from))
+    this.timeline = compileStoryTimeline(story, project, baseline, operations.resolveFeatureCameraTarget ?? ((_feature, _visible, from) => from), operations.resolveJurisdictionCameraTarget)
     this.state = { status: 'paused', currentStepIndex: 0, currentStep: story.steps[0] ?? null, elapsedSeconds: 0, totalWaitDuration: this.timeline.durationMs / 1000, playbackRate: this.playbackRate, error: null }
     this.snapshot = { ...this.state }
   }

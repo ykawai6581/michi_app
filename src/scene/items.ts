@@ -7,7 +7,7 @@ export function seedProjectRoads(features: EntityFeature[], current: SceneItem[]
   const existing = new Map(current.map((item) => [item.feature.properties.id, item]))
   const temporary = current.filter((item) => !item.projectBacked && !projectRoads.has(item.feature.properties.id))
   return [
-    ...Array.from(projectRoads.values(), (feature) => ({ feature, visible: existing.get(feature.properties.id)?.visible ?? true, projectBacked: true })),
+    ...Array.from(projectRoads.values(), (feature) => ({ feature, visible: existing.get(feature.properties.id)?.visible ?? false, projectBacked: true })),
     ...temporary,
   ]
 }

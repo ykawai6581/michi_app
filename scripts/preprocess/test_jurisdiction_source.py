@@ -6,7 +6,7 @@ import unittest
 from shapely.geometry import shape
 
 from scripts.preprocess.jurisdiction_source import (
-    is_parent_city_merge_eligible, normalize_features, parent_city_display,
+    build_search_index, is_parent_city_merge_eligible, normalize_features, parent_city_display,
     topology_to_feature_collection, write_snapshot,
 )
 
@@ -47,6 +47,19 @@ class JurisdictionSourceTests(unittest.TestCase):
     def test_rejects_non_polygon_without_network(self):
         bad={"type":"FeatureCollection","features":[feature("point",{"type":"Point","coordinates":[0,0]})]}
         with self.assertRaisesRegex(ValueError,"Polygon or MultiPolygon"): normalize_features(bad,prefecture="13",snapshot_date="1931-12-31")
+
+    def test_search_index_deduplicates_dates_levels_and_order(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); source=root/"source.geojson"; output=root/"out"
+            source.write_text(json.dumps(self.document),encoding="utf-8")
+            write_snapshot(source,output,prefecture="13",prefecture_name="Tokyo",snapshot_date="1932-12-31")
+            manifest=write_snapshot(source,output,prefecture="13",prefecture_name="Tokyo",snapshot_date="1931-12-31")
+            index=build_search_index(output,manifest)
+            municipality=next(entry for entry in index if entry["level"]=="municipality" and entry["name"]=="A")
+            parent=next(entry for entry in index if entry["level"]=="parent" and entry["name"]=="CITY")
+            self.assertEqual(municipality["dates"]["low"],["1931-12-31","1932-12-31"])
+            self.assertEqual(parent["dates"]["low"],["1931-12-31","1932-12-31"])
+            self.assertEqual(index,sorted(index,key=lambda entry:(entry["provider"],entry["prefecture"],entry["level"],entry["name"])))
 
 
 class TopoJsonTests(unittest.TestCase):

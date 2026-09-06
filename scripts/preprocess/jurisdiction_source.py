@@ -585,4 +585,36 @@ def write_snapshot(
         + "\n",
         encoding="utf-8",
     )
+    write_search_index(output_root, manifest)
     return manifest
+
+
+def build_search_index(output_root: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build the compact, deterministic name/date index used by the browser."""
+    entries: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for provider, provider_entry in manifest.get("providers", {}).items():
+        for prefecture, prefecture_entry in provider_entry.get("prefectures", {}).items():
+            for resolution, resolution_entry in prefecture_entry.get("resolutions", {}).items():
+                for snapshot_date, snapshot in resolution_entry.get("snapshots", {}).items():
+                    snapshot_path = output_root / snapshot["path"]
+                    if not snapshot_path.exists():
+                        continue
+                    collection = json.loads(snapshot_path.read_text(encoding="utf-8"))
+                    names = {("municipality", feature["properties"]["municipalityName"]) for feature in collection["features"]}
+                    names.update(("parent", feature["properties"]["parentJurisdictionName"]) for feature in collection["features"] if feature["properties"].get("parentJurisdictionName"))
+                    for level, name in names:
+                        key = (provider, prefecture, level, name)
+                        entry = entries.setdefault(key, {"provider": provider, "prefecture": prefecture, "name": name, "level": level, "dates": {}})
+                        entry["dates"].setdefault(resolution, []).append(snapshot_date)
+    result = []
+    for entry in entries.values():
+        entry["dates"] = {resolution: sorted(set(dates)) for resolution, dates in sorted(entry["dates"].items())}
+        result.append(entry)
+    return sorted(result, key=lambda entry: (entry["provider"], entry["prefecture"], entry["level"], entry["name"]))
+
+
+def write_search_index(output_root: Path, manifest: dict[str, Any]) -> None:
+    (output_root / "search-index.json").write_text(
+        json.dumps(build_search_index(output_root, manifest), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )

@@ -43,6 +43,14 @@ function validateStep(raw: unknown, index: number): asserts raw is StoryStep {
     case 'setDarkMode': if (!DARK_MODE_BEHAVIORS.includes(step.value as never)) throw new Error(`Invalid dark mode in story: ${String(step.value)}`); break
     case 'setDarkBasemap': if (typeof step.value !== 'boolean') throw new Error('Story dark basemap value must be boolean'); break
     case 'selectJurisdiction': if (!text(step.id)) throw new Error('Story selectJurisdiction requires a non-empty jurisdiction ID'); break
+    case 'showJurisdiction': case 'hideJurisdiction': case 'activateJurisdiction':
+      if (!text(step.name)) throw new Error(`Story ${step.action} requires a jurisdiction name`)
+      if (step.level !== 'municipality' && step.level !== 'parent') throw new Error(`Invalid jurisdiction level: ${String(step.level)}`)
+      if (!text(step.provider) || !text(step.prefecture)) throw new Error(`Story ${step.action} requires provider and prefecture`)
+      if (!text(step.snapshotDate) || !/^\d{4}-\d{2}-\d{2}$/.test(step.snapshotDate)) throw new Error(`Invalid jurisdiction snapshotDate: ${String(step.snapshotDate)}`)
+      if (step.resolution !== 'low' && step.resolution !== 'high') throw new Error(`Invalid jurisdiction resolution: ${String(step.resolution)}`)
+      if (step.action === 'activateJurisdiction' && step.cameraDuration !== undefined && !numberAtLeastZero(step.cameraDuration)) throw new Error('Invalid cameraDuration in story')
+      break
     case 'deactivate': case 'clearJurisdiction': break
     default: throw new Error(`Unsupported story action: ${step.action}`)
   }

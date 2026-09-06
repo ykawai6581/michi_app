@@ -1,5 +1,5 @@
 import type { BasemapMode, DarkModeBehavior, EntityFeature, LayerVisibility } from '../types/geo'
-import type { JurisdictionSelection } from '../data/jurisdictions'
+import type { JurisdictionSelection, JurisdictionStoryTarget } from '../data/jurisdictions'
 
 export const BASEMAP_MODES = ['presentation', 'rekichizu', 'gsi', 'white', 'transparent'] as const satisfies readonly BasemapMode[]
 export const OVERLAY_KEYS = ['modernRoads', 'railways', 'stations', 'historicalRoads', 'historicalPosts', 'jurisdictions'] as const satisfies readonly (keyof LayerVisibility)[]
@@ -18,11 +18,13 @@ export type StoryStep = ({ label?: string } & (
   | { action: 'setDarkMode'; value: DarkModeBehavior }
   | { action: 'setDarkBasemap'; value: boolean }
   | { action: 'selectJurisdiction'; id: string }
+  | ({ action: 'showJurisdiction' | 'hideJurisdiction' } & JurisdictionStoryTarget)
+  | ({ action: 'activateJurisdiction'; cameraDuration?: number } & JurisdictionStoryTarget)
   | { action: 'clearJurisdiction' }
 ))
 export interface Story { id: string; displayName?: string; project: string; steps: StoryStep[] }
 export interface FeatureFocusOptions { durationMs?: number; animateCamera?: boolean }
-export interface StoryAppSnapshot { selected: EntityFeature[]; activeFeature: EntityFeature | null; basemap: BasemapMode; layers: LayerVisibility; darkMode: DarkModeBehavior; jurisdiction: JurisdictionSelection; camera: CameraView }
+export interface StoryAppSnapshot { selected: EntityFeature[]; activeFeature: EntityFeature | null; basemap: BasemapMode; layers: LayerVisibility; darkMode: DarkModeBehavior; jurisdiction: JurisdictionSelection | JurisdictionStoryTarget; camera: CameraView }
 export interface StoryAppOperations {
   snapshot(): StoryAppSnapshot
   restore(snapshot: StoryAppSnapshot, options?: FeatureFocusOptions): void | Promise<void>
@@ -39,6 +41,7 @@ export interface StoryAppOperations {
   getCurrentView(): CameraView
   setView(view: CameraView, options?: SetViewOptions): void | Promise<void>
   resolveFeatureCameraTarget?(feature: EntityFeature, visible: EntityFeature[], from: CameraView): CameraView
+  resolveJurisdictionCameraTarget?(target: JurisdictionStoryTarget, from: CameraView): CameraView
   applyStoryFrame?(state: import('./storyTimeline').EvaluatedStoryState): void | Promise<void>
   waitForRender?(): Promise<void>
 }
