@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection, Polygon, MultiPolygon } from 'geojson'
 
 export const JURISDICTION_MANIFEST_PATH = 'data/jurisdictions/manifest.json'
+export const JURISDICTION_SEARCH_INDEX_PATH = 'data/jurisdictions/search-index.json'
 export type JurisdictionSelection = { level:'municipality'|'parent'; value:string } | null
 export type JurisdictionDisplayMode = 'municipality'|'parent-city'
 export type JurisdictionResolution = 'low'|'high'
@@ -21,6 +22,8 @@ export interface JurisdictionPrefectureManifest {
   availableDates?:string[]; snapshots?:Record<string,JurisdictionSnapshot>
 }
 export interface JurisdictionManifest { schemaVersion:number; providers:Record<string,{displayName:string;dataset:string;datasetName:string;sourceUrl:string;caution:string;prefectures:Record<string,JurisdictionPrefectureManifest>}> }
+export interface JurisdictionSearchEntry { provider:string; prefecture:string; name:string; level:'municipality'|'parent'; dates:Partial<Record<JurisdictionResolution,string[]>> }
+export interface JurisdictionStoryTarget { name:string; level:'municipality'|'parent'; provider:string; prefecture:string; snapshotDate:string; resolution:JurisdictionResolution }
 
 export const disabledJurisdictionLayer = ():JurisdictionLayerConfig => ({enabled:false,provider:'geoshape',prefecture:'13',resolution:'low',snapshotDate:null,displayMode:'municipality',selection:null})
 
@@ -48,6 +51,9 @@ export function jurisdictionSnapshotDate(prefecture:JurisdictionPrefectureManife
 }
 
 export const loadJurisdictionManifest=(fetcher:typeof fetch=fetch)=>fetchJson<JurisdictionManifest>(JURISDICTION_MANIFEST_PATH,fetcher)
+export const loadJurisdictionSearchIndex=(fetcher:typeof fetch=fetch)=>fetchJson<JurisdictionSearchEntry[]>(JURISDICTION_SEARCH_INDEX_PATH,fetcher)
+
+export const jurisdictionTargetKey = (target:JurisdictionStoryTarget) => `${target.provider}/${target.prefecture}/${target.resolution}/${target.snapshotDate}/${target.level}/${target.name}`
 
 export async function loadJurisdictionSnapshot(manifest:JurisdictionManifest, config:JurisdictionLayerConfig, fetcher:typeof fetch=fetch):Promise<JurisdictionCollection>{
   const prefecture=manifest.providers[config.provider]?.prefectures[config.prefecture]
@@ -60,6 +66,23 @@ export async function loadJurisdictionSnapshot(manifest:JurisdictionManifest, co
   const path=config.displayMode==='parent-city'?snapshot.parentDisplayPath:snapshot.path
   if(!path)throw new Error(`Parent-city display is unavailable for ${config.provider}/${config.prefecture}/${config.resolution}/${date}`)
   return fetchJson<JurisdictionCollection>(`data/jurisdictions/${path}`,fetcher)
+}
+
+export async function loadExactJurisdictionSnapshot(manifest:JurisdictionManifest,target:JurisdictionStoryTarget,fetcher:typeof fetch=fetch):Promise<JurisdictionCollection>{
+  const resolution=jurisdictionResolution(manifest.providers[target.provider]?.prefectures[target.prefecture],target.resolution)
+  const snapshot=resolution?.snapshots[target.snapshotDate]
+  if(!snapshot)throw new Error(`Jurisdiction snapshot unavailable: ${target.provider}/${target.prefecture}/${target.resolution}/${target.snapshotDate}`)
+  const path=target.level==='parent'?snapshot.parentDisplayPath:snapshot.path
+  if(!path)throw new Error(`Jurisdiction snapshot unavailable: ${target.provider}/${target.prefecture}/${target.resolution}/${target.snapshotDate}`)
+  return fetchJson<JurisdictionCollection>(`data/jurisdictions/${path}`,fetcher)
+}
+
+export function findJurisdiction(collection:JurisdictionCollection,target:JurisdictionStoryTarget):JurisdictionFeature {
+  const feature=collection.features.find(feature=>target.level==='parent'
+    ? feature.properties.jurisdictionLevel==='parent'&&feature.properties.municipalityName===target.name
+    : feature.properties.jurisdictionLevel!=='parent'&&feature.properties.municipalityName===target.name)
+  if(!feature)throw new Error(`Jurisdiction not found: ${target.name} · ${target.level} · ${target.snapshotDate} · ${target.resolution}`)
+  return feature
 }
 
 export function selectedJurisdictions(collection:JurisdictionCollection, selection:JurisdictionSelection):JurisdictionFeature[]{

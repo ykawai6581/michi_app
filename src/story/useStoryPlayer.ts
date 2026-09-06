@@ -33,6 +33,7 @@ export function useStoryPlayer(story: Story | null, project: ProjectData | null,
       getCurrentView: () => current().getCurrentView(),
       setView: (view, options) => current().setView(view, options),
       resolveFeatureCameraTarget: (feature, visible, from) => current().resolveFeatureCameraTarget!(feature, visible, from),
+      resolveJurisdictionCameraTarget: (target, from) => current().resolveJurisdictionCameraTarget!(target, from),
       applyStoryFrame: (state) => current().applyStoryFrame!(state),
       waitForRender: () => current().waitForRender!(),
     }
