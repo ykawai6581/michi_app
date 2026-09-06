@@ -7,6 +7,9 @@ import type { CameraView, Story, StoryAppSnapshot, StoryStep } from './storyType
 
 export const DEFAULT_CAMERA_DURATION_MS = 1200
 export const FEATURE_REVEAL_DURATION_MS = 1250
+export const BASEMAP_CROSSFADE_DURATION_MS = 500
+export const BASEMAP_LABEL_SETTLE_DELAY_MS = 100
+export const BASEMAP_LABEL_FADE_IN_MS = 300
 
 export interface StoryStructuralState {
   visibleIds: string[]
@@ -19,8 +22,9 @@ export interface StoryStructuralState {
 export interface StoryTimelineEvent { stepIndex: number; startMs: number; endMs: number; step: StoryStep; state: StoryStructuralState }
 export interface CameraSegment { startMs: number; endMs: number; from: CameraView; to: CameraView; stepIndex: number }
 export interface RevealSegment { startMs: number; endMs: number; featureId: string }
-export interface StoryTimeline { durationMs: number; baseline: StoryAppSnapshot; events: StoryTimelineEvent[]; cameraSegments: CameraSegment[]; revealSegments: RevealSegment[]; stepBoundariesMs: number[] }
-export interface EvaluatedStoryState extends StoryStructuralState { timeMs: number; camera: CameraView; lineReveal?: { featureId: string; progress: number } }
+export interface BasemapTransitionSegment { startMs: number; endMs: number; from: BasemapMode; to: BasemapMode; stepIndex: number }
+export interface StoryTimeline { durationMs: number; baseline: StoryAppSnapshot; events: StoryTimelineEvent[]; cameraSegments: CameraSegment[]; revealSegments: RevealSegment[]; basemapTransitions: BasemapTransitionSegment[]; stepBoundariesMs: number[] }
+export interface EvaluatedStoryState extends StoryStructuralState { timeMs: number; camera: CameraView; cameraMoving: boolean; basemapLabelOpacity: number; basemapTransition?: { from: BasemapMode; to: BasemapMode; progress: number }; lineReveal?: { featureId: string; progress: number } }
 export type FeatureCameraResolver = (feature: EntityFeature, visibleFeatures: EntityFeature[], from: CameraView) => CameraView
 
 const cloneCamera = (camera: CameraView): CameraView => ({ ...camera, center: [...camera.center] as [number, number] })
@@ -34,6 +38,7 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
   const events: StoryTimelineEvent[] = []
   const cameraSegments: CameraSegment[] = []
   const revealSegments: RevealSegment[] = []
+  const basemapTransitions: BasemapTransitionSegment[] = []
   const stepBoundariesMs: number[] = []
   story.steps.forEach((step, stepIndex) => {
     const startMs = cursor
@@ -59,7 +64,12 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
         cameraSegments.push({ startMs, endMs, from: cloneCamera(camera), to, stepIndex })
         camera = cloneCamera(to); break
       }
-      case 'setBasemap': state = { ...state, basemap: step.value, layers: { ...state.layers, basemap: step.value } }; break
+      case 'setBasemap': {
+        const from = state.basemap
+        state = { ...state, basemap: step.value, layers: { ...state.layers, basemap: step.value } }
+        if (from !== step.value) basemapTransitions.push({ startMs, endMs: startMs + BASEMAP_CROSSFADE_DURATION_MS, from, to: step.value, stepIndex })
+        break
+      }
       case 'setOverlay': state = { ...state, layers: { ...state.layers, [step.layer]: step.visible } }; break
       case 'setDarkMode': state = { ...state, darkMode: step.value }; break
       case 'setDarkBasemap': state = { ...state, layers: { ...state.layers, darkBasemap: step.value } }; break
@@ -70,7 +80,7 @@ export function compileStoryTimeline(story: Story, project: ProjectData, baselin
     cursor += durationMs(step)
     events.push({ stepIndex, startMs, endMs: cursor, step, state: { ...state, visibleIds: [...state.visibleIds], layers: { ...state.layers }, jurisdiction: state.jurisdiction ? { ...state.jurisdiction } : null } })
   })
-  return { durationMs: cursor, baseline: structuredClone(baseline), events, cameraSegments, revealSegments, stepBoundariesMs }
+  return { durationMs: cursor, baseline: structuredClone(baseline), events, cameraSegments, revealSegments, basemapTransitions, stepBoundariesMs }
 }
 
 export function interpolateCamera(from: CameraView, to: CameraView, progress: number): CameraView {
@@ -90,5 +100,11 @@ export function evaluateTimeline(timeline: StoryTimeline, requestedMs: number): 
     if (timeMs < segment.endMs) break
   }
   const reveal = [...timeline.revealSegments].reverse().find(segment => segment.startMs <= timeMs && state.activeFeatureId === segment.featureId)
-  return { ...state, visibleIds: [...state.visibleIds], layers: { ...state.layers }, jurisdiction: state.jurisdiction ? { ...state.jurisdiction } : null, timeMs, camera, lineReveal: reveal ? { featureId: reveal.featureId, progress: easeOutCubic(clamp01((timeMs - reveal.startMs) / FEATURE_REVEAL_DURATION_MS)) } : undefined }
+  const activeCamera = timeline.cameraSegments.find(segment => segment.startMs <= timeMs && timeMs < segment.endMs)
+  const previousCamera = [...timeline.cameraSegments].reverse().find(segment => segment.endMs <= timeMs)
+  const sinceCameraEnd = previousCamera ? timeMs - previousCamera.endMs : Infinity
+  const basemapLabelOpacity = activeCamera ? 0 : previousCamera && sinceCameraEnd < BASEMAP_LABEL_SETTLE_DELAY_MS ? 0 : previousCamera && sinceCameraEnd < BASEMAP_LABEL_SETTLE_DELAY_MS + BASEMAP_LABEL_FADE_IN_MS
+    ? easeOutCubic((sinceCameraEnd - BASEMAP_LABEL_SETTLE_DELAY_MS) / BASEMAP_LABEL_FADE_IN_MS) : 1
+  const transition = [...timeline.basemapTransitions].reverse().find(segment => segment.startMs <= timeMs && timeMs < segment.endMs)
+  return { ...state, visibleIds: [...state.visibleIds], layers: { ...state.layers }, jurisdiction: state.jurisdiction ? { ...state.jurisdiction } : null, timeMs, camera, cameraMoving: Boolean(activeCamera), basemapLabelOpacity, basemapTransition: transition ? { from: transition.from, to: transition.to, progress: easeOutCubic(clamp01((timeMs - transition.startMs) / BASEMAP_CROSSFADE_DURATION_MS)) } : undefined, lineReveal: reveal ? { featureId: reveal.featureId, progress: easeOutCubic(clamp01((timeMs - reveal.startMs) / FEATURE_REVEAL_DURATION_MS)) } : undefined }
 }

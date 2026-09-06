@@ -29,7 +29,8 @@ export function getPresentationLayerIds(map: maplibregl.Map): string[] {
 }
 
 export function addDataLayers(map: maplibregl.Map, project: ProjectData): void {
-  map.addLayer({ id: LAYER_IDS.whiteBase, type: 'background', paint: { 'background-color': '#f4f2ec', 'background-opacity': 0 } })
+  map.addLayer({ id: LAYER_IDS.whiteBase, type: 'background', layout: { visibility: 'none' }, paint: { 'background-color': '#f4f2ec', 'background-opacity': 1 } })
+  map.addLayer({ id: LAYER_IDS.gsiBacking, type: 'background', layout: { visibility: 'none' }, paint: { 'background-color': '#f4f2ec', 'background-opacity': 1 } })
   map.addLayer({ id: LAYER_IDS.darkVeil, type: 'background', paint: { 'background-color': '#06151d', 'background-opacity': 0 } })
   map.addSource(SOURCE_IDS.gsiBase, {
     type: 'raster',
@@ -91,6 +92,7 @@ export function setBasemapMode(map: maplibregl.Map, mode: BasemapMode, presentat
   presentationLayerIds.forEach((id) => map.setLayoutProperty(id, 'visibility', showPresentation ? 'visible' : 'none'))
   rekichizuLayerIds.forEach((id) => map.setLayoutProperty(id, 'visibility', mode === 'rekichizu' ? 'visible' : 'none'))
   map.setLayoutProperty(LAYER_IDS.gsiBase, 'visibility', mode === 'gsi' ? 'visible' : 'none')
+  map.setLayoutProperty(LAYER_IDS.gsiBacking, 'visibility', mode === 'gsi' ? 'visible' : 'none')
   map.setPaintProperty(LAYER_IDS.whiteBase, 'background-opacity', mode === 'white' || mode === 'gsi' ? 1 : 0)
   map.setPaintProperty(LAYER_IDS.darkVeil, 'background-opacity', dark ? 0.68 : 0)
 }

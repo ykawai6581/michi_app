@@ -76,13 +76,12 @@ export default function App() {
     if (!map) throw new Error('Map render barrier is unavailable')
     await mapRef.current?.waitForBasemap(current.current.layers.basemap)
     await new Promise<void>((resolve, reject) => {
-      let rendered = false
-      const timeout = window.setTimeout(() => { cleanup(); reject(new Error('Map did not become render-ready within 10 seconds')) }, 10_000)
-      const cleanup = () => { window.clearTimeout(timeout); map.off('render', onRender); map.off('idle', onIdle); map.off('error', onError) }
-      const onRender = () => { rendered = true; if (map.areTilesLoaded()) { cleanup(); resolve() } }
-      const onIdle = () => { if (rendered) { cleanup(); resolve() } }
-      const onError = (event: { error?: Error }) => { cleanup(); reject(event.error ?? new Error('Map resource failed while waiting for render')) }
-      map.on('render', onRender); map.on('idle', onIdle); map.on('error', onError); map.triggerRepaint()
+      const timeout = window.setTimeout(() => { cleanup(); reject(new Error('Map did not paint the requested frame within 10 seconds')) }, 10_000)
+      const cleanup = () => { window.clearTimeout(timeout); map.off('render', onRender) }
+      const onRender = () => { cleanup(); requestAnimationFrame(() => resolve()) }
+      // Basemap readiness is handled above. Unrelated source errors (including
+      // expected external 404s) must not turn the deterministic barrier into a deadlock.
+      map.on('render', onRender); map.triggerRepaint()
     })
   }, [waitForAppCommit])
 
@@ -162,7 +161,7 @@ export default function App() {
       setStoryRevealProgress(frame.lineReveal?.progress)
       const map = mapRef.current?.getMap(); if (!map) throw new Error('Map camera is unavailable'); map.stop(); map.jumpTo(frame.camera)
       await waitForAppCommit()
-      await mapRef.current?.waitForBasemap(frame.basemap)
+      await mapRef.current?.applyStoryPresentation(frame)
     },
     waitForRender,
   }), [activateFeature, hideFeature, presentationScale, project, sceneSize, selectJurisdictionFeature, showFeature, style, waitForAppCommit, waitForRender])
