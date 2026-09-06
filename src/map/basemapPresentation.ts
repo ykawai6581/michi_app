@@ -5,6 +5,7 @@ export const BASEMAP_RESOURCE_TIMEOUT_MS = 8_000
 
 type OpacityProperty = 'background-opacity' | 'fill-opacity' | 'line-opacity' | 'text-opacity' | 'icon-opacity' | 'raster-opacity' | 'circle-opacity' | 'fill-extrusion-opacity'
 type StyleLayer = maplibregl.LayerSpecification & { paint?: Record<string, unknown>; source?: string }
+type Expression = unknown[]
 
 const opacityProperties = (type: StyleLayer['type']): OpacityProperty[] => {
   switch (type) {
@@ -19,9 +20,44 @@ const opacityProperties = (type: StyleLayer['type']): OpacityProperty[] => {
   }
 }
 
-const multipliedOpacity = (original: unknown, multiplier: number): unknown => {
+const isZoomInput = (value: unknown): value is ['zoom'] => Array.isArray(value) && value.length === 1 && value[0] === 'zoom'
+
+const scaleOutput = (value: unknown, multiplier: number): unknown => {
+  if (typeof value === 'number') return value * multiplier
+  if (multiplier === 1) return value
+  if (multiplier === 0) return 0
+  return ['*', value, multiplier]
+}
+
+/**
+ * Scale a MapLibre opacity value without nesting a zoom expression below `*`.
+ * MapLibre requires `zoom` to remain the direct input of a top-level `step` or
+ * `interpolate`, so zoom-dependent opacity expressions are rebuilt with their
+ * output values scaled instead of wrapping the complete expression.
+ */
+export const scaleOpacityValue = (original: unknown, multiplier: number): unknown => {
   const value = original === undefined ? 1 : original
-  return typeof value === 'number' ? value * multiplier : ['*', value, multiplier]
+  if (typeof value === 'number') return value * multiplier
+  if (!Array.isArray(value)) return scaleOutput(value, multiplier)
+
+  const expression = value as Expression
+  if (expression[0] === 'interpolate' && isZoomInput(expression[2])) {
+    const scaled: Expression = [expression[0], expression[1], expression[2]]
+    for (let index = 3; index < expression.length; index += 2) {
+      scaled.push(expression[index], scaleOutput(expression[index + 1], multiplier))
+    }
+    return scaled
+  }
+
+  if (expression[0] === 'step' && isZoomInput(expression[1])) {
+    const scaled: Expression = [expression[0], expression[1], scaleOutput(expression[2], multiplier)]
+    for (let index = 3; index < expression.length; index += 2) {
+      scaled.push(expression[index], scaleOutput(expression[index + 1], multiplier))
+    }
+    return scaled
+  }
+
+  return scaleOutput(value, multiplier)
 }
 
 export interface BasemapLayerGroup {
@@ -56,7 +92,7 @@ export function applyBasemapAlpha(map: maplibregl.Map, group: BasemapLayerGroup,
     map.setLayoutProperty(id, 'visibility', baseAlpha > 0 || visibleAtZero ? 'visible' : 'none')
     opacityProperties(layer.type).forEach(property => {
       const multiplier = baseAlpha * (layer.type === 'symbol' ? labels : 1)
-      map.setPaintProperty(id, property, multipliedOpacity(layer.opacity[property], multiplier) as never)
+      map.setPaintProperty(id, property, scaleOpacityValue(layer.opacity[property], multiplier) as never)
     })
   })
 }
