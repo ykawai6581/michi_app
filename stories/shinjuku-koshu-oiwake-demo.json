@@ -19,6 +19,10 @@
       "label": "Hide 甲州道中 initially"
     },
     {
+      "action": "wait",
+      "duration": 3
+    },
+    {
       "action": "deactivate",
       "label": "Clear initial focus"
     },
@@ -29,7 +33,7 @@
     },
     {
       "action": "wait",
-      "duration": 2
+      "duration": 3
     },
     {
       "action": "show",
@@ -49,7 +53,7 @@
     {
       "action": "activate",
       "id": "historical-road:R003:0",
-      "cameraDuration": 1.5,
+      "cameraDuration": 5,
       "label": "甲州道中をアクティブ化"
     },
     {
@@ -129,6 +133,11 @@
       "action": "show",
       "id": "tokyo-named-ome-kaido-short",
       "label": "青梅街道を表示（カメラ維持）"
+    },
+    {
+      "action": "wait",
+      "duration": 2,
+      "label": "Hold final settled scene"
     }
   ]
 }
