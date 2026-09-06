@@ -12,10 +12,18 @@
       "tokyo-named-ome-kaido-short"
     ],
     "historicalRoads": [
+      "R001",
+      "R004",
+      "R005",
+      "R002",
       "R003"
     ],
     "historicalPosts": [
-      "R003"
+      "R003",
+      "R001",
+      "R002",
+      "R004",
+      "R005"
     ],
     "locations": [
       "shinjuku-oiwake"
