@@ -77,18 +77,38 @@ export async function loadExactJurisdictionSnapshot(manifest:JurisdictionManifes
   return fetchJson<JurisdictionCollection>(`data/jurisdictions/${path}`,fetcher)
 }
 
+const normalizedJurisdictionName=(value:string|undefined)=>String(value??'').normalize('NFKC').replace(/\s+/g,' ').trim()
+const sameJurisdictionName=(left:string|undefined,right:string)=>normalizedJurisdictionName(left)===normalizedJurisdictionName(right)
+
 export function findJurisdiction(collection:JurisdictionCollection,target:JurisdictionStoryTarget):JurisdictionFeature {
-  const feature=collection.features.find(feature=>target.level==='parent'
-    ? feature.properties.jurisdictionLevel==='parent'&&feature.properties.municipalityName===target.name
-    : feature.properties.jurisdictionLevel!=='parent'&&feature.properties.municipalityName===target.name)
-  if(!feature)throw new Error(`Jurisdiction not found: ${target.name} · ${target.level} · ${target.snapshotDate} · ${target.resolution}`)
-  return feature
+  if(target.level==='municipality'){
+    const feature=collection.features.find(feature=>feature.properties.jurisdictionLevel!=='parent'&&(
+      sameJurisdictionName(feature.properties.municipalityName,target.name)||sameJurisdictionName(feature.properties.jurisdictionName,target.name)
+    ))
+    if(feature)return feature
+  }else{
+    const explicit=collection.features.find(feature=>feature.properties.jurisdictionLevel==='parent'&&(
+      sameJurisdictionName(feature.properties.municipalityName,target.name)||sameJurisdictionName(feature.properties.jurisdictionName,target.name)
+    ))
+    if(explicit)return explicit
+    const members=collection.features.filter(feature=>feature.properties.jurisdictionLevel!=='parent'&&sameJurisdictionName(feature.properties.parentJurisdictionName,target.name))
+    if(members.length){
+      const first=members[0]
+      const coordinates=members.flatMap(feature=>feature.geometry.type==='Polygon'?[feature.geometry.coordinates]:feature.geometry.coordinates)
+      return {
+        type:'Feature',
+        properties:{...first.properties,jurisdictionId:`story-parent:${target.provider}:${target.prefecture}:${target.snapshotDate}:${target.name}`,municipalityName:target.name,jurisdictionName:target.name,jurisdictionLevel:'parent',memberCount:members.length,memberJurisdictionIds:members.map(feature=>feature.properties.jurisdictionId),derived:true,derivation:'story-parent-members'},
+        geometry:{type:'MultiPolygon',coordinates},
+      }
+    }
+  }
+  throw new Error(`Jurisdiction not found: ${target.name} · ${target.level} · ${target.snapshotDate} · ${target.resolution}`)
 }
 
 export function selectedJurisdictions(collection:JurisdictionCollection, selection:JurisdictionSelection):JurisdictionFeature[]{
   if(!selection)return []
-  if(selection.level==='parent')return collection.features.filter(feature=>feature.properties.parentJurisdictionName===selection.value||(feature.properties.jurisdictionLevel==='parent'&&feature.properties.municipalityName===selection.value))
-  return collection.features.filter(feature=>feature.properties.municipalityName===selection.value)
+  if(selection.level==='parent')return collection.features.filter(feature=>sameJurisdictionName(feature.properties.parentJurisdictionName,selection.value)||(feature.properties.jurisdictionLevel==='parent'&&(sameJurisdictionName(feature.properties.municipalityName,selection.value)||sameJurisdictionName(feature.properties.jurisdictionName,selection.value))))
+  return collection.features.filter(feature=>feature.properties.jurisdictionLevel!=='parent'&&(sameJurisdictionName(feature.properties.municipalityName,selection.value)||sameJurisdictionName(feature.properties.jurisdictionName,selection.value)))
 }
 
 export function reconcileJurisdictionSelection(collection:JurisdictionCollection, selection:JurisdictionSelection):JurisdictionSelection {
