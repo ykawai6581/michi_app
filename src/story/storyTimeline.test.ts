@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProjectData } from '../data/project'
 import type { EntityFeature } from '../types/geo'
 import type { Story, StoryAppSnapshot } from './storyTypes'
-import { compileStoryTimeline, evaluateTimeline, FEATURE_REVEAL_DURATION_MS, interpolateCamera } from './storyTimeline'
+import { BASEMAP_CROSSFADE_DURATION_MS, BASEMAP_LABEL_FADE_IN_MS, BASEMAP_LABEL_SETTLE_DELAY_MS, compileStoryTimeline, evaluateTimeline, FEATURE_REVEAL_DURATION_MS, interpolateCamera } from './storyTimeline'
 
 const point = (id:string, coordinates:[number,number]=[10,20]):EntityFeature => ({type:'Feature',properties:{id,name:id,type:'place'},geometry:{type:'Point',coordinates}})
 const line:EntityFeature = {type:'Feature',properties:{id:'road',name:'road',type:'road'},geometry:{type:'LineString',coordinates:[[0,0],[10,0]]}}
@@ -22,6 +22,9 @@ describe('Story timeline evaluation',()=>{
   it('clamps negative, excessive, and NaN evaluation times',()=>{expect(evaluateTimeline(timeline,-10).timeMs).toBe(0);expect(evaluateTimeline(timeline,Infinity).timeMs).toBe(0);expect(evaluateTimeline(timeline,99999).timeMs).toBe(timeline.durationMs)})
   it('is independent of evaluation order',()=>{const a=evaluateTimeline(timeline,1240);evaluateTimeline(timeline,20);expect(evaluateTimeline(timeline,1240)).toEqual(a)})
   it('uses the fixed reveal duration',()=>expect(FEATURE_REVEAL_DURATION_MS).toBe(1250))
+  it('derives camera motion and the post-camera label reveal entirely from Story time',()=>{const camera=compile([{action:'wait',duration:1},{action:'setView',center:[1,2],zoom:12,bearing:0,pitch:0,duration:1},{action:'wait',duration:1}]);expect(evaluateTimeline(camera,500)).toMatchObject({cameraMoving:false,basemapLabelOpacity:1});expect(evaluateTimeline(camera,1500)).toMatchObject({cameraMoving:true,basemapLabelOpacity:0});expect(evaluateTimeline(camera,2000)).toMatchObject({cameraMoving:false,basemapLabelOpacity:0});expect(evaluateTimeline(camera,2000+BASEMAP_LABEL_SETTLE_DELAY_MS+BASEMAP_LABEL_FADE_IN_MS/2).basemapLabelOpacity).toBeGreaterThan(0);expect(evaluateTimeline(camera,2500).basemapLabelOpacity).toBe(1)})
+  it('immediately hides an interrupted label fade when another camera starts',()=>{const camera=compile([{action:'setView',center:[1,2],zoom:11,bearing:0,pitch:0,duration:.2},{action:'wait',duration:.25},{action:'setView',center:[2,3],zoom:12,bearing:0,pitch:0,duration:.2}]);expect(evaluateTimeline(camera,400).basemapLabelOpacity).toBeGreaterThan(0);expect(evaluateTimeline(camera,450)).toMatchObject({cameraMoving:true,basemapLabelOpacity:0})})
+  it('crossfades setBasemap without extending duration',()=>{const basemaps=compile([{action:'wait',duration:2},{action:'setBasemap',value:'rekichizu'},{action:'wait',duration:1}]);expect(basemaps.durationMs).toBe(3000);expect(basemaps.basemapTransitions).toHaveLength(1);expect(evaluateTimeline(basemaps,2000)).toMatchObject({basemap:'rekichizu',basemapTransition:{from:'presentation',to:'rekichizu',progress:0}});expect(evaluateTimeline(basemaps,2000+BASEMAP_CROSSFADE_DURATION_MS/2).basemapTransition!.progress).toBeGreaterThan(0);expect(evaluateTimeline(basemaps,2500).basemapTransition).toBeUndefined()})
 })
 
 describe('camera interpolation',()=>{

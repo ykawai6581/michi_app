@@ -38,6 +38,13 @@ Story
 → MP4
 ```
 
-The app's compiled timeline supplies the duration. Every timestamp is calculated independently as the absolute frame number divided by FPS; preview playback rate and browser execution speed are never used. `waitForRender()` synchronizes React, MapLibre, tiles, and asynchronous resources such as Rekichizu before the screenshot.
+The app's compiled timeline supplies the duration. Every timestamp is calculated independently as the absolute frame number divided by FPS; preview playback rate and browser execution speed are never used. Basemap crossfade progress and post-camera vector-label opacity are also evaluated from that absolute Story timestamp. `setBasemap` does not lengthen the Story: its incoming viewport sources are preloaded at zero alpha, then `waitForRender()` synchronizes React, the required basemap sources, and a subsequent MapLibre paint before the screenshot.
+
+This resource wait is bounded and scoped to the incoming basemap rather than all
+project sources. A slow renderer may therefore spend extra wall-clock time on a
+frame without changing its captured transition progress. Presentation and
+Rekichizu symbol layers hide during camera motion; MICHI annotations remain
+visible. GSI labels cannot be independently hidden because the text is part of
+the raster tile image, although the entire GSI basemap still crossfades.
 
 Consequently, render wall-clock duration is unrelated to video duration. A 30-second Story may take several minutes to render while frame 283 at 30 FPS always represents Story time `283 / 30`.

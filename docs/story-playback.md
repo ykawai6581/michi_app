@@ -29,7 +29,8 @@ Every step may have an optional `label`. Supported steps are:
 - `activate` / `deactivate`: set or clear narrative focus. Activation delegates
   camera behavior to the app. `cameraDuration`, when present, is in seconds.
 - `setBasemap`: one of `presentation`, `rekichizu`, `gsi`, `white`, or
-  `transparent`. Asynchronous Rekichizu setup is awaited.
+  `transparent`. The logical change is immediate and does not add to Story
+  duration, while the incoming basemap is prepared and crossfaded over 500 ms.
 - `setOverlay`: sets one existing “重ねる情報” key (`modernRoads`, `railways`,
   `stations`, `historicalRoads`, `historicalPosts`, or `jurisdictions`). It
   never changes individually selected entities.
@@ -80,6 +81,14 @@ window.__michiStory.getTime()     // seconds
 camera with `jumpTo`. `waitForRender()` is a bounded barrier for React/source
 updates, asynchronous basemaps, and a subsequent MapLibre frame. Repeated seeks
 to one timestamp are independent of previous seek order.
+
+Authored camera segments also produce deterministic presentation state. Vector
+basemap labels disappear during motion, remain hidden for a short settle delay,
+and ease back in after the camera stops. MICHI annotations and geometry stay
+visible. GSI labels cannot be hidden independently because they are baked into
+its raster tiles. Manual camera movement uses the same treatment with normal
+wall-clock animation, but Story-time opacity always takes precedence during
+playback and seeking.
 
 Total duration now includes `wait`, `setView.duration`, and
 `activate.cameraDuration`. Activation changes narrative focus at the start and
