@@ -1,13 +1,14 @@
 import type { JurisdictionSelection } from '../data/jurisdictions'
 import type { BasemapMode, DarkModeBehavior, EntityFeature, LayerVisibility } from '../types/geo'
 import { easeOutCubic, clamp01 } from './storyEasing'
+import { CLOUD_TRANSITION_DURATION_MS, cloudCoverProgress } from './cloudTransition'
 import { findProjectFeatureById } from './storyFeatureResolver'
 import type { ProjectData } from '../data/project'
 import type { CameraView, Story, StoryAppSnapshot, StoryStep } from './storyTypes'
 
 export const DEFAULT_CAMERA_DURATION_MS = 1200
 export const FEATURE_REVEAL_DURATION_MS = 1250
-export const BASEMAP_CROSSFADE_DURATION_MS = 500
+export const BASEMAP_CROSSFADE_DURATION_MS = CLOUD_TRANSITION_DURATION_MS
 export const BASEMAP_LABEL_SETTLE_DELAY_MS = 100
 export const BASEMAP_LABEL_FADE_IN_MS = 300
 
@@ -24,7 +25,7 @@ export interface CameraSegment { startMs: number; endMs: number; from: CameraVie
 export interface RevealSegment { startMs: number; endMs: number; featureId: string }
 export interface BasemapTransitionSegment { startMs: number; endMs: number; from: BasemapMode; to: BasemapMode; stepIndex: number }
 export interface StoryTimeline { durationMs: number; baseline: StoryAppSnapshot; events: StoryTimelineEvent[]; cameraSegments: CameraSegment[]; revealSegments: RevealSegment[]; basemapTransitions: BasemapTransitionSegment[]; stepBoundariesMs: number[] }
-export interface EvaluatedStoryState extends StoryStructuralState { timeMs: number; camera: CameraView; cameraMoving: boolean; basemapLabelOpacity: number; basemapTransition?: { from: BasemapMode; to: BasemapMode; progress: number }; lineReveal?: { featureId: string; progress: number } }
+export interface EvaluatedStoryState extends StoryStructuralState { timeMs: number; camera: CameraView; cameraMoving: boolean; basemapLabelOpacity: number; cloudCoverProgress: number; basemapTransition?: { from: BasemapMode; to: BasemapMode; progress: number }; lineReveal?: { featureId: string; progress: number } }
 export type FeatureCameraResolver = (feature: EntityFeature, visibleFeatures: EntityFeature[], from: CameraView) => CameraView
 
 const cloneCamera = (camera: CameraView): CameraView => ({ ...camera, center: [...camera.center] as [number, number] })
@@ -106,5 +107,9 @@ export function evaluateTimeline(timeline: StoryTimeline, requestedMs: number): 
   const basemapLabelOpacity = activeCamera ? 0 : previousCamera && sinceCameraEnd < BASEMAP_LABEL_SETTLE_DELAY_MS ? 0 : previousCamera && sinceCameraEnd < BASEMAP_LABEL_SETTLE_DELAY_MS + BASEMAP_LABEL_FADE_IN_MS
     ? easeOutCubic((sinceCameraEnd - BASEMAP_LABEL_SETTLE_DELAY_MS) / BASEMAP_LABEL_FADE_IN_MS) : 1
   const transition = [...timeline.basemapTransitions].reverse().find(segment => segment.startMs <= timeMs && timeMs < segment.endMs)
-  return { ...state, visibleIds: [...state.visibleIds], layers: { ...state.layers }, jurisdiction: state.jurisdiction ? { ...state.jurisdiction } : null, timeMs, camera, cameraMoving: Boolean(activeCamera), basemapLabelOpacity, basemapTransition: transition ? { from: transition.from, to: transition.to, progress: easeOutCubic(clamp01((timeMs - transition.startMs) / BASEMAP_CROSSFADE_DURATION_MS)) } : undefined, lineReveal: reveal ? { featureId: reveal.featureId, progress: easeOutCubic(clamp01((timeMs - reveal.startMs) / FEATURE_REVEAL_DURATION_MS)) } : undefined }
+  const transitionRaw = transition ? clamp01((timeMs - transition.startMs) / BASEMAP_CROSSFADE_DURATION_MS) : 0
+  // Keep the actual basemap swap concentrated near full cloud cover so tile/style
+  // differences are masked by the decorative wipe rather than exposed mid-screen.
+  const basemapProgress = transition ? easeOutCubic(clamp01((transitionRaw - 0.38) / 0.24)) : 0
+  return { ...state, visibleIds: [...state.visibleIds], layers: { ...state.layers }, jurisdiction: state.jurisdiction ? { ...state.jurisdiction } : null, timeMs, camera, cameraMoving: Boolean(activeCamera), basemapLabelOpacity, cloudCoverProgress: transition ? cloudCoverProgress(transitionRaw) : 0, basemapTransition: transition ? { from: transition.from, to: transition.to, progress: basemapProgress } : undefined, lineReveal: reveal ? { featureId: reveal.featureId, progress: easeOutCubic(clamp01((timeMs - reveal.startMs) / FEATURE_REVEAL_DURATION_MS)) } : undefined }
 }
