@@ -233,6 +233,7 @@ def select_routes(path: Path, route_ids: list[str], family: str) -> list[dict]:
     return features
 
 def _browser_properties(features: list[dict], family: str, rail_colors: dict[str, Any] | None = None) -> None:
+    historical_route_indexes: dict[str, int] = {}
     for index, feature in enumerate(features):
         p = feature["properties"]
         if family == "railways":
@@ -244,7 +245,11 @@ def _browser_properties(features: list[dict], family: str, rail_colors: dict[str
             p.update(id=p["railRouteId"], name=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"], type="railway", railDisplayName=p.get("name:ja") or p.get("name") or p.get("ref") or p["railRouteId"])
             if rail_colors: stamp_rail_color(p, rail_colors)
         elif family == "stations": p.update(id=f"station:{p.get('osm_element_type','element')}:{p.get('osm_element_id',index)}", name=p.get("name:ja") or p.get("name") or "名称不明駅", type="station")
-        elif family == "historicalRoads": p.update(id=f"historical-road:{p['routeId']}:{index}", type="historical-road")
+        elif family == "historicalRoads":
+            route_id = p["routeId"]
+            route_index = historical_route_indexes.get(route_id, 0)
+            historical_route_indexes[route_id] = route_index + 1
+            p.update(id=f"historical-road:{route_id}:{route_index}", type="historical-road")
         elif family == "historicalPosts": p.update(id=f"historical-post:{p['postId']}", name=p.get("name") or p.get("historicalLabel") or p["postId"], type="historical-place")
 
 def rail_group_properties(properties: dict) -> dict | None:
