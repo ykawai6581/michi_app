@@ -49,6 +49,7 @@ export class StoryPlayer {
     if (frame.timeMs >= this.timeline.durationMs && this.timeline.durationMs > 0) this.state.status = 'complete'
     else if (this.state.status !== 'playing') this.state.status = 'paused'
     this.emit()
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('michi:story-frame', { detail: { cloudCoverProgress: frame.cloudCoverProgress } }))
   }
   private applyPreviewFrame(frame: EvaluatedStoryState, generation: number) {
     if (!this.operations.applyStoryFrame) { this.setError(new Error('Deterministic Story frame application is unavailable')); return }
