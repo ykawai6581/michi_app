@@ -3,7 +3,11 @@ import { TOKYO_CAMERA } from './config'
 
 export const PRESENTATION_STYLE_URL = 'https://tiles.openfreemap.org/styles/bright'
 
-const JAPANESE_NAME_TEXT_FIELD = ['coalesce', ['get', 'name:ja'], ['get', 'name']] as const
+// OpenFreeMap/OpenMapTiles exposes local non-Latin names separately from the
+// Latin transliteration used by Bright's default bilingual labels. In Japan,
+// `name:nonlatin` is the Japanese label, so prefer it and fall back to `name`
+// only when no local-script name is available.
+const JAPANESE_NAME_TEXT_FIELD = ['coalesce', ['get', 'name:nonlatin'], ['get', 'name']] as const
 
 const expressionUses = (value: unknown, property: string): boolean => {
   if (!Array.isArray(value)) return false
