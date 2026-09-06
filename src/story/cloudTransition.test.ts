@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { CLOUD_VIEWBOX_HEIGHT, cloudBankPath, cloudCoverProgress, generateCloudBank } from './cloudTransition'
+import { CLOUD_HOLD_DURATION_MS, CLOUD_SLIDE_DURATION_MS, CLOUD_TRANSITION_DURATION_MS, CLOUD_VIEWBOX_HEIGHT, cloudBankPath, cloudCoverProgress, generateCloudBank } from './cloudTransition'
 
 describe('geometric cloud transition', () => {
-  it('uses a symmetric deterministic cover curve', () => {
+  it('slides in, holds fully covered for 0.5 seconds, then recedes', () => {
+    const slideFraction = CLOUD_SLIDE_DURATION_MS / CLOUD_TRANSITION_DURATION_MS
+    const holdEnd = 1 - slideFraction
+    expect(CLOUD_HOLD_DURATION_MS).toBe(500)
     expect(cloudCoverProgress(0)).toBe(0)
-    expect(cloudCoverProgress(0.5)).toBe(1)
+    expect(cloudCoverProgress(slideFraction)).toBe(1)
+    expect(cloudCoverProgress((slideFraction + holdEnd) / 2)).toBe(1)
+    expect(cloudCoverProgress(holdEnd)).toBe(1)
     expect(cloudCoverProgress(1)).toBe(0)
-    expect(cloudCoverProgress(0.25)).toBeCloseTo(cloudCoverProgress(0.75))
+    expect(cloudCoverProgress(slideFraction / 2)).toBeGreaterThan(0)
+    expect(cloudCoverProgress((1 + holdEnd) / 2)).toBeGreaterThan(0)
   })
 
   it('regenerates identical but non-uniform geometry from a seed', () => {
